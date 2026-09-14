@@ -1,14 +1,18 @@
 using UnityEngine;
 
-// 재료함 / 냄비 / 그릇함 / 서빙구 / 카운터 전달칸 공통 컴포넌트.
+// 재료함 / 손질대 / 냄비 / 그릇함 / 서빙구 / 카운터 전달칸 공통 컴포넌트.
 // 자기 상태와 상호작용 규칙만 들고 있다.
-// 그리드 등록(Cell 부여)과 조리 시간 진행은 KitchenEnv가 담당한다.
+// 그리드 등록(Cell 부여), 조리 시간 진행, 레시피 단계 주입은 KitchenEnv가 담당한다.
 public class Station : MonoBehaviour
 {
     [SerializeField] StationType type = StationType.Counter;
 
-    int m_PotCapacity = 3;
     float m_CookTimer;
+
+    // KitchenEnv가 단계마다 넣어준다. 냄비가 빨강 재료까지 요구하는지,
+    // 손질을 거친 재료만 받는지가 여기서 갈린다.
+    bool m_NeedsRed = true;
+    bool m_NeedsPrep = true;
 
     public StationType Type => type;
 
@@ -22,25 +26,35 @@ public class Station : MonoBehaviour
     public int CounterPlacedBy { get; private set; } = -1;
 
     // --- 냄비 상태 ---
-    public int IngredientCount { get; private set; }
+    public bool HasGreen { get; private set; }
+    public bool HasRed { get; private set; }
     public bool IsCooking { get; private set; }
-    public bool HasCookedSoup { get; private set; }
-    public int PotCapacity => m_PotCapacity;
+    public bool HasCookedDish { get; private set; }
 
-    public void Initialize(Vector2Int cell, int potCapacity)
+    // 이번 단계에서 냄비가 요구하는 재료가 다 들어왔는가.
+    public bool PotFilled => HasGreen && (!m_NeedsRed || HasRed);
+
+    public void Initialize(Vector2Int cell)
     {
         Cell = cell;
-        m_PotCapacity = Mathf.Max(1, potCapacity);
         ResetState();
+    }
+
+    // 레시피 단계가 바뀌면 KitchenEnv가 에피소드 시작마다 호출한다.
+    public void ConfigureRecipe(bool needsRed, bool needsPrep)
+    {
+        m_NeedsRed = needsRed;
+        m_NeedsPrep = needsPrep;
     }
 
     public void ResetState()
     {
         CounterItem = ItemType.None;
         CounterPlacedBy = -1;
-        IngredientCount = 0;
+        HasGreen = false;
+        HasRed = false;
         IsCooking = false;
-        HasCookedSoup = false;
+        HasCookedDish = false;
         m_CookTimer = 0f;
     }
 
@@ -55,7 +69,21 @@ public class Station : MonoBehaviour
 
         m_CookTimer = 0f;
         IsCooking = false;
-        HasCookedSoup = true;
+        HasCookedDish = true;
+    }
+
+    // 냄비가 지금 이 재료를 받을 수 있는가. 색깔별로 한 번씩만 받는다.
+    bool PotAccepts(ItemType heldItem)
+    {
+        if (IsCooking || HasCookedDish) return false;
+
+        // 손질이 필요한 단계에서는 생재료를 거부한다. 손질대를 거치라는 뜻.
+        if (m_NeedsPrep && (heldItem == ItemType.RawGreen || heldItem == ItemType.RawRed)) return false;
+        if (!m_NeedsPrep && (heldItem == ItemType.PrepGreen || heldItem == ItemType.PrepRed)) return false;
+
+        if (heldItem.IsGreen()) return !HasGreen;
+        if (heldItem.IsRed()) return m_NeedsRed && !HasRed;
+        return false;
     }
 
     // 지금 손에 든 것으로 이 스테이션에 '의미 있는' 행동을 할 수 있는가.
@@ -64,26 +92,29 @@ public class Station : MonoBehaviour
     {
         switch (type)
         {
-            case StationType.IngredientBox:
-            case StationType.IngredientBoxMid:
+            case StationType.GreenBox:
+            case StationType.RedBox:
             case StationType.PlateStack:
                 // 손이 비었을 때만 꺼낼 수 있다.
+                // 재료함의 '필드 동시 재료 수' 제한은 KitchenEnv가 따로 건다.
                 return heldItem == ItemType.None;
 
-            case StationType.Pot:
-                if (heldItem == ItemType.Ingredient)
-                    // 냄비가 차면(조리 중이든 완성이든) 똑같이 막힌다 -> 조리 상태가 새지 않는다.
-                    return !IsCooking && !HasCookedSoup && IngredientCount < m_PotCapacity;
+            case StationType.PrepGreen:
+                return m_NeedsPrep && heldItem == ItemType.RawGreen;
 
+            case StationType.PrepRed:
+                return m_NeedsPrep && heldItem == ItemType.RawRed;
+
+            case StationType.Pot:
                 if (heldItem == ItemType.EmptyPlate)
                     // 냄비가 차 있기만 하면 '떠보는 것'까지 허용한다.
-                    // 여기서 HasCookedSoup으로 마스크를 가르면, 관측에서 일부러 뺀
+                    // 여기서 HasCookedDish로 마스크를 가르면, 관측에서 일부러 뺀
                     // '조리 다 됐는지'가 Action Mask를 통해 그대로 새어나간다.
                     // 그러면 정책이 기억할 필요 없이 마스크가 열릴 때 누르기만 하면 되고,
                     // RNN을 쓸 이유가 사라진다. 덜 됐으면 헛도리가 되도록 남겨둔다.
-                    return IngredientCount >= m_PotCapacity;
+                    return PotFilled;
 
-                return false;
+                return PotAccepts(heldItem);
 
             case StationType.ServingHatch:
                 // 엉뚱한 물건을 버리는 것도 허용한다(-0.2). 손이 비었을 때만 막는다.
@@ -108,35 +139,50 @@ public class Station : MonoBehaviour
 
         switch (type)
         {
-            case StationType.IngredientBox:
-            case StationType.IngredientBoxMid:
-                newHeldItem = ItemType.Ingredient;
+            case StationType.GreenBox:
+                newHeldItem = ItemType.RawGreen;
+                return InteractResult.PickedFromSource;
+
+            case StationType.RedBox:
+                newHeldItem = ItemType.RawRed;
                 return InteractResult.PickedFromSource;
 
             case StationType.PlateStack:
                 newHeldItem = ItemType.EmptyPlate;
                 return InteractResult.PickedFromSource;
 
+            case StationType.PrepGreen:
+                newHeldItem = ItemType.PrepGreen;
+                return InteractResult.Prepped;
+
+            case StationType.PrepRed:
+                newHeldItem = ItemType.PrepRed;
+                return InteractResult.Prepped;
+
             case StationType.Pot:
-                if (heldItem == ItemType.Ingredient)
+                if (heldItem != ItemType.EmptyPlate)
                 {
-                    IngredientCount++;
+                    if (heldItem.IsGreen()) HasGreen = true;
+                    else HasRed = true;
+
                     newHeldItem = ItemType.None;
-                    if (IngredientCount >= m_PotCapacity) IsCooking = true;
+                    if (PotFilled) IsCooking = true;
                     return InteractResult.PlacedInPot;
                 }
+
                 // 빈 그릇 + 냄비가 참. 아직 조리 중이면 헛도리로 끝난다.
-                if (!HasCookedSoup) return InteractResult.PotNotReady;
+                if (!HasCookedDish) return InteractResult.PotNotReady;
 
                 // 완성됐으면 담아서 들고 나간다. 냄비는 다음 배치를 위해 비워진다.
-                newHeldItem = ItemType.CookedSoup;
-                IngredientCount = 0;
-                HasCookedSoup = false;
-                return InteractResult.TookSoupFromPot;
+                newHeldItem = ItemType.CookedDish;
+                HasGreen = false;
+                HasRed = false;
+                HasCookedDish = false;
+                return InteractResult.TookDishFromPot;
 
             case StationType.ServingHatch:
             {
-                bool correct = heldItem == ItemType.CookedSoup;
+                bool correct = heldItem == ItemType.CookedDish;
                 newHeldItem = ItemType.None;
                 return correct ? InteractResult.Served : InteractResult.Wasted;
             }
