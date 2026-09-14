@@ -1,4 +1,3 @@
-using Unity.MLAgents.Policies;
 using UnityEngine;
 
 // 사람이 플레이할 때 '지금 이걸 어디로 가져가야 하는지'를 보여준다.
@@ -43,17 +42,9 @@ public class TargetHighlighter : MonoBehaviour
         m_All = GetComponentsInChildren<StationHighlight>(true);
         m_Guidance = new ChefGuidance[m_Agents.Length];
 
-        enabled = IsAnyAgentHumanControlled();
-    }
-
-    bool IsAnyAgentHumanControlled()
-    {
-        foreach (var agent in m_Agents)
-        {
-            var behavior = agent.GetComponent<BehaviorParameters>();
-            if (behavior != null && behavior.IsInHeuristicMode()) return true;
-        }
-        return false;
+        // 사람이 플레이할 때는 KitchenEnv가 주방 하나만 남긴다.
+        // 그대로 두면 16개 주방의 하이라이트가 동시에 깜빡여서 내 주방을 찾을 수 없다.
+        enabled = m_Env.HumanPlay;
     }
 
     void LateUpdate()

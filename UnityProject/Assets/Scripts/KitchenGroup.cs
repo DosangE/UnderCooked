@@ -73,6 +73,7 @@ public class KitchenGroup : MonoBehaviour
         if (env.IsGoalReached)
         {
             // 목표 수프 개수 달성 -> 성공 종료
+            env.NoteEpisodeEnd($"목표 {env.TargetDishes}접시 달성! 새 라운드");
             m_Group.AddGroupReward(rewardGoalBonus);
             m_Group.EndGroupEpisode();
             ResetScene();
@@ -81,6 +82,7 @@ public class KitchenGroup : MonoBehaviour
 
         if (env.IsTimeUp)
         {
+            env.NoteEpisodeEnd($"시간 초과 ({env.DishesServed}/{env.TargetDishes}접시) - 새 라운드");
             // 타임아웃은 '실패'가 아니라 '중단'이다.
             // EndGroupEpisode로 끊으면 부트스트랩 없이 가치가 0으로 잘려서
             // value function이 "시간이 지나면 가치가 0" 이라고 잘못 배운다.

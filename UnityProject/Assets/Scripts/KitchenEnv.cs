@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.MLAgents;
+using Unity.MLAgents.Policies;
 using UnityEngine;
 
 // 주방 한 세트(TrainingArea)의 그리드 / 스테이션 / 조리 / 에피소드 타이머를 관리한다.
@@ -83,6 +84,14 @@ public class KitchenEnv : MonoBehaviour
              "넘으면 재료함 Interact가 막힌다 -> 한 접시씩 끝내게 만든다")]
     [SerializeField] int defaultMaxIngredients = 2;
 
+    [Header("사람 플레이 (학습에는 영향 없음)")]
+    [Tooltip("주방 하나만 남았을 때 카메라를 얼마나 위에 둘지 (셀 단위)")]
+    [SerializeField] float cameraHeight = 11f;
+    [Tooltip("카메라를 얼마나 뒤로 뺄지 (셀 단위)")]
+    [SerializeField] float cameraBack = 8f;
+    [Tooltip("카메라가 내려다보는 각도")]
+    [SerializeField] float cameraPitch = 54f;
+
     [Header("에피소드")]
     [SerializeField] float episodeDuration = 45f;
     [Tooltip("끄면 항상 레이아웃의 A/B 마커 위치에서 시작한다 (디버깅용)")]
@@ -115,6 +124,47 @@ public class KitchenEnv : MonoBehaviour
     int m_ExpiredOrders;      // KitchenGroup이 가져가서 패널티로 바꾼다
     bool m_Initialized;
 
+    // ── 사람 플레이 전용 ─────────────────────────────────────
+    // 여기서부터는 전부 화면 표시용이다. 관측/보상/행동에 전혀 관여하지 않는다.
+
+    static KitchenEnv s_SoloArea;   // 사람이 플레이할 때 살아남는 단 하나의 주방
+    bool m_HumanPlay;
+    bool m_HumanPlayResolved;
+
+    public struct LogEntry
+    {
+        public float Time;      // 기록된 시각 (Time.time)
+        public string Text;
+        public LogKind Kind;
+    }
+
+    public enum LogKind { Neutral, Good, Bad }
+
+    const int LogCapacity = 5;
+    readonly List<LogEntry> m_Log = new List<LogEntry>(LogCapacity);
+    public IReadOnlyList<LogEntry> HumanLog => m_Log;
+
+    // 에피소드가 왜 끝났는지. 위치가 갑자기 초기화되는 이유를 사람이 알 수 있어야 한다.
+    public string LastEndReason { get; private set; } = "";
+    public float LastEndTime { get; private set; } = -99f;
+
+    public void LogHumanEvent(string text, LogKind kind = LogKind.Neutral)
+    {
+        if (!HumanPlay) return;
+
+        m_Log.Add(new LogEntry { Time = Time.time, Text = text, Kind = kind });
+        if (m_Log.Count > LogCapacity) m_Log.RemoveAt(0);
+    }
+
+    public void NoteEpisodeEnd(string reason)
+    {
+        if (!HumanPlay) return;
+
+        LastEndReason = reason;
+        LastEndTime = Time.time;
+        m_Log.Clear();
+    }
+
     public int GridWidth => m_GridWidth;
     public int GridHeight => m_GridHeight;
     public float CellSize => cellSize;
@@ -126,6 +176,24 @@ public class KitchenEnv : MonoBehaviour
 
     // 사람용 화면 표시에서 조리 진행률을 계산하는 데 쓴다. 관측에는 쓰지 않는다.
     public float CookTime => m_CookTime;
+    public float EpisodeDuration => episodeDuration;
+    public float EpisodeElapsed => m_EpisodeTimer;
+
+    // 같은 오브젝트에 붙은 다른 컴포넌트의 Start()가 KitchenEnv.Start()보다 먼저 돌 수 있다.
+    // (Unity는 같은 오브젝트 안의 Start 순서를 보장하지 않는다)
+    // 그래서 필드를 읽는 게 아니라 처음 물어볼 때 판정해서 캐시한다.
+    // Start 시점이면 Agent.OnEnable이 이미 끝나 Academy가 초기화되어 있으므로 안전하다.
+    public bool HumanPlay
+    {
+        get
+        {
+            if (m_HumanPlayResolved) return m_HumanPlay;
+
+            m_HumanPlay = DetectHumanPlay();
+            m_HumanPlayResolved = true;
+            return m_HumanPlay;
+        }
+    }
 
     public int TargetDishes => m_TargetDishes;
     public int DishesServed { get; private set; }
@@ -146,8 +214,58 @@ public class KitchenEnv : MonoBehaviour
 
     void Start()
     {
+        // 사람이 플레이할 때는 주방 하나만 남긴다.
+        //
+        // 16개 TrainingArea의 셰프 32명이 전부 같은 키를 받으므로, 그대로 두면 16개
+        // 주방이 동시에 움직이고 16세트의 하이라이트가 동시에 깜빡인다. 어느 것이
+        // 내 주방인지 알 수 없다. 학습 때는 HumanPlay가 false라 아무 영향이 없다.
+        if (HumanPlay)
+        {
+            if (!ClaimSoloArea())
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+
+            FrameCameraOnThisArea();
+        }
+
         // 트레이너 없이 에디터에서 그냥 Play(휴리스틱 플레이) 해도 동작하도록 한 번 초기화한다.
         ResetEnv();
+    }
+
+    bool DetectHumanPlay()
+    {
+        foreach (var agent in GetComponentsInChildren<ChefAgent>(true))
+        {
+            var behavior = agent.GetComponent<BehaviorParameters>();
+            if (behavior != null && behavior.IsInHeuristicMode()) return true;
+        }
+        return false;
+    }
+
+    bool ClaimSoloArea()
+    {
+        if (s_SoloArea != null && s_SoloArea != this) return false;
+        s_SoloArea = this;
+        return true;
+    }
+
+    // 씬 카메라는 16개 전체를 잡도록 놓여 있다. 주방 하나만 남겼으면 거기를 비춰야 한다.
+    // 씬을 고치지 않고 런타임에만 옮긴다 -> 학습용 씬 배치는 그대로 둔다.
+    void FrameCameraOnThisArea()
+    {
+        var camera = Camera.main;
+        if (camera == null) return;
+
+        camera.transform.position = transform.position
+            + new Vector3(0f, cameraHeight * cellSize, -cameraBack * cellSize);
+        camera.transform.rotation = Quaternion.Euler(cameraPitch, 0f, 0f);
+    }
+
+    void OnDestroy()
+    {
+        if (s_SoloArea == this) s_SoloArea = null;
     }
 
     void FixedUpdate()
@@ -161,7 +279,12 @@ public class KitchenEnv : MonoBehaviour
 
         // 만료된 주문 수를 쌓아두기만 한다. 보상으로 바꾸는 건 KitchenGroup의 일이고,
         // 두 FixedUpdate의 실행 순서에 결과가 흔들리지 않도록 누적 -> 소비 구조로 둔다.
-        m_ExpiredOrders += m_Orders.Tick(Time.fixedDeltaTime);
+        int expired = m_Orders.Tick(Time.fixedDeltaTime);
+        if (expired > 0)
+        {
+            m_ExpiredOrders += expired;
+            LogHumanEvent($"주문 {expired}건 시간 초과!", LogKind.Bad);
+        }
     }
 
     // KitchenGroup이 매 FixedUpdate 가져간다. 읽으면 0으로 비워진다.
@@ -377,7 +500,9 @@ public class KitchenEnv : MonoBehaviour
 
     public Vector2Int GetSpawnCell(int agentIndex)
     {
-        if (!randomizeSpawn) return m_DefaultSpawnCells[agentIndex];
+        // 사람이 플레이할 때는 항상 같은 자리에서 시작한다. 에피소드가 바뀔 때마다
+        // 무작위 칸으로 순간이동하면 "왜 갑자기 여기 있지?"가 되어 흐름이 끊긴다.
+        if (!randomizeSpawn || HumanPlay) return m_DefaultSpawnCells[agentIndex];
 
         var cells = m_WalkableCells[agentIndex];
         return cells.Count == 0 ? m_DefaultSpawnCells[agentIndex] : cells[Random.Range(0, cells.Count)];
@@ -622,6 +747,75 @@ public class KitchenEnv : MonoBehaviour
                 break;
         }
 
+        if (HumanPlay) LogInteraction(agentIndex, station, outcome.Result, heldItem);
+
         return outcome;
+    }
+
+    // 누른 것이 실제로 먹혔는지를 사람이 알 수 있게 한 줄 남긴다.
+    // "냄비에 넣으면 처리가 되는 건지 모르겠다"가 여기서 해결된다.
+    void LogInteraction(int agentIndex, Station station, InteractResult result, ItemType heldItem)
+    {
+        string who = agentIndex == 0 ? "A" : "B";
+        var pot = Pot;
+
+        switch (result)
+        {
+            case InteractResult.Nothing:
+                // 마스킹 덕분에 정책에서는 안 나오지만, 사람은 아무 때나 누를 수 있다.
+                LogHumanEvent($"{who}: 여기서는 할 수 있는 게 없다", LogKind.Bad);
+                break;
+
+            case InteractResult.PickedFromSource:
+                LogHumanEvent($"{who}: {station.Type} 에서 집었다");
+                break;
+
+            case InteractResult.Prepped:
+                LogHumanEvent($"{who}: 손질했다", LogKind.Good);
+                break;
+
+            case InteractResult.PlacedInPot:
+                LogHumanEvent(pot != null && pot.IsCommitted
+                    ? $"{who}: 냄비에 넣었다 -> 재료 다 찼다! {pot.CookedRecipe} 끓기 시작"
+                    : $"{who}: 냄비에 넣었다 (초록 {pot?.GreenCount} / 빨강 {pot?.RedCount})", LogKind.Good);
+                break;
+
+            case InteractResult.PlacedInPotWrong:
+                LogHumanEvent($"{who}: 냄비에 넣었지만 이걸로는 어떤 주문도 못 만든다", LogKind.Bad);
+                break;
+
+            case InteractResult.PotDumped:
+                LogHumanEvent($"{who}: 냄비를 비웠다");
+                break;
+
+            case InteractResult.TookDishFromPot:
+                LogHumanEvent($"{who}: 요리를 그릇에 담았다", LogKind.Good);
+                break;
+
+            case InteractResult.PotNotReady:
+                LogHumanEvent($"{who}: 아직 덜 끓었다", LogKind.Bad);
+                break;
+
+            case InteractResult.PlacedOnCounter:
+                LogHumanEvent($"{who}: 카운터에 올렸다");
+                break;
+
+            case InteractResult.TookFromCounter:
+            case InteractResult.TookOwnFromCounter:
+                LogHumanEvent($"{who}: 카운터에서 집었다");
+                break;
+
+            case InteractResult.Served:
+                LogHumanEvent($"{who}: 서빙 성공! ({DishesServed}/{m_TargetDishes})", LogKind.Good);
+                break;
+
+            case InteractResult.ServedWrongOrder:
+                LogHumanEvent($"{who}: 주문에 없는 요리를 냈다", LogKind.Bad);
+                break;
+
+            case InteractResult.Wasted:
+                LogHumanEvent($"{who}: 버렸다", LogKind.Bad);
+                break;
+        }
     }
 }
