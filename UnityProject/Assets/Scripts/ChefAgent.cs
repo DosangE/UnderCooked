@@ -327,7 +327,10 @@ public class ChefAgent : Agent
 
     void Update()
     {
-        if (m_Behavior == null || m_Behavior.BehaviorType != BehaviorType.HeuristicOnly) return;
+        // BehaviorType이 Default라도 모델과 트레이너가 둘 다 없으면 Heuristic이 돌아간다.
+        // HeuristicOnly만 보고 걸러내면 학습 세팅(Default) 그대로 플레이할 때
+        // 이동은 되는데(Heuristic에서 직접 키를 읽으므로) Interact만 죽는다.
+        if (m_Behavior == null || !m_Behavior.IsInHeuristicMode()) return;
         // Decision Period(5) 사이에 눌린 키를 놓치지 않도록 래치해둔다.
         if (InteractKeyDown()) m_InteractQueued = true;
     }
