@@ -15,24 +15,25 @@ public class ChefAgent : Agent
     // Behavior Parameters의 Vector Observation Space Size와 반드시 같아야 한다.
     //   자기 위치 정규화            2
     //   바라보는 방향 one-hot        4
-    //   손에 든 것 one-hot           4
+    //   손에 든 것 one-hot           7
     //   동료 상대좌표                2
-    //   동료 손 one-hot              4
-    //   냄비 재료수                  1   ★ '조리 다 됐는지'는 일부러 안 준다 -> RNN이 기억해야 한다
-    //   카운터 4칸 x (one-hot 4 + 상대좌표 2) = 24
-    //   스테이션 5곳 상대좌표        10  (재료함, 중앙재료스폰, 냄비, 그릇함, 서빙구)
+    //   동료 손 one-hot              7
+    //   냄비에 초록/빨강 들어갔나    2   ★ '조리 다 됐는지'는 일부러 안 준다 -> RNN이 기억해야 한다
+    //   카운터 4칸 x (one-hot 7 + 상대좌표 2) = 36
+    //   스테이션 7곳 상대좌표        14  (재료함2, 손질대2, 냄비, 그릇함, 서빙구)
     //   남은 시간                    1
-    //                          합계 52
+    //   레시피 단계 플래그           2   (빨강 필요? 손질 필요?)
+    //                          합계 77
     //
     // ★ 관측에서 뺀 정보가 Action Mask로 새면 아무 의미가 없다.
-    //   Station.CanInteract의 냄비+빈그릇 분기가 그래서 HasCookedSoup을 보지 않는다.
-    public const int ObservationSize = 52;
+    //   Station.CanInteract의 냄비+빈그릇 분기가 그래서 HasCookedDish를 보지 않는다.
+    public const int ObservationSize = 77;
 
     // 관측 크기를 고정하려고 슬롯 수를 상수로 박는다.
     // 실제 카운터가 이보다 적으면 0으로 채우고, 많으면 앞에서부터 잘라 쓴다.
     public const int CounterObservationSlots = 4;
 
-    const int ItemTypeCount = 4;
+    const int ItemTypeCount = ItemTypeExtensions.Count;
     const int DirectionCount = 4;
 
     [SerializeField] int agentIndex = 0;   // 0 = ChefA(북쪽 구역), 1 = ChefB(남쪽 구역)
@@ -44,15 +45,19 @@ public class ChefAgent : Agent
     [SerializeField] float rewardPickFromSource = 0.05f;
     [SerializeField] float rewardTransfer = 0.15f;
     [SerializeField] float rewardWasted = -0.2f;
-    [Tooltip("조리가 덜 끝났는데 수프를 뜨려고 한 헛도리. 스텝 비용만으로는 너무 싸서 " +
+    [Tooltip("조리가 덜 끝났는데 요리를 뜨려고 한 헛도리. 스텝 비용만으로는 너무 싸서 " +
              "냄비 앞에서 계속 눌러보는 정책이 최적이 되어버린다 -> 기억할 이유를 만든다")]
     [SerializeField] float rewardPotNotReady = -0.02f;
     [SerializeField] float rewardPerStep = -0.002f;
 
     [Header("손에 든 것 표시 색")]
-    [SerializeField] Color colorIngredient = new Color(0.20f, 0.80f, 0.25f);
+    [SerializeField] Color colorRawGreen = new Color(0.20f, 0.80f, 0.25f);
+    [SerializeField] Color colorRawRed = new Color(0.85f, 0.20f, 0.20f);
+    [Tooltip("손질된 재료는 같은 색 계열이되 밝게 해서 생재료와 구분한다")]
+    [SerializeField] Color colorPrepGreen = new Color(0.55f, 1.00f, 0.45f);
+    [SerializeField] Color colorPrepRed = new Color(1.00f, 0.55f, 0.45f);
     [SerializeField] Color colorEmptyPlate = new Color(0.95f, 0.95f, 0.95f);
-    [SerializeField] Color colorCookedSoup = new Color(1.00f, 0.55f, 0.10f);
+    [SerializeField] Color colorCookedDish = new Color(1.00f, 0.78f, 0.05f);
 
     KitchenEnv m_Env;
     KitchenGroup m_Group;
@@ -143,11 +148,12 @@ public class ChefAgent : Agent
             sensor.AddOneHotObservation(0, ItemTypeCount);
         }
 
-        // 6) 냄비 재료 개수 (1).
+        // 6) 냄비에 초록/빨강이 들어갔는지 (2).
         //    '조리가 끝났는지'는 관측에 넣지 않는다. 재료를 언제 다 넣었는지 기억해서
         //    스스로 추정해야 한다 = Memory(RNN)가 필요한 이유.
         var pot = m_Env.Pot;
-        sensor.AddObservation(pot != null ? (float)pot.IngredientCount / pot.PotCapacity : 0f);
+        sensor.AddObservation(pot != null && pot.HasGreen);
+        sensor.AddObservation(pot != null && pot.HasRed);
 
         // 7) 카운터 슬롯 (18)
         var counters = m_Env.Counters;
@@ -165,15 +171,23 @@ public class ChefAgent : Agent
             }
         }
 
-        // 8) 스테이션 5곳 상대좌표 (10)
-        AddStationRelative(sensor, StationType.IngredientBox);
-        AddStationRelative(sensor, StationType.IngredientBoxMid);
+        // 8) 스테이션 7곳 상대좌표 (14)
+        AddStationRelative(sensor, StationType.GreenBox);
+        AddStationRelative(sensor, StationType.RedBox);
+        AddStationRelative(sensor, StationType.PrepGreen);
+        AddStationRelative(sensor, StationType.PrepRed);
         AddStationRelative(sensor, StationType.Pot);
         AddStationRelative(sensor, StationType.PlateStack);
         AddStationRelative(sensor, StationType.ServingHatch);
 
         // 9) 남은 시간 (1)
         sensor.AddObservation(m_Env.TimeRemainingNormalized);
+
+        // 10) 이번 에피소드의 레시피 단계 (2).
+        //     커리큘럼으로 단계가 바뀌므로 지금 무슨 규칙인지 알려줘야 한 정책이
+        //     여러 단계를 함께 다룰 수 있다.
+        sensor.AddObservation(m_Env.NeedsRed);
+        sensor.AddObservation(m_Env.NeedsPrep);
     }
 
     void AddStationRelative(VectorSensor sensor, StationType type)
@@ -252,6 +266,10 @@ public class ChefAgent : Agent
                 AddReward(rewardPickFromSource);
                 break;
 
+            case InteractResult.Prepped:
+                if (m_Group != null) m_Group.OnIngredientPrepped();
+                break;
+
             case InteractResult.PlacedInPot:
                 if (m_Group != null) m_Group.OnIngredientPlacedInPot();
                 break;
@@ -269,7 +287,7 @@ public class ChefAgent : Agent
                 break;
 
             case InteractResult.Served:
-                if (m_Group != null) m_Group.OnSoupServed();
+                if (m_Group != null) m_Group.OnDishServed();
                 break;
 
             case InteractResult.Wasted:
@@ -281,7 +299,7 @@ public class ChefAgent : Agent
                 AddReward(rewardPotNotReady);
                 break;
 
-            // TookSoupFromPot / PlacedOnCounter / TookOwnFromCounter / Nothing 은 보상 없음
+            // TookDishFromPot / PlacedOnCounter / TookOwnFromCounter / Nothing 은 보상 없음
         }
     }
 
@@ -314,9 +332,12 @@ public class ChefAgent : Agent
 
         switch (m_HeldItem)
         {
-            case ItemType.Ingredient: heldItemRenderer.material.color = colorIngredient; break;
+            case ItemType.RawGreen:   heldItemRenderer.material.color = colorRawGreen; break;
+            case ItemType.RawRed:     heldItemRenderer.material.color = colorRawRed; break;
+            case ItemType.PrepGreen:  heldItemRenderer.material.color = colorPrepGreen; break;
+            case ItemType.PrepRed:    heldItemRenderer.material.color = colorPrepRed; break;
             case ItemType.EmptyPlate: heldItemRenderer.material.color = colorEmptyPlate; break;
-            default: heldItemRenderer.material.color = colorCookedSoup; break;
+            default:                  heldItemRenderer.material.color = colorCookedDish; break;
         }
     }
 

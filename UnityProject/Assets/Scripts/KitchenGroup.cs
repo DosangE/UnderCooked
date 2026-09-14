@@ -16,6 +16,8 @@ public class KitchenGroup : MonoBehaviour
 
     [Header("팀 보상 (AddGroupReward)")]
     [SerializeField] float rewardServe = 3.0f;
+    [Tooltip("손질대를 거쳐 다음 단계로 넘어갔을 때. 체인이 길어진 만큼 중간 신호를 하나 더 준다")]
+    [SerializeField] float rewardPrepped = 0.2f;
     [SerializeField] float rewardIngredientInPot = 0.3f;
     [SerializeField] float rewardGoalBonus = 2.0f;
 
@@ -45,6 +47,9 @@ public class KitchenGroup : MonoBehaviour
             agents[i].Bind(this, env, partner);
             m_Group.RegisterAgent(agents[i]);
         }
+
+        // 필드에 나와 있는 재료 수를 세려면 KitchenEnv가 셰프의 손을 볼 수 있어야 한다.
+        env.BindAgents(agents.ToArray());
 
         m_Ready = true;
     }
@@ -79,12 +84,17 @@ public class KitchenGroup : MonoBehaviour
 
     // ─────────────────────────── 팀 보상 ───────────────────────────
 
+    public void OnIngredientPrepped()
+    {
+        if (m_Group != null) m_Group.AddGroupReward(rewardPrepped);
+    }
+
     public void OnIngredientPlacedInPot()
     {
         if (m_Group != null) m_Group.AddGroupReward(rewardIngredientInPot);
     }
 
-    public void OnSoupServed()
+    public void OnDishServed()
     {
         if (m_Group != null) m_Group.AddGroupReward(rewardServe);
     }
