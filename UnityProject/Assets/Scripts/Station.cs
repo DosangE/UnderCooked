@@ -65,6 +65,7 @@ public class Station : MonoBehaviour
         switch (type)
         {
             case StationType.IngredientBox:
+            case StationType.IngredientBoxMid:
             case StationType.PlateStack:
                 // 손이 비었을 때만 꺼낼 수 있다.
                 return heldItem == ItemType.None;
@@ -108,6 +109,7 @@ public class Station : MonoBehaviour
         switch (type)
         {
             case StationType.IngredientBox:
+            case StationType.IngredientBoxMid:
                 newHeldItem = ItemType.Ingredient;
                 return InteractResult.PickedFromSource;
 

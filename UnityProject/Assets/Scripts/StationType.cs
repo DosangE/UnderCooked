@@ -6,5 +6,6 @@ public enum StationType
     Pot = 1,            // 냄비    (Chef A 구역)
     PlateStack = 2,     // 그릇함  (Chef B 구역)
     ServingHatch = 3,   // 서빙구  (Chef B 구역)
-    Counter = 4         // 중앙 카운터 전달칸 (공용)
+    Counter = 4,        // 중앙 카운터 전달칸 (공용)
+    IngredientBoxMid = 5 // 중앙 재료 스폰 (카운터 경계, 양쪽 구역에서 접근 가능)
 }
