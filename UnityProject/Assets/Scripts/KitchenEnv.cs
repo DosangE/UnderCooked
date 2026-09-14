@@ -124,6 +124,9 @@ public class KitchenEnv : MonoBehaviour
 
     public OrderBoard Orders => m_Orders;
 
+    // 사람용 화면 표시에서 조리 진행률을 계산하는 데 쓴다. 관측에는 쓰지 않는다.
+    public float CookTime => m_CookTime;
+
     public int TargetDishes => m_TargetDishes;
     public int DishesServed { get; private set; }
     public bool IsGoalReached => DishesServed >= m_TargetDishes;
@@ -436,6 +439,57 @@ public class KitchenEnv : MonoBehaviour
     {
         if (m_StationZoneByType == null) return ZoneBlocked;
         return m_StationZoneByType[(int)type];
+    }
+
+    // 그 에이전트가 이 스테이션을 쓸 수 있는가. 인접 칸 중 자기 구역 바닥이 하나라도 있으면 된다.
+    //
+    // GetStationZone은 경계 위 스테이션(재료함/카운터)에서 '먼저 찾은 쪽'만 돌려주므로
+    // 양쪽에서 닿는 것을 판정할 수 없다. 사람용 안내는 그걸 정확히 알아야 한다.
+    public bool CanAgentReach(Station station, int agentIndex)
+    {
+        if (station == null) return false;
+
+        foreach (var dir in Directions)
+            if (IsWalkable(station.Cell + dir, agentIndex)) return true;
+
+        return false;
+    }
+
+    // ─────────────────────────── 사람용 안내 ───────────────────────────
+
+    // '지금 이 주방이 무슨 요리를 만드는 중인가'. 하이라이트와 주문판이 같은 답을 보게 한다.
+    // 사람이 플레이할 때만 쓰인다. 관측/보상/행동에는 전혀 관여하지 않는다.
+    public KitchenPlan BuildPlan()
+    {
+        var plan = new KitchenPlan();
+        var pot = Pot;
+        if (pot == null) return plan;
+
+        // 1) 조리가 확정된 냄비 -> 만들 요리는 이미 정해졌다. 주문은 그 요리로 역추적한다.
+        if (pot.IsCommitted)
+        {
+            plan.Recipe = pot.CookedRecipe;
+            plan.OrderSlot = m_Orders.FindMostUrgentFor(plan.Recipe.Dish());
+            plan.HasOrder = plan.OrderSlot >= 0;
+            plan.Current = pot.HasCookedDish ? KitchenPlan.Step.Plate : KitchenPlan.Step.Cooking;
+            return plan;
+        }
+
+        // 2) 아직 재료를 받는 중 -> 지금 내용물로 만들 수 있는 주문 중 가장 급한 것을 목표로.
+        plan.OrderSlot = m_Orders.FindMostUrgentReachable(pot.GreenCount, pot.RedCount);
+        if (plan.OrderSlot < 0)
+        {
+            // 냄비에 든 것으로는 어떤 주문도 못 만든다. 비워야 한다.
+            plan.Current = KitchenPlan.Step.NoOrder;
+            return plan;
+        }
+
+        plan.HasOrder = true;
+        plan.Recipe = m_Orders.GetSlot(plan.OrderSlot).Recipe;
+        plan.NeedGreen = plan.Recipe.RequiredGreen() - pot.GreenCount;
+        plan.NeedRed = plan.Recipe.RequiredRed() - pot.RedCount;
+        plan.Current = KitchenPlan.Step.Gather;
+        return plan;
     }
 
     // 냄비 밖에 나와 있는 재료 수. 손에 든 것과 카운터에 놓인 것만 센다.

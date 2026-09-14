@@ -342,7 +342,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &537150886834753903
 GameObject:
   m_ObjectHideFlags: 0
@@ -1048,7 +1051,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &1734482674314679045
 GameObject:
   m_ObjectHideFlags: 0
@@ -1481,7 +1487,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &2232758869999645200
 GameObject:
   m_ObjectHideFlags: 0
@@ -1622,7 +1631,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &2244750521383295920
 GameObject:
   m_ObjectHideFlags: 0
@@ -1637,6 +1649,7 @@ GameObject:
   - component: {fileID: 7660185311190773036}
   - component: {fileID: 6915664090054109053}
   - component: {fileID: 9218839214760451148}
+  - component: {fileID: 640238526195631391}
   m_Layer: 0
   m_Name: Pot
   m_TagString: Untagged
@@ -1763,7 +1776,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
+--- !u!114 &640238526195631391
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2244750521383295920}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffb20adab0e05e145a7dfbe66e8610d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PotContentsView
+  slotSize: 0.22
+  heightOffset: 0.65
+  spacing: 0.28
+  colorGreen: {r: 0.3, g: 0.9, b: 0.35, a: 1}
+  colorRed: {r: 0.9, g: 0.25, b: 0.25, a: 1}
+  colorDone: {r: 1, g: 0.85, b: 0.2, a: 1}
 --- !u!1 &2410969362967811578
 GameObject:
   m_ObjectHideFlags: 0
@@ -2940,7 +2974,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &5180584903510779481
 GameObject:
   m_ObjectHideFlags: 0
@@ -3171,7 +3208,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &5228005222480078812
 GameObject:
   m_ObjectHideFlags: 0
@@ -3694,7 +3734,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &5853031973223019068
 GameObject:
   m_ObjectHideFlags: 0
@@ -4512,7 +4555,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &7393025086969417324
 GameObject:
   m_ObjectHideFlags: 0
@@ -4653,7 +4699,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &7565711089458253974
 GameObject:
   m_ObjectHideFlags: 0
@@ -5158,7 +5207,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
   pulsesPerSecond: 1.6
-  maxBrightness: 0.7
+  maxBlend: 0.8
+  takeColor: {r: 0.45, g: 1, b: 0.55, a: 1}
+  putColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  trashColor: {r: 1, g: 0.3, b: 0.25, a: 1}
 --- !u!1 &8761729256089619719
 GameObject:
   m_ObjectHideFlags: 0

@@ -93,16 +93,7 @@ public class OrderBoard
     // 안 그러면 여유 있는 주문을 먼저 지워서 급한 쪽이 괜히 만료된다.
     public bool TryConsume(ItemType dish)
     {
-        int best = -1;
-
-        for (int i = 0; i < m_ActiveSlots; i++)
-        {
-            if (!m_Slots[i].Active) continue;
-            if (m_Slots[i].Recipe.Dish() != dish) continue;
-            if (best >= 0 && m_Slots[i].Remaining >= m_Slots[best].Remaining) continue;
-            best = i;
-        }
-
+        int best = FindMostUrgentFor(dish);
         if (best < 0) return false;
 
         Fill(best);
@@ -142,8 +133,34 @@ public class OrderBoard
     // 이 완성 요리를 받아줄 주문이 지금 있는가. (소진시키지 않고 확인만)
     public bool HasOrderFor(ItemType dish)
     {
+        return FindMostUrgentFor(dish) >= 0;
+    }
+
+    // 이 완성 요리를 받아줄 주문 중 가장 급한 것의 슬롯 번호. 없으면 -1.
+    public int FindMostUrgentFor(ItemType dish)
+    {
+        return FindMostUrgent((slot) => slot.Recipe.Dish() == dish);
+    }
+
+    // 냄비가 (green, red)인 상태에서 아직 만들 수 있는 주문 중 가장 급한 것. 없으면 -1.
+    // 사람용 안내가 "지금 무슨 요리를 만드는 중인가"를 정하는 기준이다.
+    public int FindMostUrgentReachable(int green, int red)
+    {
+        return FindMostUrgent((slot) => slot.Recipe.StillReachable(green, red));
+    }
+
+    int FindMostUrgent(System.Func<Slot, bool> accept)
+    {
+        int best = -1;
+
         for (int i = 0; i < m_ActiveSlots; i++)
-            if (m_Slots[i].Active && m_Slots[i].Recipe.Dish() == dish) return true;
-        return false;
+        {
+            if (!m_Slots[i].Active) continue;
+            if (!accept(m_Slots[i])) continue;
+            if (best >= 0 && m_Slots[i].Remaining >= m_Slots[best].Remaining) continue;
+            best = i;
+        }
+
+        return best;
     }
 }

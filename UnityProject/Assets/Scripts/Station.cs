@@ -48,6 +48,10 @@ public class Station : MonoBehaviour
     RecipeType m_CookedRecipe;
     public RecipeType CookedRecipe => m_CookedRecipe;
 
+    // 조리 경과 시간. **사람용 화면 표시 전용이다.**
+    // 관측에 절대 넣지 말 것. 넣는 순간 "언제 다 넣었는지 기억한다"는 RNN의 근거가 사라진다.
+    public float CookTimer => m_CookTimer;
+
     public void Initialize(Vector2Int cell)
     {
         Cell = cell;
