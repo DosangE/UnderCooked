@@ -109,3 +109,9 @@ crashlytics-build.properties
 # Editor screenshots captured during verification
 **/[Aa]ssets/Screenshots/
 **/[Aa]ssets/Screenshots.meta
+
+# 저장소 루트를 Unity 프로젝트로 잘못 열면 여기에 빈 프로젝트 껍데기가 생긴다.
+# (루트의 assets/ 를 Windows가 대소문자 구분 없이 Assets/ 로 인식해서 벌어진다)
+# 진짜 프로젝트 설정은 UnityProject/ 아래에 있고 그쪽은 계속 추적한다.
+/Packages/
+/ProjectSettings/
