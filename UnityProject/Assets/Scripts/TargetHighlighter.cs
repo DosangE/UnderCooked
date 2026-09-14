@@ -63,7 +63,9 @@ public class TargetHighlighter : MonoBehaviour
             case ItemType.EmptyPlate:
                 target = StationType.Pot;
                 return true;
-            case ItemType.CookedDish:
+            case ItemType.CookedGreen:
+            case ItemType.CookedMix:
+            case ItemType.CookedRed:
                 target = StationType.ServingHatch;
                 return true;
             default:

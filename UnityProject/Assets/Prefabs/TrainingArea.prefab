@@ -505,7 +505,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 52
+    VectorObservationSize: 103
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -544,6 +544,9 @@ MonoBehaviour:
   rewardPickFromSource: 0.05
   rewardTransfer: 0.15
   rewardWasted: -0.2
+  rewardServedWrongOrder: -0.5
+  rewardPotWrongIngredient: -0.1
+  rewardPotDump: -0.05
   rewardPotNotReady: -0.02
   rewardPerStep: -0.002
   colorRawGreen: {r: 0.2, g: 0.8, b: 0.25, a: 1}
@@ -551,7 +554,9 @@ MonoBehaviour:
   colorPrepGreen: {r: 0.55, g: 1, b: 0.45, a: 1}
   colorPrepRed: {r: 1, g: 0.55, b: 0.45, a: 1}
   colorEmptyPlate: {r: 0.95, g: 0.95, b: 0.95, a: 1}
-  colorCookedDish: {r: 1, g: 0.78, b: 0.05, a: 1}
+  colorCookedGreen: {r: 0.6, g: 0.95, b: 0.3, a: 1}
+  colorCookedMix: {r: 1, g: 0.78, b: 0.05, a: 1}
+  colorCookedRed: {r: 0.95, g: 0.35, b: 0.2, a: 1}
 --- !u!114 &5268884288844911207
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4300,7 +4305,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 52
+    VectorObservationSize: 103
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -4339,6 +4344,9 @@ MonoBehaviour:
   rewardPickFromSource: 0.05
   rewardTransfer: 0.15
   rewardWasted: -0.2
+  rewardServedWrongOrder: -0.5
+  rewardPotWrongIngredient: -0.1
+  rewardPotDump: -0.05
   rewardPotNotReady: -0.02
   rewardPerStep: -0.002
   colorRawGreen: {r: 0.2, g: 0.8, b: 0.25, a: 1}
@@ -4346,7 +4354,9 @@ MonoBehaviour:
   colorPrepGreen: {r: 0.55, g: 1, b: 0.45, a: 1}
   colorPrepRed: {r: 1, g: 0.55, b: 0.45, a: 1}
   colorEmptyPlate: {r: 0.95, g: 0.95, b: 0.95, a: 1}
-  colorCookedDish: {r: 1, g: 0.78, b: 0.05, a: 1}
+  colorCookedGreen: {r: 0.6, g: 0.95, b: 0.3, a: 1}
+  colorCookedMix: {r: 1, g: 0.78, b: 0.05, a: 1}
+  colorCookedRed: {r: 0.95, g: 0.35, b: 0.2, a: 1}
 --- !u!114 &4585794285360202570
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4768,6 +4778,7 @@ GameObject:
   - component: {fileID: 8402139588453210987}
   - component: {fileID: 4736041575540347461}
   - component: {fileID: 796198591136213364}
+  - component: {fileID: 460996422406597300}
   m_Layer: 0
   m_Name: TrainingArea
   m_TagString: Untagged
@@ -4812,9 +4823,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::KitchenEnv
   cellSize: 1
   agentY: 0.5
-  defaultRecipeStage: 2
+  defaultNeedsPrep: 1
   defaultCookTime: 5
   defaultTargetDishes: 2
+  defaultOrderSlots: 3
+  defaultRecipePoolSize: 3
+  defaultOrderDuration: 20
   defaultMaxIngredients: 2
   episodeDuration: 30
   randomizeSpawn: 1
@@ -4836,6 +4850,7 @@ MonoBehaviour:
   rewardPrepped: 0.2
   rewardIngredientInPot: 0.3
   rewardGoalBonus: 2
+  rewardOrderExpired: -0.5
 --- !u!114 &796198591136213364
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4848,6 +4863,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1134751ceef656c4fac42eb089f7d500, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TargetHighlighter
+--- !u!114 &460996422406597300
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7683731277781063157}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e7abd59516e16b46900fa67b10294cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OrderHud
 --- !u!1 &7871427198380676123
 GameObject:
   m_ObjectHideFlags: 0

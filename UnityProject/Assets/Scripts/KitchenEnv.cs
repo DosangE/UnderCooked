@@ -64,13 +64,21 @@ public class KitchenEnv : MonoBehaviour
     [SerializeField] float agentY = 0.5f;
 
     [Header("요리 규칙")]
-    [Tooltip("EnvironmentParameters의 recipe_stage가 없을 때 쓰는 값. " +
-             "0=초록만, 1=초록+빨강, 2=초록+빨강+손질")]
-    [SerializeField] int defaultRecipeStage = 2;
+    [Tooltip("손질대를 거친 재료만 냄비가 받는가. EnvironmentParameters의 needs_prep이 없을 때 쓰는 값")]
+    [SerializeField] bool defaultNeedsPrep = true;
     [Tooltip("EnvironmentParameters의 cook_time이 없을 때 쓰는 값")]
     [SerializeField] float defaultCookTime = 5f;
-    [Tooltip("EnvironmentParameters의 target_soups가 없을 때 쓰는 값")]
+    [Tooltip("EnvironmentParameters의 target_dishes가 없을 때 쓰는 값")]
     [SerializeField] int defaultTargetDishes = 2;
+
+    [Header("주문")]
+    [Tooltip("동시에 대기하는 주문 수. EnvironmentParameters의 order_slots가 없을 때 쓰는 값")]
+    [SerializeField] int defaultOrderSlots = OrderBoard.MaxSlots;
+    [Tooltip("주문에 나올 수 있는 레시피 수. RecipeType 순서대로 앞에서부터 풀린다. " +
+             "1이면 GreenSoup만, 2면 +MixSoup, 3이면 +RedSoup")]
+    [SerializeField] int defaultRecipePoolSize = RecipeTypeExtensions.Count;
+    [Tooltip("주문 하나의 제한 시간(초). 넘기면 만료되고 팀 패널티가 붙는다")]
+    [SerializeField] float defaultOrderDuration = 20f;
     [Tooltip("냄비 밖(손/카운터)에 동시에 존재할 수 있는 재료 개수. " +
              "넘으면 재료함 Interact가 막힌다 -> 한 접시씩 끝내게 만든다")]
     [SerializeField] int defaultMaxIngredients = 2;
@@ -97,20 +105,24 @@ public class KitchenEnv : MonoBehaviour
 
     ChefAgent[] m_Agents;
 
-    int m_RecipeStage;
+    readonly OrderBoard m_Orders = new OrderBoard();
+
+    bool m_NeedsPrep;
     float m_CookTime;
     int m_TargetDishes;
     int m_MaxIngredients;
     float m_EpisodeTimer;
+    int m_ExpiredOrders;      // KitchenGroup이 가져가서 패널티로 바꾼다
     bool m_Initialized;
 
     public int GridWidth => m_GridWidth;
     public int GridHeight => m_GridHeight;
     public float CellSize => cellSize;
 
-    // 레시피 단계에서 파생되는 규칙. 관측에도 그대로 넣어 정책이 단계를 알 수 있게 한다.
-    public bool NeedsRed => m_RecipeStage >= 1;
-    public bool NeedsPrep => m_RecipeStage >= 2;
+    // 관측에도 그대로 넣어 정책이 지금 규칙을 알 수 있게 한다.
+    public bool NeedsPrep => m_NeedsPrep;
+
+    public OrderBoard Orders => m_Orders;
 
     public int TargetDishes => m_TargetDishes;
     public int DishesServed { get; private set; }
@@ -143,6 +155,18 @@ public class KitchenEnv : MonoBehaviour
 
         var pot = Pot;
         if (pot != null) pot.TickCooking(Time.fixedDeltaTime, m_CookTime);
+
+        // 만료된 주문 수를 쌓아두기만 한다. 보상으로 바꾸는 건 KitchenGroup의 일이고,
+        // 두 FixedUpdate의 실행 순서에 결과가 흔들리지 않도록 누적 -> 소비 구조로 둔다.
+        m_ExpiredOrders += m_Orders.Tick(Time.fixedDeltaTime);
+    }
+
+    // KitchenGroup이 매 FixedUpdate 가져간다. 읽으면 0으로 비워진다.
+    public int TakeExpiredOrderCount()
+    {
+        int count = m_ExpiredOrders;
+        m_ExpiredOrders = 0;
+        return count;
     }
 
     // KitchenGroup이 에이전트를 묶을 때 알려준다. 필드 재료 수를 세는 데 필요하다.
@@ -313,24 +337,31 @@ public class KitchenEnv : MonoBehaviour
     public void ResetEnv()
     {
         var envParams = Academy.Instance.EnvironmentParameters;
-        m_RecipeStage = Mathf.Clamp(Mathf.RoundToInt(envParams.GetWithDefault("recipe_stage", defaultRecipeStage)), 0, 2);
+        m_NeedsPrep = envParams.GetWithDefault("needs_prep", defaultNeedsPrep ? 1f : 0f) >= 0.5f;
         m_TargetDishes = Mathf.Max(1, Mathf.RoundToInt(envParams.GetWithDefault("target_dishes", defaultTargetDishes)));
         m_CookTime = Mathf.Max(0f, envParams.GetWithDefault("cook_time", defaultCookTime));
         m_MaxIngredients = Mathf.Max(1, Mathf.RoundToInt(envParams.GetWithDefault("max_ingredients", defaultMaxIngredients)));
 
+        m_Orders.Configure(
+            Mathf.RoundToInt(envParams.GetWithDefault("order_slots", defaultOrderSlots)),
+            Mathf.RoundToInt(envParams.GetWithDefault("recipe_pool_size", defaultRecipePoolSize)),
+            envParams.GetWithDefault("order_duration", defaultOrderDuration));
+        m_Orders.ResetBoard();
+
         foreach (var station in GetComponentsInChildren<Station>(true))
         {
-            station.ConfigureRecipe(NeedsRed, NeedsPrep);
+            station.ConfigureRecipe(m_NeedsPrep);
             station.ResetState();
         }
 
-        // 손질이 없는 단계에서는 손질대를 아예 숨긴다. 사람이 봐도, 정책이 봐도 헷갈리지 않게.
-        SetStationVisible(StationType.PrepGreen, NeedsPrep);
-        SetStationVisible(StationType.PrepRed, NeedsPrep);
-        SetStationVisible(StationType.RedBox, NeedsRed);
+        // 이번 에피소드에 쓰이지 않는 스테이션은 아예 숨긴다. 사람이 봐도, 정책이 봐도 헷갈리지 않게.
+        SetStationVisible(StationType.PrepGreen, m_NeedsPrep);
+        SetStationVisible(StationType.PrepRed, m_NeedsPrep && m_Orders.UsesRed);
+        SetStationVisible(StationType.RedBox, m_Orders.UsesRed);
 
         DishesServed = 0;
         m_EpisodeTimer = 0f;
+        m_ExpiredOrders = 0;
     }
 
     void SetStationVisible(StationType type, bool visible)
@@ -425,9 +456,13 @@ public class KitchenEnv : MonoBehaviour
     }
 
     // 재료함을 더 열 수 있는가. 필드에 재료가 너무 많으면 막아서 한 접시씩 끝내게 만든다.
+    //
+    // '지금 주문에 필요한 색인가'까지는 여기서 막지 않는다. 그건 마스크가 아니라
+    // 보상이 가르쳐야 할 것이고, 막아버리면 "잘못 가져오는 실수"라는 학습 대상 자체가 사라진다.
+    // 다만 이번 에피소드에 아예 등장하지 않는 색(lesson0의 빨강)은 구조적으로 막는다.
     bool SourceAllowed(Station station)
     {
-        if (station.Type == StationType.RedBox && !NeedsRed) return false;
+        if (station.Type == StationType.RedBox && !m_Orders.UsesRed) return false;
         if (station.Type != StationType.GreenBox && station.Type != StationType.RedBox) return true;
         return IngredientsInPlay() < m_MaxIngredients;
     }
@@ -444,10 +479,10 @@ public class KitchenEnv : MonoBehaviour
     {
         switch (type)
         {
-            case StationType.PrepGreen:    return NeedsPrep && item == ItemType.RawGreen;
-            case StationType.PrepRed:      return NeedsPrep && item == ItemType.RawRed;
+            case StationType.PrepGreen:    return m_NeedsPrep && item == ItemType.RawGreen;
+            case StationType.PrepRed:      return m_NeedsPrep && item == ItemType.RawRed;
             case StationType.Pot:          return item.IsIngredient() || item == ItemType.EmptyPlate;
-            case StationType.ServingHatch: return item == ItemType.CookedDish;
+            case StationType.ServingHatch: return item.IsCookedDish();
             default:                       return false;
         }
     }
@@ -462,6 +497,10 @@ public class KitchenEnv : MonoBehaviour
     {
         if (item == ItemType.None || m_StationZoneByType == null) return false;
 
+        // 주문과 무관한 물건은 전달해봐야 소용없다. 이 조건이 없으면 대기 주문이 전부
+        // GreenSoup인데 빨강 재료를 서로 넘기는 것만으로 전달 보상을 긁을 수 있다.
+        if (!IsWantedNow(item)) return false;
+
         foreach (var pair in m_TypedStations)
         {
             if (!StationConsumes(pair.Key, item)) continue;
@@ -469,6 +508,20 @@ public class KitchenEnv : MonoBehaviour
         }
         return false;
     }
+
+    // 지금 대기 중인 주문들을 기준으로 이 물건이 쓸모가 있는가.
+    public bool IsWantedNow(ItemType item)
+    {
+        if (item == ItemType.EmptyPlate) return true;
+        if (item.IsCookedDish()) return m_Orders.HasOrderFor(item);
+        if (item.IsIngredient()) return m_Orders.WantsColor(item.IsGreen(), PlanningGreen, PlanningRed);
+        return false;
+    }
+
+    // '다음에 냄비가 어떤 상태에서 출발하는가'. 조리가 확정된 냄비는 어차피 비워진 뒤
+    // 새 배치가 시작되므로 0,0으로 본다. 재료를 미리 손질해 두는 행동을 벌하지 않기 위해서다.
+    int PlanningGreen => Pot != null && !Pot.IsCommitted ? Pot.GreenCount : 0;
+    int PlanningRed => Pot != null && !Pot.IsCommitted ? Pot.RedCount : 0;
 
     // ─────────────────────────── 상호작용 ───────────────────────────
 
@@ -495,7 +548,25 @@ public class KitchenEnv : MonoBehaviour
         outcome.NewHeldItem = newHeld;
 
         if (outcome.Result == InteractResult.TookFromCounter) outcome.TransferPartnerIndex = placedBy;
-        if (outcome.Result == InteractResult.Served) DishesServed++;
+
+        // Station은 주문표를 모른다. 주문과의 대조는 전부 여기서 한다.
+        switch (outcome.Result)
+        {
+            case InteractResult.PlacedInPot:
+                // 넣고 난 뒤의 냄비 내용물로 아직 어떤 대기 주문이든 만들 수 있는가.
+                // 조리가 확정된 경우(재료가 다 찬 경우)는 만들어질 요리 자체를 주문과 대조한다.
+                bool ok = station.IsCommitted
+                    ? m_Orders.HasOrderFor(station.CookedRecipe.Dish())
+                    : m_Orders.IsReachable(station.GreenCount, station.RedCount);
+                if (!ok) outcome.Result = InteractResult.PlacedInPotWrong;
+                break;
+
+            case InteractResult.Served:
+                // 그 요리를 주문한 손님이 있어야 점수다. 없으면 완성품이어도 버린 것이다.
+                if (m_Orders.TryConsume(heldItem)) DishesServed++;
+                else outcome.Result = InteractResult.ServedWrongOrder;
+                break;
+        }
 
         return outcome;
     }

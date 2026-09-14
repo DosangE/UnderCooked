@@ -20,6 +20,9 @@ public class KitchenGroup : MonoBehaviour
     [SerializeField] float rewardPrepped = 0.2f;
     [SerializeField] float rewardIngredientInPot = 0.3f;
     [SerializeField] float rewardGoalBonus = 2.0f;
+    [Tooltip("주문 제한 시간을 넘겨서 손님이 떠났을 때. " +
+             "너무 크면 '어차피 못 하니 아무것도 안 한다'가 최적이 되므로 서빙 보상보다 훨씬 작게 둔다")]
+    [SerializeField] float rewardOrderExpired = -0.5f;
 
     SimpleMultiAgentGroup m_Group;
     bool m_Ready;
@@ -62,6 +65,10 @@ public class KitchenGroup : MonoBehaviour
     void FixedUpdate()
     {
         if (!m_Ready) return;
+
+        // 주문 만료 패널티. KitchenEnv가 쌓아둔 것을 가져와서 보상으로 바꾼다.
+        int expired = env.TakeExpiredOrderCount();
+        if (expired > 0) m_Group.AddGroupReward(rewardOrderExpired * expired);
 
         if (env.IsGoalReached)
         {
