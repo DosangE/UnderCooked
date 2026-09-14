@@ -17,28 +17,33 @@ public class KitchenEnv : MonoBehaviour
     const char CharPot = 'P';
     const char CharPlateStack = 'D';
     const char CharServingHatch = 'S';
+    const char CharIngredientBoxMid = 'M';
 
     // 맵 레이아웃. 배열 0번이 맵의 '위'(북쪽, row 최대)다. 파싱할 때 뒤집는다.
     //   # = 벽        . = 바닥
     //   A = ChefA 스폰  B = ChefB 스폰   C = 카운터 전달칸
     //   I = 재료함     P = 냄비        D = 그릇함   S = 서빙구
+    //   M = 중앙 재료 스폰 (카운터 경계, 양쪽 구역 모두에서 Interact 가능)
     //
-    // 카운터 행(C가 있는 행)이 두 구역을 완전히 갈라놓는다.
+    // 카운터 행(C/M이 있는 행)이 두 구역을 완전히 갈라놓는다.
     // 걸어서 넘어갈 수 없으므로 물건은 오직 카운터를 경유해야 한다 = 협동 강제.
     // 재료함이 A가 아니라 B 구역에 있는 게 핵심이다.
     // A 구역에 재료함과 냄비를 둘 다 두면 A가 수프 하나당 46 decision, B가 14 decision을
     // 쓰게 되어(실측) B가 70% 놀고, 협동이 아니라 '한 명이 일하고 한 명이 배달받는' 구조가 된다.
     // 재료함을 남쪽으로 내리면 재료 3개가 전부 카운터를 건너야 해서
     // 수프당 전달이 2회 -> 5회로 늘고 작업량이 대략 A 31 : B 28로 맞는다.
+    //
+    // M(중앙 재료 스폰)은 카운터 경계 위에 있어 A도 카운터를 거치지 않고 직접
+    // 재료를 얻을 수 있다. I(B 구역 전용)는 그대로 둬서 재료 공급처가 두 곳이 된다.
     static readonly string[] LayoutTopDown =
     {
-        "#######", // row 6
-        "#.....#", // row 5
-        "#..A..P", // row 4  <- Chef A 구역 (냄비 전담)
-        "#CCC###", // row 3  <- 중앙 카운터
-        "D..B..S", // row 2  <- Chef B 구역 (그릇함 / 서빙구)
-        "#.....#", // row 1
-        "###I###", // row 0  <- 재료함 (B가 꺼내서 카운터로 넘긴다)
+        "#########", // row 6
+        "#.......#", // row 5
+        "#..A....P", // row 4  <- Chef A 구역 (냄비 전담, 3x3 이동 공간)
+        "##CCMCC##", // row 3  <- 중앙 카운터 4칸 + 중앙 재료 스폰(M)
+        "D..B....S", // row 2  <- Chef B 구역 (그릇함 / 서빙구, 3x3 이동 공간)
+        "#.......#", // row 1
+        "###I#####", // row 0  <- 재료함 (B가 꺼내서 카운터로 넘긴다)
     };
 
     // 행동 branch0의 1~4번(상/하/좌/우)에 대응하는 방향 벡터.
@@ -270,12 +275,13 @@ public class KitchenEnv : MonoBehaviour
     {
         switch (c)
         {
-            case CharIngredientBox: type = StationType.IngredientBox; return true;
-            case CharPot:           type = StationType.Pot;           return true;
-            case CharPlateStack:    type = StationType.PlateStack;    return true;
-            case CharServingHatch:  type = StationType.ServingHatch;  return true;
-            case CharCounter:       type = StationType.Counter;       return true;
-            default:                type = StationType.Counter;       return false;
+            case CharIngredientBox:    type = StationType.IngredientBox;    return true;
+            case CharPot:              type = StationType.Pot;              return true;
+            case CharPlateStack:       type = StationType.PlateStack;       return true;
+            case CharServingHatch:     type = StationType.ServingHatch;     return true;
+            case CharCounter:          type = StationType.Counter;          return true;
+            case CharIngredientBoxMid: type = StationType.IngredientBoxMid; return true;
+            default:                   type = StationType.Counter;          return false;
         }
     }
 

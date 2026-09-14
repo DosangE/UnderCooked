@@ -19,18 +19,18 @@ public class ChefAgent : Agent
     //   동료 상대좌표                2
     //   동료 손 one-hot              4
     //   냄비 재료수                  1   ★ '조리 다 됐는지'는 일부러 안 준다 -> RNN이 기억해야 한다
-    //   카운터 3칸 x (one-hot 4 + 상대좌표 2) = 18
-    //   스테이션 4곳 상대좌표        8
+    //   카운터 4칸 x (one-hot 4 + 상대좌표 2) = 24
+    //   스테이션 5곳 상대좌표        10  (재료함, 중앙재료스폰, 냄비, 그릇함, 서빙구)
     //   남은 시간                    1
-    //                          합계 44
+    //                          합계 52
     //
     // ★ 관측에서 뺀 정보가 Action Mask로 새면 아무 의미가 없다.
     //   Station.CanInteract의 냄비+빈그릇 분기가 그래서 HasCookedSoup을 보지 않는다.
-    public const int ObservationSize = 44;
+    public const int ObservationSize = 52;
 
     // 관측 크기를 고정하려고 슬롯 수를 상수로 박는다.
     // 실제 카운터가 이보다 적으면 0으로 채우고, 많으면 앞에서부터 잘라 쓴다.
-    public const int CounterObservationSlots = 3;
+    public const int CounterObservationSlots = 4;
 
     const int ItemTypeCount = 4;
     const int DirectionCount = 4;
@@ -165,8 +165,9 @@ public class ChefAgent : Agent
             }
         }
 
-        // 8) 스테이션 4곳 상대좌표 (8)
+        // 8) 스테이션 5곳 상대좌표 (10)
         AddStationRelative(sensor, StationType.IngredientBox);
+        AddStationRelative(sensor, StationType.IngredientBoxMid);
         AddStationRelative(sensor, StationType.Pot);
         AddStationRelative(sensor, StationType.PlateStack);
         AddStationRelative(sensor, StationType.ServingHatch);
