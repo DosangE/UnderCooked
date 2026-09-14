@@ -16,8 +16,8 @@ public class KitchenEnv : MonoBehaviour
     const char CharCounter = 'C';
     const char CharGreenBox = 'G';
     const char CharRedBox = 'R';
-    const char CharPrepGreen = 'g';
-    const char CharPrepRed = 'r';
+    const char CharPrepA = 'a';
+    const char CharPrepB = 'b';
     const char CharPot = 'P';
     const char CharPlateStack = 'D';
     const char CharServingHatch = 'S';
@@ -25,18 +25,21 @@ public class KitchenEnv : MonoBehaviour
     // 맵 레이아웃. 배열 0번이 맵의 '위'(북쪽, row 최대)다. 파싱할 때 뒤집는다.
     //   # = 벽        . = 바닥       A/B = 셰프 스폰      C = 카운터 전달칸
     //   G = 초록 재료함   R = 빨강 재료함   (둘 다 경계 위 = 양쪽 구역에서 집을 수 있다)
-    //   g = 초록 손질대(A 구역)        r = 빨강 손질대(B 구역)
+    //   a = A 구역 손질대   b = B 구역 손질대   (둘 다 색을 가리지 않는다)
     //   P = 냄비(A 구역)   D = 그릇함(B 구역)   S = 서빙구(B 구역)
     //
-    // 재료함을 경계에 둔 것은 '누가 무엇을 맡을지'를 규칙이 아니라 정책이 스스로
-    // 나누게 하려는 것이다. 대신 협동은 다른 곳에서 구조적으로 강제된다.
-    //   - 냄비가 A 구역에만 있다   -> 빨강 담당은 손질한 재료를 카운터로 넘겨야 한다
+    // 재료함과 손질대를 '색'이 아니라 '구역'으로 나눈 것은 '누가 무엇을 맡을지'를
+    // 맵이 정해주지 않게 하려는 것이다. 색으로 나누면 주문이 색을 정하는 순간
+    // 담당자까지 정해져서, RedSoup 주문에서는 B가 이동량의 81%를 지고 A는 냄비 앞에서
+    // 받기만 한다(4.3:1). tools/measure_reach.py 로 잰 값이다.
+    //
+    // 협동은 색이 아니라 위치로 강제한다.
+    //   - 냄비가 A 구역에만 있다   -> B가 손질한 재료는 카운터를 건너야 한다
     //   - 서빙구가 B 구역에만 있다 -> 완성 요리는 반드시 A에서 B로 건너가야 한다
     //   - 그릇함도 B 구역이다      -> 냄비를 뜨려면 빈 그릇이 A로 건너와야 한다
-    // 즉 한 접시를 내려면 최소 3번의 카운터 전달이 필요하다.
     static readonly string[] LayoutTopDown =
     {
-        "####g####", // row 8  <- 초록 손질대 (A 구역 북쪽 벽)
+        "####a####", // row 8  <- A 구역 손질대 (북쪽 벽)
         "#.......#", // row 7
         "#.......#", // row 6  <- Chef A 구역 (3행 x 7열)
         "#..A....P", // row 5     냄비는 A 구역 동쪽
@@ -44,7 +47,7 @@ public class KitchenEnv : MonoBehaviour
         "D..B....S", // row 3     그릇함 / 서빙구는 B 구역
         "#.......#", // row 2  <- Chef B 구역 (3행 x 7열)
         "#.......#", // row 1
-        "####r####", // row 0  <- 빨강 손질대 (B 구역 남쪽 벽)
+        "####b####", // row 0  <- B 구역 손질대 (남쪽 벽)
     };
 
     // 행동 branch0의 1~4번(상/하/좌/우)에 대응하는 방향 벡터.
@@ -447,8 +450,8 @@ public class KitchenEnv : MonoBehaviour
         {
             case CharGreenBox:     type = StationType.GreenBox;     return true;
             case CharRedBox:       type = StationType.RedBox;       return true;
-            case CharPrepGreen:    type = StationType.PrepGreen;    return true;
-            case CharPrepRed:      type = StationType.PrepRed;      return true;
+            case CharPrepA:        type = StationType.PrepA;        return true;
+            case CharPrepB:        type = StationType.PrepB;        return true;
             case CharPot:          type = StationType.Pot;          return true;
             case CharPlateStack:   type = StationType.PlateStack;   return true;
             case CharServingHatch: type = StationType.ServingHatch; return true;
@@ -481,8 +484,9 @@ public class KitchenEnv : MonoBehaviour
         }
 
         // 이번 에피소드에 쓰이지 않는 스테이션은 아예 숨긴다. 사람이 봐도, 정책이 봐도 헷갈리지 않게.
-        SetStationVisible(StationType.PrepGreen, m_NeedsPrep);
-        SetStationVisible(StationType.PrepRed, m_NeedsPrep && m_Orders.UsesRed);
+        // 손질대는 구역마다 하나씩이고 색과 무관하므로, 손질 단계에서는 둘 다 필요하다.
+        SetStationVisible(StationType.PrepA, m_NeedsPrep);
+        SetStationVisible(StationType.PrepB, m_NeedsPrep);
         SetStationVisible(StationType.RedBox, m_Orders.UsesRed);
 
         DishesServed = 0;
@@ -580,6 +584,13 @@ public class KitchenEnv : MonoBehaviour
         return false;
     }
 
+    // 그 에이전트가 쓸 수 있는 손질대. 구역마다 하나씩 있으므로 항상 하나 나온다.
+    public Station GetPrepFor(int agentIndex)
+    {
+        var prepA = GetStation(StationType.PrepA);
+        return CanAgentReach(prepA, agentIndex) ? prepA : GetStation(StationType.PrepB);
+    }
+
     // ─────────────────────────── 사람용 안내 ───────────────────────────
 
     // '지금 이 주방이 무슨 요리를 만드는 중인가'. 하이라이트와 주문판이 같은 답을 보게 한다.
@@ -654,13 +665,26 @@ public class KitchenEnv : MonoBehaviour
     }
 
     // 그 스테이션이 이 아이템을 '소비'하는가 (재료함/그릇함은 생산만 하므로 false).
+    //
+    // ★ 손질대는 일부러 빠져 있다.
+    //   손질대가 색을 안 가리게 되면서 A 구역 손질대도 B 구역 손질대도 모든 생재료를
+    //   받는다. 손질대를 소비자로 세면 생재료가 **양쪽 구역 모두에서 쓸모 있는 것**이
+    //   되고, 그 순간 README 4-1(b)의 A<->B 핑퐁 어뷰징이 그대로 되살아난다.
+    //   (예전에는 빨강 손질대가 B에만 있어서 생빨강은 B 방향으로만 쓸모가 있었다)
+    //
+    //   실제로도 생재료를 넘길 이유가 없다. 자기 구역 손질대에서 손질한 뒤 넘기면 된다.
+    //   그래서 전달 보상은 '손질을 마친 재료'와 '빈 그릇'과 '완성 요리'에만 붙는다.
     bool StationConsumes(StationType type, ItemType item)
     {
         switch (type)
         {
-            case StationType.PrepGreen:    return m_NeedsPrep && item == ItemType.RawGreen;
-            case StationType.PrepRed:      return m_NeedsPrep && item == ItemType.RawRed;
-            case StationType.Pot:          return item.IsIngredient() || item == ItemType.EmptyPlate;
+            case StationType.Pot:
+                if (item == ItemType.EmptyPlate) return true;
+                if (!item.IsIngredient()) return false;
+                // 냄비가 지금 받는 형태여야 쓸모가 있다. Station.PotAccepts와 같은 규칙.
+                bool raw = item == ItemType.RawGreen || item == ItemType.RawRed;
+                return m_NeedsPrep ? !raw : raw;
+
             case StationType.ServingHatch: return item.IsCookedDish();
             default:                       return false;
         }

@@ -128,11 +128,11 @@ public class Station : MonoBehaviour
                 // 재료함의 '필드 동시 재료 수' 제한은 KitchenEnv가 따로 건다.
                 return heldItem == ItemType.None;
 
-            case StationType.PrepGreen:
-                return m_NeedsPrep && heldItem == ItemType.RawGreen;
-
-            case StationType.PrepRed:
-                return m_NeedsPrep && heldItem == ItemType.RawRed;
+            case StationType.PrepA:
+            case StationType.PrepB:
+                // 손질대는 색을 가리지 않는다. 구역마다 하나씩 있고 아무 생재료나 받는다.
+                // 색을 가리면 재료의 색이 담당 구역을 정해버려서 주문에 따라 한쪽이 논다.
+                return m_NeedsPrep && (heldItem == ItemType.RawGreen || heldItem == ItemType.RawRed);
 
             case StationType.Pot:
                 if (heldItem == ItemType.None) return CanDumpPot();
@@ -180,12 +180,10 @@ public class Station : MonoBehaviour
                 newHeldItem = ItemType.EmptyPlate;
                 return InteractResult.PickedFromSource;
 
-            case StationType.PrepGreen:
-                newHeldItem = ItemType.PrepGreen;
-                return InteractResult.Prepped;
-
-            case StationType.PrepRed:
-                newHeldItem = ItemType.PrepRed;
+            case StationType.PrepA:
+            case StationType.PrepB:
+                // 들고 온 재료의 색을 그대로 유지한다. 손질대가 색을 바꾸지는 않는다.
+                newHeldItem = heldItem.IsGreen() ? ItemType.PrepGreen : ItemType.PrepRed;
                 return InteractResult.Prepped;
 
             case StationType.Pot:

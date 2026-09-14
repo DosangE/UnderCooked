@@ -112,8 +112,19 @@ public class OrderBoard
         return false;
     }
 
-    // 냄비가 (green, red)인 상태에서 그 색 재료를 '지금 더 원하는' 주문이 있는가.
-    // 카운터 전달 보상을 주문과 무관한 재료에까지 주지 않기 위해 쓴다.
+    // 그 색 재료를 원하는 대기 주문이 있는가. 카운터 전달 보상을 주문과 무관한
+    // 재료에까지 주지 않기 위해 쓴다.
+    //
+    // '지금 끓이는 배치'뿐 아니라 **다음 배치용으로 미리 준비하는 것**도 쓸모로 친다.
+    //
+    // 예전에는 지금 배치로 만들 수 있는 주문만 봤다. 그러면 냄비에 빨강이 하나 들어간
+    // 순간 대기 중인 GreenSoup 주문을 위한 초록이 '쓸모없음'이 되어, 미리 준비하는
+    // 행동에 보상이 안 붙고 하이라이트는 "버려라"라고 말했다.
+    // 냄비가 하나뿐이라 한 번에 한 접시씩만 끓는데, 그 사이에 한가한 셰프가 다음 주문을
+    // 준비하는 것이야말로 두 사람이 놀지 않는 유일한 길이다. 그걸 벌하고 있었다.
+    //
+    // (필드에 나와 있을 수 있는 재료 수는 max_ingredients가 따로 막으므로, 이걸 넓혀도
+    //  재료를 무한정 쌓아둘 수는 없다)
     public bool WantsColor(bool green, int potGreen, int potRed)
     {
         for (int i = 0; i < m_ActiveSlots; i++)
@@ -121,10 +132,14 @@ public class OrderBoard
             if (!m_Slots[i].Active) continue;
 
             var recipe = m_Slots[i].Recipe;
-            if (!recipe.StillReachable(potGreen, potRed)) continue;
-
-            int have = green ? potGreen : potRed;
             int need = green ? recipe.RequiredGreen() : recipe.RequiredRed();
+            if (need <= 0) continue;
+
+            // 지금 배치로는 못 만드는 주문 -> 다음 배치용으로 준비해 둘 값어치가 있다.
+            if (!recipe.StillReachable(potGreen, potRed)) return true;
+
+            // 지금 배치에 바로 들어간다.
+            int have = green ? potGreen : potRed;
             if (need > have) return true;
         }
         return false;

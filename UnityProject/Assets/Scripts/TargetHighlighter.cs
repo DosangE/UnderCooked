@@ -94,22 +94,42 @@ public class TargetHighlighter : MonoBehaviour
         }
     }
 
-    // 재료를 들었다. 목표 주문이 그 색을 아직 원할 때만 조리 쪽으로 안내한다.
+    // 재료를 들었다. 지금 배치에 들어갈 것인지, 다음 주문용인지, 버릴 것인지를 가른다.
     ChefGuidance GuideIngredient(ChefAgent agent, ItemType held)
     {
         bool green = held.IsGreen();
 
-        bool wanted = Plan.Current == KitchenPlan.Step.Gather && Plan.NeedsColor(green);
-        if (!wanted)
-            return DropOff(agent, StationType.ServingHatch,
-                $"{ColorName(green)} 재료는 지금 주문에 필요 없다 -> 버려라", true);
+        // 지금 끓이는 배치에 바로 들어가는가.
+        bool forThisBatch = Plan.Current == KitchenPlan.Step.Gather && Plan.NeedsColor(green);
 
+        // 아니라면 대기 중인 다른 주문을 위해 미리 준비해 둘 값어치가 있는가.
+        bool forLaterOrder = !forThisBatch && m_Env.IsWantedNow(held);
+
+        if (!forThisBatch && !forLaterOrder)
+            return DropOff(agent, StationType.ServingHatch,
+                $"{ColorName(green)} 재료는 어떤 대기 주문에도 필요 없다 -> 버려라", true);
+
+        // 손질은 어느 경우든 먼저 해두는 게 이득이다. 손질대는 자기 구역 것을 쓴다.
         bool raw = held == ItemType.RawGreen || held == ItemType.RawRed;
         if (m_Env.NeedsPrep && raw)
-            return DropOff(agent, green ? StationType.PrepGreen : StationType.PrepRed,
-                $"{ColorName(green)} 손질대에서 손질해라");
+        {
+            var prep = m_Env.GetPrepFor(agent.AgentIndex);
+            return new ChefGuidance
+            {
+                Target = prep,
+                Kind = StationHighlight.Kind.Put,
+                Text = forThisBatch ? "손질대에서 손질해라" : "다음 주문용이다. 미리 손질해 두자"
+            };
+        }
 
-        return DropOff(agent, StationType.Pot, "냄비에 넣어라");
+        if (forThisBatch) return DropOff(agent, StationType.Pot, "냄비에 넣어라");
+
+        // 손질까지 끝났지만 지금 배치에는 못 넣는다. 냄비가 비면 그때 넣는다.
+        return new ChefGuidance
+        {
+            Kind = StationHighlight.Kind.Take,
+            Text = "다음 주문용으로 준비됐다. 냄비가 빌 때까지 들고 있어라"
+        };
     }
 
     // 빈손이다. 무엇을 가지러 갈지 정한다.
@@ -178,14 +198,15 @@ public class TargetHighlighter : MonoBehaviour
     }
 
     // 두 색이 다 필요할 때(MixSoup) 누가 어느 쪽을 맡을지.
-    // 자기 구역에서 손질까지 할 수 있는 색을 고른다 -> 전달 횟수가 줄어든다.
+    //
+    // 손질대가 색을 안 가리게 되면서 맵이 담당을 정해주지 않는다. 둘이 같은 재료함으로
+    // 몰리지 않게 사람용 안내에서는 셰프 번호로 갈라준다.
+    // (정책은 이 안내를 보지 않는다. 누가 무엇을 맡을지는 스스로 나눠야 한다)
     bool ChooseColorFor(ChefAgent agent)
     {
         if (Plan.NeedGreen <= 0) return false;
         if (Plan.NeedRed <= 0) return true;
-
-        bool canPrepGreen = m_Env.CanAgentReach(m_Env.GetStation(StationType.PrepGreen), agent.AgentIndex);
-        return canPrepGreen;
+        return agent.AgentIndex == 0;
     }
 
     // ─────────────────────────── 목적지 -> 실제 하이라이트 ───────────────────────────

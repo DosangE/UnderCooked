@@ -193,8 +193,8 @@ public class ChefAgent : Agent
         // 8) 스테이션 7곳 상대좌표 (14)
         AddStationRelative(sensor, StationType.GreenBox);
         AddStationRelative(sensor, StationType.RedBox);
-        AddStationRelative(sensor, StationType.PrepGreen);
-        AddStationRelative(sensor, StationType.PrepRed);
+        AddStationRelative(sensor, StationType.PrepA);
+        AddStationRelative(sensor, StationType.PrepB);
         AddStationRelative(sensor, StationType.Pot);
         AddStationRelative(sensor, StationType.PlateStack);
         AddStationRelative(sensor, StationType.ServingHatch);
