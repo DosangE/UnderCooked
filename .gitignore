@@ -94,11 +94,12 @@ crashlytics-build.properties
 !**/results/README.md
 
 # --- Claude Code ---
-**/.claude/
-**/CLAUDE.md
+# .claude/ 와 CLAUDE.md는 이 저장소의 워크플로 문서라 커밋한다.
+# 로컬 전용 설정만 제외.
 **/CLAUDE.local.md
 **/.mcp.json
 **/.claude.json
+**/.claude/settings.local.json
 **/EvaluationResults/
 
 # ML-Agents timer dump
