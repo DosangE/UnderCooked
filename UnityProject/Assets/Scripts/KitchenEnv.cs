@@ -399,6 +399,14 @@ public class KitchenEnv : MonoBehaviour
         return m_TypedStations.TryGetValue(type, out var station) ? station : null;
     }
 
+    // 그 스테이션을 쓸 수 있는 구역. 경계 위(재료함/카운터)는 양쪽에서 닿으므로
+    // 먼저 찾은 쪽이 나오고, 한쪽 전용 스테이션에서만 의미가 있다.
+    public int GetStationZone(StationType type)
+    {
+        if (m_StationZoneByType == null) return ZoneBlocked;
+        return m_StationZoneByType[(int)type];
+    }
+
     // 냄비 밖에 나와 있는 재료 수. 손에 든 것과 카운터에 놓인 것만 센다.
     public int IngredientsInPlay()
     {

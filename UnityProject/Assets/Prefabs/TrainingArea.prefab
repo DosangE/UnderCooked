@@ -215,6 +215,7 @@ GameObject:
   - component: {fileID: 2100398936031028341}
   - component: {fileID: 4850391842784591676}
   - component: {fileID: 1713301219751628704}
+  - component: {fileID: 44378980022278289}
   m_Layer: 0
   m_Name: ServingHatch
   m_TagString: Untagged
@@ -328,6 +329,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 3
+--- !u!114 &44378980022278289
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 522312154504459986}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &537150886834753903
 GameObject:
   m_ObjectHideFlags: 0
@@ -490,7 +505,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 77
+    VectorObservationSize: 52
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -901,6 +916,7 @@ GameObject:
   - component: {fileID: 2706877897838683209}
   - component: {fileID: 3965545990129808187}
   - component: {fileID: 8143328907171954107}
+  - component: {fileID: 7905043531859671144}
   m_Layer: 0
   m_Name: RedBox
   m_TagString: Untagged
@@ -1014,6 +1030,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 5
+--- !u!114 &7905043531859671144
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1568765568448902727}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &1734482674314679045
 GameObject:
   m_ObjectHideFlags: 0
@@ -1319,6 +1349,7 @@ GameObject:
   - component: {fileID: 29960961599443754}
   - component: {fileID: 5345018621382768518}
   - component: {fileID: 2804916427735309717}
+  - component: {fileID: 1069609395765482481}
   m_Layer: 0
   m_Name: Pass_0
   m_TagString: Untagged
@@ -1432,6 +1463,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 4
+--- !u!114 &1069609395765482481
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2227530616261262089}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &2232758869999645200
 GameObject:
   m_ObjectHideFlags: 0
@@ -1445,6 +1490,7 @@ GameObject:
   - component: {fileID: 196267295826531476}
   - component: {fileID: 7697719137713659045}
   - component: {fileID: 5194688288224813083}
+  - component: {fileID: 5754853134528441685}
   m_Layer: 0
   m_Name: PrepGreen
   m_TagString: Untagged
@@ -1558,6 +1604,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 6
+--- !u!114 &5754853134528441685
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2232758869999645200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &2244750521383295920
 GameObject:
   m_ObjectHideFlags: 0
@@ -1571,6 +1631,7 @@ GameObject:
   - component: {fileID: 2028897625653448038}
   - component: {fileID: 7660185311190773036}
   - component: {fileID: 6915664090054109053}
+  - component: {fileID: 9218839214760451148}
   m_Layer: 0
   m_Name: Pot
   m_TagString: Untagged
@@ -1684,6 +1745,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 1
+--- !u!114 &9218839214760451148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2244750521383295920}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &2410969362967811578
 GameObject:
   m_ObjectHideFlags: 0
@@ -2733,6 +2808,7 @@ GameObject:
   - component: {fileID: 1536575441177078679}
   - component: {fileID: 2880249493054790940}
   - component: {fileID: 6287059882961332363}
+  - component: {fileID: 1817669970659333978}
   m_Layer: 0
   m_Name: Pass_3
   m_TagString: Untagged
@@ -2846,6 +2922,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 4
+--- !u!114 &1817669970659333978
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4738400165532283602}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &5180584903510779481
 GameObject:
   m_ObjectHideFlags: 0
@@ -2949,6 +3039,7 @@ GameObject:
   - component: {fileID: 6696169412327849688}
   - component: {fileID: 3716251430238314117}
   - component: {fileID: 5453131485113014370}
+  - component: {fileID: 8778787234354629290}
   m_Layer: 0
   m_Name: Pass_2
   m_TagString: Untagged
@@ -3062,6 +3153,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 4
+--- !u!114 &8778787234354629290
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5224287631964646526}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &5228005222480078812
 GameObject:
   m_ObjectHideFlags: 0
@@ -3457,6 +3562,7 @@ GameObject:
   - component: {fileID: 7575407991998926603}
   - component: {fileID: 9155501185506500961}
   - component: {fileID: 2090063747707881819}
+  - component: {fileID: 4413243756457017319}
   m_Layer: 0
   m_Name: PrepRed
   m_TagString: Untagged
@@ -3570,6 +3676,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 7
+--- !u!114 &4413243756457017319
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5689401395821096483}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &5853031973223019068
 GameObject:
   m_ObjectHideFlags: 0
@@ -4180,7 +4300,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 77
+    VectorObservationSize: 52
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -4255,6 +4375,7 @@ GameObject:
   - component: {fileID: 2061879385498754031}
   - component: {fileID: 3995464512937507662}
   - component: {fileID: 5231290099114584511}
+  - component: {fileID: 9021928783743209014}
   m_Layer: 0
   m_Name: Pass_1
   m_TagString: Untagged
@@ -4368,6 +4489,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 4
+--- !u!114 &9021928783743209014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7191987234259200944}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &7393025086969417324
 GameObject:
   m_ObjectHideFlags: 0
@@ -4381,6 +4516,7 @@ GameObject:
   - component: {fileID: 3019658552969427599}
   - component: {fileID: 7042994113570057573}
   - component: {fileID: 2317344562591938578}
+  - component: {fileID: 7287373356633657633}
   m_Layer: 0
   m_Name: GreenBox
   m_TagString: Untagged
@@ -4494,6 +4630,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 0
+--- !u!114 &7287373356633657633
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7393025086969417324}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &7565711089458253974
 GameObject:
   m_ObjectHideFlags: 0
@@ -4617,6 +4767,7 @@ GameObject:
   - component: {fileID: 5790603143540965715}
   - component: {fileID: 8402139588453210987}
   - component: {fileID: 4736041575540347461}
+  - component: {fileID: 796198591136213364}
   m_Layer: 0
   m_Name: TrainingArea
   m_TagString: Untagged
@@ -4685,6 +4836,18 @@ MonoBehaviour:
   rewardPrepped: 0.2
   rewardIngredientInPot: 0.3
   rewardGoalBonus: 2
+--- !u!114 &796198591136213364
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7683731277781063157}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1134751ceef656c4fac42eb089f7d500, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetHighlighter
 --- !u!1 &7871427198380676123
 GameObject:
   m_ObjectHideFlags: 0
@@ -4841,6 +5004,7 @@ GameObject:
   - component: {fileID: 3567544692230813485}
   - component: {fileID: 4569650934064024316}
   - component: {fileID: 7096742316634121460}
+  - component: {fileID: 8605322005981035408}
   m_Layer: 0
   m_Name: PlateStack
   m_TagString: Untagged
@@ -4954,6 +5118,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Station
   type: 2
+--- !u!114 &8605322005981035408
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8665413228355674306}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b6e1de38caba4546b43b267d215d9d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationHighlight
+  pulsesPerSecond: 1.6
+  maxBrightness: 0.7
 --- !u!1 &8761729256089619719
 GameObject:
   m_ObjectHideFlags: 0
