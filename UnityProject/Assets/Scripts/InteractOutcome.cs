@@ -18,6 +18,13 @@ public struct InteractOutcome
     // 전달 두 번은 그대로 보상받는다.
     public bool NewItemTransferred;
 
+    // 그 물건에 딸린 '되돌릴 수 있는 진행 보상'의 합.
+    //
+    // 손질/투입으로 지급된 팀 보상은 서빙으로 이어졌을 때만 정당하다. 그래서 냄비가
+    // 들고 있던 크레딧이 완성 요리에 옮겨 붙고, 카운터를 건너 동료에게까지 따라간다.
+    // 제대로 서빙되면 확정되고, 주문에 없는 요리를 내거나 버리면 그때 회수한다.
+    public float NewItemCredit;
+
     // 카운터에서 '동료가 놓은' 물건을 집었을 때 그 동료의 인덱스. 그 외에는 -1.
     // 전달 보상(+0.15)을 놓은 쪽에도 소급해서 주기 위해 필요하다.
     public int TransferPartnerIndex;

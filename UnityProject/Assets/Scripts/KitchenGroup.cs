@@ -27,6 +27,11 @@ public class KitchenGroup : MonoBehaviour
     SimpleMultiAgentGroup m_Group;
     bool m_Ready;
 
+    // 이 그룹에 지금까지 지급된 팀 보상의 합. **회귀 검사/진단 전용이다.**
+    // SimpleMultiAgentGroup은 누적값을 노출하지 않아서, 보상 설계가 의도대로
+    // 동작하는지 자동으로 확인하려면 이쪽에서 따로 세어야 한다.
+    public float TotalGroupReward { get; private set; }
+
     void Awake()
     {
         if (env == null) env = GetComponent<KitchenEnv>();
@@ -68,13 +73,13 @@ public class KitchenGroup : MonoBehaviour
 
         // 주문 만료 패널티. KitchenEnv가 쌓아둔 것을 가져와서 보상으로 바꾼다.
         int expired = env.TakeExpiredOrderCount();
-        if (expired > 0) m_Group.AddGroupReward(rewardOrderExpired * expired);
+        if (expired > 0) AddTeamReward(rewardOrderExpired * expired);
 
         if (env.IsGoalReached)
         {
             // 목표 수프 개수 달성 -> 성공 종료
             env.NoteEpisodeEnd($"목표 {env.TargetDishes}접시 달성! 새 라운드");
-            m_Group.AddGroupReward(rewardGoalBonus);
+            AddTeamReward(rewardGoalBonus);
             m_Group.EndGroupEpisode();
             ResetScene();
             return;
@@ -101,12 +106,12 @@ public class KitchenGroup : MonoBehaviour
 
     public void OnIngredientPrepped()
     {
-        if (m_Group != null) m_Group.AddGroupReward(rewardPrepped);
+        AddTeamReward(rewardPrepped);
     }
 
     public void OnIngredientPlacedInPot()
     {
-        if (m_Group != null) m_Group.AddGroupReward(rewardIngredientInPot);
+        AddTeamReward(rewardIngredientInPot);
     }
 
     // 냄비를 비웠다. 그 배치에 지급됐던 진행 보상을 전부 회수한다.
@@ -116,18 +121,30 @@ public class KitchenGroup : MonoBehaviour
     // 이득이 된다. 커리큘럼 lesson0 임계값(reward 3.0)도 서빙 0회로 통과해버린다.
     public void OnPotDumped(float refund)
     {
-        if (m_Group != null && refund > 0f) m_Group.AddGroupReward(-refund);
+        if (refund > 0f) AddTeamReward(-refund);
     }
 
-    // 손질까지 해놓고 서빙구에 버렸다. 이것도 무산된 진행이다.
-    public void OnPreppedIngredientWasted()
+    // 진행이 무산됐다. 그 물건에 딸려 있던 진행 보상을 회수한다.
+    //
+    // 냄비를 비우는 경로(OnPotDumped)만으로는 부족하다. 요리를 완성해서 냄비에서
+    // 꺼내버리면 크레딧이 냄비를 떠나므로, 그 요리를 주문에 없는데 제출하거나 버리면
+    // 진행 보상 +1.0이 그대로 남는다. 크레딧이 요리를 따라가고 여기서 회수되어야 한다.
+    public void OnProgressWasted(float credit)
     {
-        if (m_Group != null) m_Group.AddGroupReward(-rewardPrepped);
+        if (credit > 0f) AddTeamReward(-credit);
     }
 
     public void OnDishServed()
     {
-        if (m_Group != null) m_Group.AddGroupReward(rewardServe);
+        AddTeamReward(rewardServe);
+    }
+
+    // 팀 보상은 전부 여기를 지난다. 누적값을 같이 세기 위해서다.
+    void AddTeamReward(float amount)
+    {
+        if (m_Group == null) return;
+        m_Group.AddGroupReward(amount);
+        TotalGroupReward += amount;
     }
 
     // 카운터 전달이 성립했을 때 '놓은 쪽'에 소급해서 주는 개인 보상.

@@ -73,11 +73,40 @@ public class ChefAgent : Agent
     ItemType m_HeldItem = ItemType.None;
     // 손에 든 그 물건이 이미 전달 보상을 받은 적이 있는가. 물건을 따라다닌다.
     bool m_HeldTransferred;
+    // 손에 든 그 물건에 딸린 진행 보상 크레딧. 서빙이 무산되면 이만큼 회수한다.
+    float m_HeldCredit;
     bool m_InteractQueued;        // Heuristic 키 입력 래치
 
     public int AgentIndex => agentIndex;
     public Vector2Int Cell => m_Cell;
     public ItemType HeldItem => m_HeldItem;
+
+    // -- 회귀 검사 전용 훅 --------------------------------------------
+    // KitchenSelfTest가 시나리오를 만들려면 셰프를 특정 칸/시선에 세울 수 있어야 한다.
+    // 검사는 반드시 실제 OnActionReceived 경로를 거쳐야 의미가 있다. 검사 스크립트가
+    // 지급 조건을 자기가 계산하면 구현이 아니라 '의도'를 검사하게 되고, 실제로 그 실수로
+    // 전달 보상 차단이 배선만 되고 지급부에 빠진 것을 놓쳤다.
+    // 위치/시선만 바꾼다. **손에 든 것과 거기 딸린 기록은 건드리지 않는다.**
+    // (예전에는 여기서 손까지 초기화해서, 검사 도구가 검사 대상인 '물건에 딸린 기록'을
+    //  매번 지워버렸다. 그 탓에 멀쩡한 코드가 실패로 나왔다)
+    public void PlaceForTest(Vector2Int cell, int facing)
+    {
+        m_Cell = cell;
+        m_Facing = facing;
+        ApplyTransform();
+    }
+
+    // 갓 생겨난 물건을 손에 쥐여준다. 전달 기록도 크레딧도 없는 상태다.
+    public void GiveForTest(ItemType item)
+    {
+        m_HeldItem = item;
+        m_HeldTransferred = false;
+        m_HeldCredit = 0f;
+        UpdateHeldVisual();
+    }
+
+    public bool HeldTransferredForTest => m_HeldTransferred;
+    public float HeldCreditForTest => m_HeldCredit;
 
     public override void Initialize()
     {
@@ -116,6 +145,7 @@ public class ChefAgent : Agent
         m_Facing = agentIndex == 0 ? 1 : 0;
         m_HeldItem = ItemType.None;
         m_HeldTransferred = false;
+        m_HeldCredit = 0f;
         m_InteractQueued = false;
 
         ApplyTransform();
@@ -293,11 +323,12 @@ public class ChefAgent : Agent
     void DoInteract()
     {
         var front = m_Cell + KitchenEnv.Directions[m_Facing];
-        bool wasPrepped = m_HeldItem == ItemType.PrepGreen || m_HeldItem == ItemType.PrepRed;
-        var outcome = m_Env.TryInteract(agentIndex, front, m_HeldItem, m_HeldTransferred);
+        float creditBefore = m_HeldCredit;
+        var outcome = m_Env.TryInteract(agentIndex, front, m_HeldItem, m_HeldTransferred, m_HeldCredit);
 
         m_HeldItem = outcome.NewHeldItem;
         m_HeldTransferred = outcome.NewItemTransferred;
+        m_HeldCredit = outcome.NewItemCredit;
         UpdateHeldVisual();
 
         switch (outcome.Result)
@@ -307,7 +338,13 @@ public class ChefAgent : Agent
                 break;
 
             case InteractResult.Prepped:
-                if (m_Group != null) m_Group.OnIngredientPrepped();
+                if (m_Group != null)
+                {
+                    m_Group.OnIngredientPrepped();
+                    // 손질 보상도 이 재료에 딸린 진행이다. 재료를 따라다니다가
+                    // 냄비에 들어가면 냄비 크레딧에 합산되고, 버려지면 회수된다.
+                    m_HeldCredit += m_Group.RewardPrepped;
+                }
                 break;
 
             case InteractResult.PlacedInPot:
@@ -318,8 +355,7 @@ public class ChefAgent : Agent
                     // 손질 보상도 이 재료에 딸린 진행이므로 같이 단다.
                     var pot = m_Env.Pot;
                     if (pot != null)
-                        pot.AddProgressCredit(m_Group.RewardIngredientInPot
-                            + (wasPrepped ? m_Group.RewardPrepped : 0f));
+                        pot.AddProgressCredit(m_Group.RewardIngredientInPot + creditBefore);
                 }
                 break;
 
@@ -328,10 +364,12 @@ public class ChefAgent : Agent
                 // 팀 보상 +0.3은 주지 않고 개인 패널티만 준다.
                 // 손질 보상은 이미 나갔으므로 그것만 냄비 크레딧에 달아 회수 대상으로 둔다.
                 AddReward(rewardPotWrongIngredient);
-                if (m_Group != null && wasPrepped)
+                // 투입 보상은 안 줬지만 손질 보상은 이미 나갔다. 그 크레딧을 냄비에 실어
+                // 비울 때 회수되게 한다.
+                if (m_Group != null && creditBefore > 0f)
                 {
                     var potWrong = m_Env.Pot;
-                    if (potWrong != null) potWrong.AddProgressCredit(m_Group.RewardPrepped);
+                    if (potWrong != null) potWrong.AddProgressCredit(creditBefore);
                 }
                 break;
 
@@ -347,18 +385,23 @@ public class ChefAgent : Agent
                 break;
 
             case InteractResult.TookFromCounter:
-                // 전달 보상은 두 조건을 다 만족할 때만 준다. 집은 쪽과 놓은 쪽 둘 다에게.
-                //   (1) 동료가 놓은 것일 것          -> 혼자 놓았다 집었다 반복 차단
-                //   (2) 내 구역에서 쓸모가 있을 것    -> A<->B 핑퐁으로 긁는 것 차단
-                // (2)가 없으면 접시를 서로 되넘기는 것만으로 정직한 플레이보다 많이 벌 수 있다.
-                if (m_Env.IsItemUsefulFor(agentIndex, m_HeldItem))
+                // 전달 보상은 세 조건을 다 만족할 때만 준다. 집은 쪽과 놓은 쪽 둘 다에게.
+                //   (1) 동료가 놓은 것일 것              -> 혼자 놓았다 집었다 반복 차단
+                //   (2) 내 구역에서 쓸모가 있을 것        -> 주문과 무관한 물건 전달 차단
+                //   (3) 그 물건이 아직 전달 보상을 받은 적이 없을 것
+                //                                       -> 같은 물건 왕복으로 긁는 것 차단
+                // (3)이 없으면 빈 그릇 하나를 B<->A로 왕복시키는 것만으로 서빙 없이
+                // 셰프별 +1.5를 벌 수 있다. 실측으로 확인된 경로다.
+                if (!m_HeldTransferred && m_Env.IsItemUsefulFor(agentIndex, m_HeldItem))
                 {
                     AddReward(rewardTransfer);
                     if (m_Group != null) m_Group.AwardPersonalReward(outcome.TransferPartnerIndex, rewardTransfer);
+                    m_HeldTransferred = true;   // 이 물건은 전달 보상을 받았다. 다음 건널목부터는 없다.
                 }
                 break;
 
             case InteractResult.Served:
+                // 진행이 실현됐다. 크레딧은 확정되고 회수 대상에서 빠진다.
                 if (m_Group != null) m_Group.OnDishServed();
                 break;
 
@@ -366,12 +409,17 @@ public class ChefAgent : Agent
                 // 요리는 맞는데 주문이 아니었다. 여기까지 오는 데 든 비용이 이미 크지만,
                 // 그것만으로는 '아무거나 만들어서 내보는' 전략을 확실히 배제하지 못한다.
                 AddReward(rewardServedWrongOrder);
+                // 이 요리에 딸려 있던 진행 보상도 무산됐다. 회수한다.
+                // 이게 없으면 '아무 수프나 만들어서 내본다'가 팀 보상 +1.0을 그냥 챙긴다.
+                if (m_Group != null) m_Group.OnProgressWasted(creditBefore);
                 break;
 
             case InteractResult.Wasted:
                 AddReward(rewardWasted);
-                // 손질까지 해놓고 버렸다면 그 손질 보상도 무산된 진행이다.
-                if (wasPrepped && m_Group != null) m_Group.OnPreppedIngredientWasted();
+                // 버린 물건에 딸려 있던 진행 보상은 전부 무산됐다.
+                // 손질만 해둔 재료(+0.2)도, 완성했지만 버린 요리(+1.0)도 여기로 온다.
+                // creditBefore에 손질 보상이 이미 포함되어 있다(Prepped에서 더했다). 이중으로 빼지 않는다.
+                if (m_Group != null) m_Group.OnProgressWasted(creditBefore);
                 break;
 
             case InteractResult.PotNotReady:
