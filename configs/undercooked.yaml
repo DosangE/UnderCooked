@@ -60,9 +60,29 @@ environment_parameters:
   # ---------------------------------------------------------------
 
   # Dishes required to finish an episode: 1 -> 2 -> 3.
-  # Approx. cumulative reward per agent on a successful episode:
-  #   lesson0 (1 dish): ~6.0   lesson1 (2): ~9.4   lesson2 (3): ~13.0
-  # Thresholds sit around "succeeds about half the time".
+  #
+  # THESE THRESHOLDS ARE INDIVIDUAL-REWARD NUMBERS. Read this before changing them.
+  #
+  # measure: reward is compared against Environment/Cumulative Reward, and that
+  # scalar sums AddReward ONLY. AddGroupReward does not touch it - it is reported
+  # separately as Environment/Group Cumulative Reward, and the two are merged only
+  # in the learning signal (Policy/Extrinsic Reward). Sources, in the installed
+  # mlagents 1.1.0: agent_processor.py _episode_rewards += step.reward, then
+  # rl_trainer.py _update_end_episode_stats -> reward_buffer, which is what the
+  # curriculum reads.
+  #
+  # So the two scales are:
+  #   individual only  (what gates lessons):  lesson0 ~ +0.3 on success,
+  #                                           ~ -0.9 on a 450-decision timeout
+  #                                           (step cost -0.002 dominates it)
+  #   individual+team  (Policy/Extrinsic Reward, NOT the gate):
+  #                                           lesson0 ~ 6.0  lesson1 ~ 9.4  lesson2 ~ 13.0
+  #
+  # The thresholds below were once set from the second scale (3.0 / 6.0), which is
+  # unreachable on the first - target_dishes would have stayed at 1 for the whole
+  # run with no visible symptom. Thresholds now sit around "succeeds about half the
+  # time" on the individual scale. If lesson0 has not fired by ~500k steps, read the
+  # Environment/Cumulative Reward histogram and adjust (see .claude/docs/TRAINING.md).
   target_dishes:
     curriculum:
       - name: lesson0
@@ -71,7 +91,7 @@ environment_parameters:
           behavior: Chef
           signal_smoothing: true
           min_lesson_length: 100
-          threshold: 3.0
+          threshold: -0.3
         value: 1.0
       - name: lesson1
         completion_criteria:
@@ -79,7 +99,7 @@ environment_parameters:
           behavior: Chef
           signal_smoothing: true
           min_lesson_length: 100
-          threshold: 6.0
+          threshold: 0.1
         value: 2.0
       - name: lesson2
         value: 3.0
