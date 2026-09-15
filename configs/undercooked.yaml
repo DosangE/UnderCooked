@@ -6,12 +6,13 @@
 # Design rationale lives in ../README.md instead.
 #
 # Run:
-#   cd week7-8/UnderCooked-Hyeongjun
 #   mlagents-learn configs/undercooked.yaml --run-id=undercooked_v1
 #   (press Play in the Unity editor once it says "Listening on port 5004")
 #
 # The 'Chef' key must match Behavior Parameters > Behavior Name exactly.
-# environment_parameters keys must match the names KitchenEnv.ResetEnv() reads.
+# environment_parameters keys must match the names KitchenEnv.ResetEnv() reads:
+#   target_dishes  cook_time  max_ingredients  needs_prep
+#   order_slots    recipe_pool_size            order_duration
 
 behaviors:
   Chef:
@@ -43,15 +44,26 @@ behaviors:
     keep_checkpoints: 5
     checkpoint_interval: 500000
     max_steps: 8000000
-    time_horizon: 128         # episode is ~300 decisions
+    time_horizon: 128         # episode is ~450 decisions
     summary_freq: 20000
 
 environment_parameters:
-  # Target soups per episode: 1 -> 2 -> 3
+  # ---------------------------------------------------------------
+  # Only target_dishes is gated on reward. Everything else is gated on
+  # training progress.
+  #
+  # Reason: a reward threshold is only meaningful if the task behind it is
+  # holding still. If several reward-gated curricula advance at once, each
+  # one changes the reward scale the others are measured against, and the
+  # lessons either all fire together or deadlock. So exactly one reward
+  # curriculum, and the difficulty knobs move on a fixed schedule.
+  # ---------------------------------------------------------------
+
+  # Dishes required to finish an episode: 1 -> 2 -> 3.
   # Approx. cumulative reward per agent on a successful episode:
-  #   lesson0 (1 soup): ~6.0    lesson1 (2): ~10.1    lesson2 (3): ~14.0
-  # Thresholds are set around "succeeds about half the time".
-  target_soups:
+  #   lesson0 (1 dish): ~6.0   lesson1 (2): ~9.4   lesson2 (3): ~13.0
+  # Thresholds sit around "succeeds about half the time".
+  target_dishes:
     curriculum:
       - name: lesson0
         completion_criteria:
@@ -72,9 +84,53 @@ environment_parameters:
       - name: lesson2
         value: 3.0
 
+  # How many distinct recipes can be ordered, taken from the front of the
+  # RecipeType enum: 1 = GreenSoup only, 2 = + MixSoup, 3 = + RedSoup.
+  #
+  # This is THE order-reading curriculum. At 1 there is nothing to read and the
+  # agents just learn the pipeline. At 2 the red box becomes relevant and the
+  # policy has to condition on the ticket. At 3 both "2 of one colour" recipes
+  # exist, so the counter-handoff pattern changes per order.
+  recipe_pool_size:
+    curriculum:
+      - name: lesson0
+        completion_criteria:
+          measure: progress
+          behavior: Chef
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 0.15
+        value: 1.0
+      - name: lesson1
+        completion_criteria:
+          measure: progress
+          behavior: Chef
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 0.30
+        value: 2.0
+      - name: lesson2
+        value: 3.0
+
+  # Chopping: off -> on. Off first so the shorter chain (box -> pot -> plate ->
+  # hatch) is learned before the prep stations are inserted into it.
+  needs_prep:
+    curriculum:
+      - name: lesson0
+        completion_criteria:
+          measure: progress
+          behavior: Chef
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 0.20
+        value: 0.0
+      - name: lesson1
+        value: 1.0
+
   # Cook time: 2s -> 5s.
-  # Short at first so the "3 ingredients -> soup" causal link is easy to pick up,
-  # then raised to the real difficulty once training is 35% through.
+  # Short at first so the "pot full -> dish" causal link is easy to pick up,
+  # then raised to the real difficulty. A longer cook time means a longer
+  # interval to remember, which is what makes the RNN earn its place.
   cook_time:
     curriculum:
       - name: lesson0
@@ -87,3 +143,35 @@ environment_parameters:
         value: 2.0
       - name: lesson1
         value: 5.0
+
+  # Pending orders at once: 1 -> 2 -> 3.
+  # At 1 the task is pure execution. From 2 on there is a real choice - which
+  # ticket to fill first, and whether a ticket is already too far gone to save.
+  # Introduced last because it is only a planning problem once the pipeline
+  # itself is reliable.
+  order_slots:
+    curriculum:
+      - name: lesson0
+        completion_criteria:
+          measure: progress
+          behavior: Chef
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 0.50
+        value: 1.0
+      - name: lesson1
+        completion_criteria:
+          measure: progress
+          behavior: Chef
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 0.65
+        value: 2.0
+      - name: lesson2
+        value: 3.0
+
+  # Seconds before an unfilled order expires. Episode is 45s.
+  order_duration: 25.0
+
+  # Ingredients allowed outside the pot at once (hands + counters).
+  max_ingredients: 2.0
