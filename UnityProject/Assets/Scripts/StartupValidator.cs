@@ -31,9 +31,15 @@ public class StartupValidator : MonoBehaviour
     [SerializeField] string expectedBehaviorName = "Chef";
 
     static bool s_Ran;
+    static bool s_ModeLogged;
 
     void Start()
     {
+        // 모드 배너는 모든 인스턴스가 시도하고 먼저 살아남은 하나만 찍는다.
+        // s_Ran 가드 안에 두면, 하필 그 인스턴스가 사람 플레이 때 꺼지는
+        // 15개 중 하나일 때 배너가 통째로 사라진다.
+        StartCoroutine(LogModeNextFrame());
+
         // 씬 전체를 한 번만 검사한다. TrainingArea가 16개여도 한 번이면 된다.
         if (s_Ran) return;
         s_Ran = true;
@@ -114,6 +120,35 @@ public class StartupValidator : MonoBehaviour
 #endif
     }
 
+    // 지금 어느 모드로 돌고 있는가를 한 줄로 남긴다.
+    //
+    // Play를 mlagents-learn보다 **먼저** 누르면 트레이너가 없으므로
+    // BehaviorParameters.IsInHeuristicMode()가 true가 되고, KitchenEnv가 그걸
+    // 사람 플레이로 읽어 **주방 15개를 꺼버린다.** 그 판정은 한 번 굳으므로,
+    // 늦게 트레이너가 붙어도 1/16 처리량으로 그대로 학습된다.
+    // 화면에 아무 표시가 없으면 몇 시간이 지나서야 알게 된다 - 이 저장소가
+    // 반복해서 겪은 '조용한 불일치' 계열이다.
+    // ★ 한 프레임 기다렸다가 센다. KitchenEnv.Start()가 주방을 끄는 것과
+    //   이 검사의 Start() 순서는 Unity가 보장하지 않는다. 즉시 세면 사람
+    //   플레이인데도 16개라고 적혀서, 정확히 이 배너가 막으려는 상황을
+    //   못 보게 된다. 틀린 안내는 안내가 없는 것보다 나쁘다 (README 4-8).
+    System.Collections.IEnumerator LogModeNextFrame()
+    {
+        yield return null;
+
+        if (s_ModeLogged) yield break;
+        s_ModeLogged = true;
+
+        bool trainer = Academy.IsInitialized && Academy.Instance.IsCommunicatorOn;
+        int liveAreas = FindObjectsByType<KitchenEnv>(
+            FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length;
+
+        Debug.Log(trainer
+            ? $"[StartupValidator] 학습 모드 (트레이너 연결됨, 주방 {liveAreas}개)"
+            : $"[StartupValidator] 사람 플레이 모드 (트레이너 없음, 주방 {liveAreas}개)."
+              + " 학습하려면 mlagents-learn을 먼저 띄우고 Play할 것");
+    }
+
     // CollectObservations가 **실제로 몇 개를 넣었는지** 센다. 측정 불가면 -1.
     //
     // ★ GetObservationSpec().Shape[0]을 읽으면 안 된다. 그건 VectorSensor 생성자에 준
@@ -134,6 +169,7 @@ public class StartupValidator : MonoBehaviour
     void OnDestroy()
     {
         s_Ran = false;
+        s_ModeLogged = false;
     }
 
     static string Path(Transform t)
