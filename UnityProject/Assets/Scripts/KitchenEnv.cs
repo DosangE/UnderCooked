@@ -584,6 +584,41 @@ public class KitchenEnv : MonoBehaviour
         return false;
     }
 
+    // 아직 서빙으로 실현되지 않은 진행 보상을 **전부** 걷어서 돌려주고 0으로 비운다.
+    // 손에 든 것, 카운터에 놓인 것, 냄비에 들어 있는 것 세 군데를 모두 훑는다.
+    //
+    // 에피소드가 끝나면 남은 물건은 그냥 사라진다. 그런데 그 물건들에 딸려 지급된
+    // 진행 보상은 남는다. 그러면 '만들어서 카운터와 손에 쟁여두고 시간을 보내는' 것이
+    // 서빙 없이 팀 보상을 챙기는 길이 된다. 카운터 4칸 + 양손 2개 = 최대 6개까지
+    // 쟁일 수 있어 무시할 양이 아니다.
+    public float ConsumeUnrealizedCredit()
+    {
+        float total = 0f;
+
+        var pot = Pot;
+        if (pot != null) total += pot.ConsumeProgressCredit();
+
+        foreach (var counter in m_Counters)
+        {
+            // 물건이 실제로 놓여 있는 칸만 센다. 집어간 뒤 남은 찌꺼기 값을 회수하면
+            // 이미 실현된 진행까지 도로 빼앗게 된다 (집기 경로에서도 비우지만 이중 방어).
+            if (counter.CounterItem == ItemType.None)
+            {
+                counter.SetCounterItemCredit(0f);
+                continue;
+            }
+
+            total += counter.CounterItemCredit;
+            counter.SetCounterItemCredit(0f);
+        }
+
+        if (m_Agents != null)
+            foreach (var agent in m_Agents)
+                if (agent != null) total += agent.ConsumeHeldCredit();
+
+        return total;
+    }
+
     // 그 에이전트가 쓸 수 있는 손질대. 구역마다 하나씩 있으므로 항상 하나 나온다.
     public Station GetPrepFor(int agentIndex)
     {
@@ -729,12 +764,15 @@ public class KitchenEnv : MonoBehaviour
     // ─────────────────────────── 상호작용 ───────────────────────────
 
     // 에이전트가 cell 을 향해 Interact 했을 때. 실제 상태 변경까지 여기서 일어난다.
-    public InteractOutcome TryInteract(int agentIndex, Vector2Int cell, ItemType heldItem)
+    public InteractOutcome TryInteract(int agentIndex, Vector2Int cell, ItemType heldItem,
+                                       bool heldTransferred = false, float heldCredit = 0f)
     {
         var outcome = new InteractOutcome
         {
             Result = InteractResult.Nothing,
             NewHeldItem = heldItem,
+            NewItemTransferred = heldTransferred,
+            NewItemCredit = heldCredit,
             TransferPartnerIndex = -1
         };
 
@@ -744,18 +782,25 @@ public class KitchenEnv : MonoBehaviour
         // Heuristic 플레이는 Action Mask를 거치지 않으므로 재료 수 제한을 여기서도 막는다.
         if (!SourceAllowed(station)) return outcome;
 
-        // Interact가 CounterPlacedBy를 지워버리므로 미리 받아둔다.
+        // Interact가 카운터 상태를 지워버리므로 미리 받아둔다.
         int placedBy = station.Type == StationType.Counter ? station.CounterPlacedBy : -1;
+        bool counterTransferred = station.Type == StationType.Counter && station.CounterItemTransferred;
+        float counterCredit = station.Type == StationType.Counter ? station.CounterItemCredit : 0f;
 
         outcome.Result = station.Interact(agentIndex, heldItem, out var newHeld);
         outcome.NewHeldItem = newHeld;
 
         if (outcome.Result == InteractResult.TookFromCounter) outcome.TransferPartnerIndex = placedBy;
 
+        // 물건의 '이미 전달 보상을 받았다' 기록을 손과 카운터 사이에서 옮긴다.
+        UpdateItemRecords(station, outcome.Result, heldTransferred, heldCredit,
+                          counterTransferred, counterCredit, ref outcome);
+
         // Station은 주문표를 모른다. 주문과의 대조는 전부 여기서 한다.
         switch (outcome.Result)
         {
             case InteractResult.PlacedInPot:
+            case InteractResult.PlacedInPotWrong:
                 // 넣고 난 뒤의 냄비 내용물로 아직 어떤 대기 주문이든 만들 수 있는가.
                 // 조리가 확정된 경우(재료가 다 찬 경우)는 만들어질 요리 자체를 주문과 대조한다.
                 bool ok = station.IsCommitted
@@ -774,6 +819,73 @@ public class KitchenEnv : MonoBehaviour
         if (HumanPlay) LogInteraction(agentIndex, station, outcome.Result, heldItem);
 
         return outcome;
+    }
+
+    // 물건마다 따라다니는 '이미 전달 보상을 받았다' 기록을 갱신한다.
+    //
+    // 손질대나 냄비를 거치면 다른 물건이 되므로 기록이 지워진다 -> 정상 파이프라인의
+    // 전달은 매번 보상받는다. 반면 카운터를 왕복하기만 하면 기록이 그대로 따라다녀서
+    // 두 번째 건널 때부터는 보상이 없다.
+    // 물건마다 따라다니는 두 가지 기록을 갱신한다.
+    //   (1) 이미 전달 보상을 받았는가        -> 같은 물건 왕복으로 보상을 긁는 것 차단
+    //   (2) 딸려 있는 진행 보상 크레딧       -> 서빙이 무산되면 회수하기 위해
+    //
+    // 손질대나 냄비를 거치면 '다른 물건'이 되므로 (1)은 지워진다 -> 정상 파이프라인의
+    // 전달은 매번 보상받는다. 반면 카운터를 왕복하기만 하면 기록이 따라다녀서
+    // 두 번째 건널 때부터는 보상이 없다.
+    //
+    // (2)는 반대로 냄비 -> 완성 요리 -> 카운터 -> 동료까지 **계속 따라간다.**
+    // 서빙이 성공해야 비로소 확정되기 때문이다.
+    static void UpdateItemRecords(Station station, InteractResult result,
+                                  bool heldTransferred, float heldCredit,
+                                  bool counterTransferred, float counterCredit,
+                                  ref InteractOutcome outcome)
+    {
+        switch (result)
+        {
+            // 재료함/그릇함에서 새로 꺼냈거나 손질했다 -> 전달 기록 초기화, 크레딧 없음
+            case InteractResult.PickedFromSource:
+            case InteractResult.Prepped:
+                outcome.NewItemTransferred = false;
+                outcome.NewItemCredit = heldCredit;   // 손질은 크레딧을 유지(냄비에서 합산된다)
+                break;
+
+            // 냄비에서 요리를 떴다 -> 새 물건이지만 **냄비의 크레딧을 그대로 물려받는다**
+            case InteractResult.TookDishFromPot:
+                outcome.NewItemTransferred = false;
+                outcome.NewItemCredit = station.ConsumeProgressCredit();
+                break;
+
+            // 카운터에서 집었다 -> 카운터가 들고 있던 기록을 **옮겨온다**.
+            // 카운터 쪽을 비우지 않으면 같은 크레딧이 손과 카운터 양쪽에 남아서
+            // 종료 정산 때 두 번 회수된다. 정상 서빙까지 벌하게 되는 경로였다.
+            case InteractResult.TookFromCounter:
+            case InteractResult.TookOwnFromCounter:
+                outcome.NewItemTransferred = counterTransferred;
+                outcome.NewItemCredit = counterCredit;
+                station.SetCounterItemTransferred(false);
+                station.SetCounterItemCredit(0f);
+                break;
+
+            // 카운터에 놓았다 -> 손이 들고 있던 기록을 카운터에 넘긴다
+            case InteractResult.PlacedOnCounter:
+                station.SetCounterItemTransferred(heldTransferred);
+                station.SetCounterItemCredit(heldCredit);
+                outcome.NewItemTransferred = false;   // 손은 비었다
+                outcome.NewItemCredit = 0f;
+                break;
+
+            // 물건이 손에서 사라진다 -> 손의 기록도 비운다.
+            // (크레딧의 확정/회수는 ChefAgent가 결과별로 처리한다)
+            case InteractResult.PlacedInPot:
+            case InteractResult.PlacedInPotWrong:
+            case InteractResult.Served:
+            case InteractResult.ServedWrongOrder:
+            case InteractResult.Wasted:
+                outcome.NewItemTransferred = false;
+                outcome.NewItemCredit = 0f;
+                break;
+        }
     }
 
     // 누른 것이 실제로 먹혔는지를 사람이 알 수 있게 한 줄 남긴다.

@@ -44,7 +44,7 @@ behaviors:
     keep_checkpoints: 5
     checkpoint_interval: 500000
     max_steps: 8000000
-    time_horizon: 128         # episode is ~450 decisions
+    time_horizon: 128         # episode is 45s = ~450 decisions (KitchenEnv.episodeDuration)
     summary_freq: 20000
 
 environment_parameters:

@@ -4811,6 +4811,7 @@ GameObject:
   - component: {fileID: 460996422406597300}
   - component: {fileID: 7167332538094840111}
   - component: {fileID: 4779753912374269722}
+  - component: {fileID: 2630225458763161157}
   m_Layer: 0
   m_Name: TrainingArea
   m_TagString: Untagged
@@ -4865,7 +4866,7 @@ MonoBehaviour:
   cameraHeight: 11
   cameraBack: 8
   cameraPitch: 54
-  episodeDuration: 30
+  episodeDuration: 45
   randomizeSpawn: 1
 --- !u!114 &4736041575540347461
 MonoBehaviour:
@@ -4938,6 +4939,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StationLabels
   heightOffset: 1
+--- !u!114 &2630225458763161157
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7683731277781063157}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9ee2d352acf22d4194a87d1bd992bd8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StartupValidator
+  stopPlayOnFailure: 1
+  documentedEpisodeDuration: 45
+  expectedBehaviorName: Chef
 --- !u!1 &7871427198380676123
 GameObject:
   m_ObjectHideFlags: 0

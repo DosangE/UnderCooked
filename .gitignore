@@ -115,3 +115,6 @@ crashlytics-build.properties
 # 진짜 프로젝트 설정은 UnityProject/ 아래에 있고 그쪽은 계속 추적한다.
 /Packages/
 /ProjectSettings/
+
+# Unity 검토 도구가 만드는 캡처 출력 폴더
+UnityProject/Captures/
