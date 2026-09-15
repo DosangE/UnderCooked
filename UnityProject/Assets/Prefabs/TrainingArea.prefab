@@ -552,14 +552,6 @@ MonoBehaviour:
   rewardPotDump: -0.05
   rewardPotNotReady: -0.02
   rewardPerStep: -0.002
-  colorRawGreen: {r: 0.2, g: 0.8, b: 0.25, a: 1}
-  colorRawRed: {r: 0.85, g: 0.2, b: 0.2, a: 1}
-  colorPrepGreen: {r: 0.55, g: 1, b: 0.45, a: 1}
-  colorPrepRed: {r: 1, g: 0.55, b: 0.45, a: 1}
-  colorEmptyPlate: {r: 0.95, g: 0.95, b: 0.95, a: 1}
-  colorCookedGreen: {r: 0.6, g: 0.95, b: 0.3, a: 1}
-  colorCookedMix: {r: 1, g: 0.78, b: 0.05, a: 1}
-  colorCookedRed: {r: 0.95, g: 0.35, b: 0.2, a: 1}
 --- !u!114 &5268884288844911207
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1795,9 +1787,6 @@ MonoBehaviour:
   slotSize: 0.22
   heightOffset: 0.65
   spacing: 0.28
-  colorGreen: {r: 0.3, g: 0.9, b: 0.35, a: 1}
-  colorRed: {r: 0.9, g: 0.25, b: 0.25, a: 1}
-  colorDone: {r: 1, g: 0.85, b: 0.2, a: 1}
 --- !u!1 &2410969362967811578
 GameObject:
   m_ObjectHideFlags: 0
@@ -4392,14 +4381,6 @@ MonoBehaviour:
   rewardPotDump: -0.05
   rewardPotNotReady: -0.02
   rewardPerStep: -0.002
-  colorRawGreen: {r: 0.2, g: 0.8, b: 0.25, a: 1}
-  colorRawRed: {r: 0.85, g: 0.2, b: 0.2, a: 1}
-  colorPrepGreen: {r: 0.55, g: 1, b: 0.45, a: 1}
-  colorPrepRed: {r: 1, g: 0.55, b: 0.45, a: 1}
-  colorEmptyPlate: {r: 0.95, g: 0.95, b: 0.95, a: 1}
-  colorCookedGreen: {r: 0.6, g: 0.95, b: 0.3, a: 1}
-  colorCookedMix: {r: 1, g: 0.78, b: 0.05, a: 1}
-  colorCookedRed: {r: 0.95, g: 0.35, b: 0.2, a: 1}
 --- !u!114 &4585794285360202570
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4828,6 +4809,8 @@ GameObject:
   - component: {fileID: 4736041575540347461}
   - component: {fileID: 796198591136213364}
   - component: {fileID: 460996422406597300}
+  - component: {fileID: 7167332538094840111}
+  - component: {fileID: 4779753912374269722}
   m_Layer: 0
   m_Name: TrainingArea
   m_TagString: Untagged
@@ -4928,6 +4911,33 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::OrderHud
   endBannerSeconds: 2.5
+--- !u!114 &7167332538094840111
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7683731277781063157}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6414de4d86a560a4d83a1c0b3d886193, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CounterContentsView
+  size: 0.3
+  heightOffset: 0.6
+--- !u!114 &4779753912374269722
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7683731277781063157}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e178a51e8a52fec4086ac8b455487f42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StationLabels
+  heightOffset: 1
 --- !u!1 &7871427198380676123
 GameObject:
   m_ObjectHideFlags: 0

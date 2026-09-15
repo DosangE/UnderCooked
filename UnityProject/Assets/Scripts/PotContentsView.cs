@@ -24,12 +24,6 @@ public class PotContentsView : MonoBehaviour
     [Tooltip("슬롯 두 개 사이 간격 (월드 단위)")]
     [SerializeField] float spacing = 0.28f;
 
-    [Header("색")]
-    [SerializeField] Color colorGreen = new Color(0.30f, 0.90f, 0.35f);
-    [SerializeField] Color colorRed = new Color(0.90f, 0.25f, 0.25f);
-    [Tooltip("조리 완료. 다 됐다는 것을 사람이 알아보게 밝게 깜빡인다")]
-    [SerializeField] Color colorDone = new Color(1.00f, 0.85f, 0.20f);
-
     static readonly int ColorId = Shader.PropertyToID("_Color");
     static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
 
@@ -91,8 +85,9 @@ public class PotContentsView : MonoBehaviour
             m_Slots[i].enabled = filled;
             if (!filled) continue;
 
-            Color color = filledGreen ? colorGreen : colorRed;
-            if (done) color = Color.Lerp(color, colorDone, pulse);
+            // 색은 ItemColors 한 곳에서 가져온다. 손에 든 재료와 같은 색으로 보여야 한다.
+            Color color = ItemColors.For(filledGreen ? ItemType.PrepGreen : ItemType.PrepRed);
+            if (done) color = Color.Lerp(color, ItemColors.Done, pulse);
 
             m_Slots[i].GetPropertyBlock(m_Block);
             m_Block.SetColor(ColorId, color);

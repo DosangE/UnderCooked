@@ -63,19 +63,6 @@ public class ChefAgent : Agent
     [SerializeField] float rewardPotNotReady = -0.02f;
     [SerializeField] float rewardPerStep = -0.002f;
 
-    [Header("손에 든 것 표시 색")]
-    [SerializeField] Color colorRawGreen = new Color(0.20f, 0.80f, 0.25f);
-    [SerializeField] Color colorRawRed = new Color(0.85f, 0.20f, 0.20f);
-    [Tooltip("손질된 재료는 같은 색 계열이되 밝게 해서 생재료와 구분한다")]
-    [SerializeField] Color colorPrepGreen = new Color(0.55f, 1.00f, 0.45f);
-    [SerializeField] Color colorPrepRed = new Color(1.00f, 0.55f, 0.45f);
-    [SerializeField] Color colorEmptyPlate = new Color(0.95f, 0.95f, 0.95f);
-    [Tooltip("완성 요리는 레시피별로 색이 다르다. 사람이 플레이할 때 '지금 든 게 어느 주문용인지' " +
-             "손만 보고 알 수 있어야 한다")]
-    [SerializeField] Color colorCookedGreen = new Color(0.60f, 0.95f, 0.30f);
-    [SerializeField] Color colorCookedMix = new Color(1.00f, 0.78f, 0.05f);
-    [SerializeField] Color colorCookedRed = new Color(0.95f, 0.35f, 0.20f);
-
     KitchenEnv m_Env;
     KitchenGroup m_Group;
     ChefAgent m_Partner;
@@ -384,17 +371,9 @@ public class ChefAgent : Agent
         heldItemRenderer.gameObject.SetActive(visible);
         if (!visible) return;
 
-        switch (m_HeldItem)
-        {
-            case ItemType.RawGreen:   heldItemRenderer.material.color = colorRawGreen; break;
-            case ItemType.RawRed:     heldItemRenderer.material.color = colorRawRed; break;
-            case ItemType.PrepGreen:  heldItemRenderer.material.color = colorPrepGreen; break;
-            case ItemType.PrepRed:    heldItemRenderer.material.color = colorPrepRed; break;
-            case ItemType.EmptyPlate:  heldItemRenderer.material.color = colorEmptyPlate; break;
-            case ItemType.CookedGreen: heldItemRenderer.material.color = colorCookedGreen; break;
-            case ItemType.CookedRed:   heldItemRenderer.material.color = colorCookedRed; break;
-            default:                   heldItemRenderer.material.color = colorCookedMix; break;
-        }
+        // 색은 ItemColors 한 곳에서 가져온다. 냄비 슬롯/카운터에 놓인 것과 같은 색이어야
+        // 사람이 같은 물건으로 읽는다. (정책은 화면을 보지 않으므로 학습과는 무관하다)
+        heldItemRenderer.material.color = ItemColors.For(m_HeldItem);
     }
 
     // ─────────────────────────── Heuristic (키보드 플레이) ───────────────────────────
