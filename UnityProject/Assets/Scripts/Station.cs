@@ -26,6 +26,15 @@ public class Station : MonoBehaviour
     // 마지막으로 이 카운터에 물건을 올린 에이전트 인덱스. 비어 있으면 -1.
     public int CounterPlacedBy { get; private set; } = -1;
 
+    // 카운터에 놓인 그 물건이 이미 전달 보상을 받은 적이 있는가.
+    // KitchenEnv가 넣고 빼준다 (Station은 보상을 모른다).
+    public bool CounterItemTransferred { get; private set; }
+
+    public void SetCounterItemTransferred(bool value)
+    {
+        CounterItemTransferred = value;
+    }
+
     // --- 냄비 상태 ---
     // 색깔별 개수다. 레시피가 '초록x2' 같은 조합이므로 bool로는 표현할 수 없다.
     public int GreenCount { get; private set; }
@@ -48,6 +57,27 @@ public class Station : MonoBehaviour
     RecipeType m_CookedRecipe;
     public RecipeType CookedRecipe => m_CookedRecipe;
 
+    // 이번 냄비 배치에 지금까지 지급된 '진행 보상'의 합 (손질 +0.2, 투입 +0.3).
+    //
+    // 비우면 이 값을 그대로 팀 보상에서 도로 빼앗는다. 이게 없으면
+    //   재료 획득 -> 손질(+0.2) -> 투입(+0.3) -> 비우기(-0.05) 를 무한 반복하는 것만으로
+    // 서빙 한 번 없이 정직한 플레이보다 많이 벌 수 있다. 실측으로 확인된 경로다.
+    // 요리를 꺼내면(= 진행이 실현되면) 0으로 지운다.
+    public float PendingProgressCredit { get; private set; }
+
+    public void AddProgressCredit(float amount)
+    {
+        PendingProgressCredit += amount;
+    }
+
+    // 값을 돌려주고 0으로 비운다.
+    public float ConsumeProgressCredit()
+    {
+        float credit = PendingProgressCredit;
+        PendingProgressCredit = 0f;
+        return credit;
+    }
+
     // 조리 경과 시간. **사람용 화면 표시 전용이다.**
     // 관측에 절대 넣지 말 것. 넣는 순간 "언제 다 넣었는지 기억한다"는 RNN의 근거가 사라진다.
     public float CookTimer => m_CookTimer;
@@ -68,6 +98,8 @@ public class Station : MonoBehaviour
     {
         CounterItem = ItemType.None;
         CounterPlacedBy = -1;
+        CounterItemTransferred = false;
+        PendingProgressCredit = 0f;
         GreenCount = 0;
         RedCount = 0;
         IsCooking = false;
@@ -260,6 +292,7 @@ public class Station : MonoBehaviour
         RedCount = 0;
         IsCommitted = false;
         HasCookedDish = false;
+        PendingProgressCredit = 0f;   // 진행이 실현됐다. 더 이상 되돌릴 대상이 아니다.
         return InteractResult.TookDishFromPot;
     }
 }

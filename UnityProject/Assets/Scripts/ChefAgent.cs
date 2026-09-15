@@ -71,6 +71,8 @@ public class ChefAgent : Agent
     Vector2Int m_Cell;
     int m_Facing;                 // KitchenEnv.Directions 인덱스 (0=북 1=남 2=서 3=동)
     ItemType m_HeldItem = ItemType.None;
+    // 손에 든 그 물건이 이미 전달 보상을 받은 적이 있는가. 물건을 따라다닌다.
+    bool m_HeldTransferred;
     bool m_InteractQueued;        // Heuristic 키 입력 래치
 
     public int AgentIndex => agentIndex;
@@ -113,6 +115,7 @@ public class ChefAgent : Agent
         // 시작 시선은 중앙 카운터 쪽. ChefA(북쪽)는 남쪽을, ChefB(남쪽)는 북쪽을 본다.
         m_Facing = agentIndex == 0 ? 1 : 0;
         m_HeldItem = ItemType.None;
+        m_HeldTransferred = false;
         m_InteractQueued = false;
 
         ApplyTransform();
@@ -265,6 +268,18 @@ public class ChefAgent : Agent
         int move = actions.DiscreteActions[0];      // 0=정지 1=상 2=하 3=좌 4=우
         int interact = actions.DiscreteActions[1];  // 0=없음 1=Interact
 
+        // ★ Interact를 이동보다 **먼저** 적용한다.
+        //
+        // WriteDiscreteActionMask는 이 스텝이 시작될 때의 m_Cell/m_Facing을 보고 마스크를
+        // 만든다. 이동을 먼저 적용하면 Interact가 실행되는 상태가 마스크를 만든 상태와
+        // 달라져서 두 가지가 어긋났다.
+        //   (a) 마스크가 연 Interact가 이동 후에는 대상이 없어 헛발이 된다
+        //   (b) 반대로 '도착하면서 동시에 Interact'는 도착 전 칸 기준으로 마스킹되어
+        //       영영 불가능했다
+        // 순서를 뒤집으면 마스크를 만든 상태에서 그대로 Interact가 실행되므로
+        // 마스크가 허용한 것과 실제로 일어나는 것이 정확히 같아진다.
+        if (interact == 1) DoInteract();
+
         if (move > 0)
         {
             int dir = move - 1;
@@ -273,16 +288,16 @@ public class ChefAgent : Agent
             if (m_Env.IsWalkable(target, agentIndex)) m_Cell = target;   // 못 가면 회전만
             ApplyTransform();
         }
-
-        if (interact == 1) DoInteract();
     }
 
     void DoInteract()
     {
         var front = m_Cell + KitchenEnv.Directions[m_Facing];
-        var outcome = m_Env.TryInteract(agentIndex, front, m_HeldItem);
+        bool wasPrepped = m_HeldItem == ItemType.PrepGreen || m_HeldItem == ItemType.PrepRed;
+        var outcome = m_Env.TryInteract(agentIndex, front, m_HeldItem, m_HeldTransferred);
 
         m_HeldItem = outcome.NewHeldItem;
+        m_HeldTransferred = outcome.NewItemTransferred;
         UpdateHeldVisual();
 
         switch (outcome.Result)
@@ -296,17 +311,39 @@ public class ChefAgent : Agent
                 break;
 
             case InteractResult.PlacedInPot:
-                if (m_Group != null) m_Group.OnIngredientPlacedInPot();
+                if (m_Group != null)
+                {
+                    m_Group.OnIngredientPlacedInPot();
+                    // 지금 지급한 진행 보상을 냄비에 기록해 둔다. 비우면 도로 빼앗는다.
+                    // 손질 보상도 이 재료에 딸린 진행이므로 같이 단다.
+                    var pot = m_Env.Pot;
+                    if (pot != null)
+                        pot.AddProgressCredit(m_Group.RewardIngredientInPot
+                            + (wasPrepped ? m_Group.RewardPrepped : 0f));
+                }
                 break;
 
             case InteractResult.PlacedInPotWrong:
                 // 넣긴 넣었는데 이걸로는 어떤 대기 주문도 만들 수 없다.
                 // 팀 보상 +0.3은 주지 않고 개인 패널티만 준다.
+                // 손질 보상은 이미 나갔으므로 그것만 냄비 크레딧에 달아 회수 대상으로 둔다.
                 AddReward(rewardPotWrongIngredient);
+                if (m_Group != null && wasPrepped)
+                {
+                    var potWrong = m_Env.Pot;
+                    if (potWrong != null) potWrong.AddProgressCredit(m_Group.RewardPrepped);
+                }
                 break;
 
             case InteractResult.PotDumped:
                 AddReward(rewardPotDump);
+                // 이 배치에 지급됐던 진행 보상을 전부 회수한다.
+                // 이게 없으면 '손질 -> 투입 -> 비우기' 반복이 서빙보다 이득이다.
+                if (m_Group != null)
+                {
+                    var potDumped = m_Env.Pot;
+                    if (potDumped != null) m_Group.OnPotDumped(potDumped.ConsumeProgressCredit());
+                }
                 break;
 
             case InteractResult.TookFromCounter:
@@ -333,6 +370,8 @@ public class ChefAgent : Agent
 
             case InteractResult.Wasted:
                 AddReward(rewardWasted);
+                // 손질까지 해놓고 버렸다면 그 손질 보상도 무산된 진행이다.
+                if (wasPrepped && m_Group != null) m_Group.OnPreppedIngredientWasted();
                 break;
 
             case InteractResult.PotNotReady:

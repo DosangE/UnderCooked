@@ -4865,7 +4865,7 @@ MonoBehaviour:
   cameraHeight: 11
   cameraBack: 8
   cameraPitch: 54
-  episodeDuration: 30
+  episodeDuration: 45
   randomizeSpawn: 1
 --- !u!114 &4736041575540347461
 MonoBehaviour:

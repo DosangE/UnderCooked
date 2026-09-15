@@ -93,6 +93,12 @@ public class KitchenGroup : MonoBehaviour
 
     // ─────────────────────────── 팀 보상 ───────────────────────────
 
+    // 손질/투입 같은 '진행 보상'은 서빙으로 이어졌을 때만 정당하다.
+    // 지급은 즉시 하되(초반 학습에 기울기가 필요하다), 진행이 무산되면 도로 빼앗는다.
+    // 그래서 지급액을 냄비에 기록해 둔다. OnPotDumped가 그걸 되돌린다.
+    public float RewardPrepped => rewardPrepped;
+    public float RewardIngredientInPot => rewardIngredientInPot;
+
     public void OnIngredientPrepped()
     {
         if (m_Group != null) m_Group.AddGroupReward(rewardPrepped);
@@ -101,6 +107,22 @@ public class KitchenGroup : MonoBehaviour
     public void OnIngredientPlacedInPot()
     {
         if (m_Group != null) m_Group.AddGroupReward(rewardIngredientInPot);
+    }
+
+    // 냄비를 비웠다. 그 배치에 지급됐던 진행 보상을 전부 회수한다.
+    //
+    // 이게 없으면 재료 획득 -> 손질(+0.2) -> 투입(+0.3) -> 비우기(-0.05) 무한 반복이
+    // 30초 에피소드에서 셰프당 +9.5~12.5를 벌어, 정직하게 1접시 내는 것(+6.2)보다
+    // 이득이 된다. 커리큘럼 lesson0 임계값(reward 3.0)도 서빙 0회로 통과해버린다.
+    public void OnPotDumped(float refund)
+    {
+        if (m_Group != null && refund > 0f) m_Group.AddGroupReward(-refund);
+    }
+
+    // 손질까지 해놓고 서빙구에 버렸다. 이것도 무산된 진행이다.
+    public void OnPreppedIngredientWasted()
+    {
+        if (m_Group != null) m_Group.AddGroupReward(-rewardPrepped);
     }
 
     public void OnDishServed()
