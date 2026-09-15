@@ -34,6 +34,8 @@ public static class KitchenSelfTest
         allOk &= PrepPotDumpLoop(sb, env, group, agents);
         allOk &= WrongOrderServeClawsBack(sb, env, group, agents);
         allOk &= HonestPipelineStillPaid(sb, env, group, agents);
+        allOk &= EpisodeEndSettlesCredit(sb, env, group, agents);
+        allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
         sb.AppendLine(allOk ? "==> 회귀 검사 전부 통과" : "==> ★ 회귀 검사 실패");
@@ -180,6 +182,70 @@ public static class KitchenSelfTest
                       + " / 완성요리 A->B +" + gain2.ToString("0.00")
                       + " (둘 다 보상 기대)   " + Verdict(ok));
         Reset(env, agents);
+        return ok;
+    }
+
+    // 5) 에피소드가 끝날 때 서빙되지 않은 진행 보상이 회수되는가.
+    //    리셋하면 물건은 사라지는데 보상만 남으면, '만들어서 쟁여두고 시간 보내기'가
+    //    서빙 없이 팀 보상을 챙기는 길이 된다.
+    static bool EpisodeEndSettlesCredit(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.GreenSoup);
+        var box = env.GetStation(StationType.GreenBox);
+        var prep = env.GetPrepFor(0);
+        var pot = env.Pot;
+        float team0 = group.TotalGroupReward;
+
+        // 냄비에 하나(크레딧), 손에 하나(크레딧), 카운터에 하나(크레딧)를 남긴다
+        Act(env, agents[0], box);
+        Act(env, agents[0], prep, keepHeld: true);
+        Act(env, agents[0], pot, keepHeld: true);         // 냄비에 크레딧
+
+        Act(env, agents[1], box);
+        Act(env, agents[1], env.GetPrepFor(1), keepHeld: true);
+        Act(env, agents[1], env.Counters[0], keepHeld: true);   // 카운터에 크레딧
+
+        Act(env, agents[0], box);
+        Act(env, agents[0], prep, keepHeld: true);              // 손에 크레딧
+
+        float earned = group.TotalGroupReward - team0;
+        float outstanding = pot.PendingProgressCredit + env.Counters[0].CounterItemCredit
+                            + agents[0].HeldCreditForTest;
+
+        float settled = env.ConsumeUnrealizedCredit();
+        bool ok = settled > 0.001f && Mathf.Abs(settled - outstanding) < 0.001f
+                  && Mathf.Abs(settled - earned) < 0.001f;
+
+        sb.AppendLine("[5] 종료 시 미실현 진행 보상   지급 +" + earned.ToString("0.00")
+                      + " / 남아 있던 크레딧 " + outstanding.ToString("0.00")
+                      + " / 정산 회수 " + settled.ToString("0.00")
+                      + " (지급액과 같아야 함)   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
+    // 6) 관측 개수 검사가 '진짜로' 세는가.
+    //    VectorSensor.GetObservationSpec()은 생성자 인자를 그대로 돌려주므로,
+    //    그걸 읽던 예전 검사는 관측이 1개여도 103으로 통과했다.
+    static bool ObservationCountIsActuallyMeasured(StringBuilder sb, ChefAgent agent)
+    {
+        // (a) 실제 에이전트는 선언값과 같아야 한다
+        int actual = StartupValidator.CountObservations(agent);
+
+        // (b) 일부러 1개만 넣은 센서를 1로 세는가 (검사가 껍데기가 아닌지)
+        var probe = new Unity.MLAgents.Sensors.VectorSensor(ChefAgent.ObservationSize);
+        probe.AddObservation(1f);
+        int specSays = probe.GetObservationSpec().Shape[0];
+        var field = typeof(Unity.MLAgents.Sensors.VectorSensor).GetField("m_Observations",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var list = field?.GetValue(probe) as System.Collections.Generic.List<float>;
+        int counted = list?.Count ?? -1;
+
+        bool ok = actual == ChefAgent.ObservationSize && counted == 1 && specSays != 1;
+        sb.AppendLine("[6] 관측 개수 검사   실측 " + actual + " (선언 " + ChefAgent.ObservationSize + ")"
+                      + " / 1개만 넣은 센서: 실측 " + counted + " vs Spec " + specSays
+                      + " (Spec은 못 믿는다는 확인)   " + Verdict(ok));
         return ok;
     }
 

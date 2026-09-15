@@ -584,6 +584,33 @@ public class KitchenEnv : MonoBehaviour
         return false;
     }
 
+    // 아직 서빙으로 실현되지 않은 진행 보상을 **전부** 걷어서 돌려주고 0으로 비운다.
+    // 손에 든 것, 카운터에 놓인 것, 냄비에 들어 있는 것 세 군데를 모두 훑는다.
+    //
+    // 에피소드가 끝나면 남은 물건은 그냥 사라진다. 그런데 그 물건들에 딸려 지급된
+    // 진행 보상은 남는다. 그러면 '만들어서 카운터와 손에 쟁여두고 시간을 보내는' 것이
+    // 서빙 없이 팀 보상을 챙기는 길이 된다. 카운터 4칸 + 양손 2개 = 최대 6개까지
+    // 쟁일 수 있어 무시할 양이 아니다.
+    public float ConsumeUnrealizedCredit()
+    {
+        float total = 0f;
+
+        var pot = Pot;
+        if (pot != null) total += pot.ConsumeProgressCredit();
+
+        foreach (var counter in m_Counters)
+        {
+            total += counter.CounterItemCredit;
+            counter.SetCounterItemCredit(0f);
+        }
+
+        if (m_Agents != null)
+            foreach (var agent in m_Agents)
+                if (agent != null) total += agent.ConsumeHeldCredit();
+
+        return total;
+    }
+
     // 그 에이전트가 쓸 수 있는 손질대. 구역마다 하나씩 있으므로 항상 하나 나온다.
     public Station GetPrepFor(int agentIndex)
     {

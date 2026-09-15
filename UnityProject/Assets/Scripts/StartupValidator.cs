@@ -72,10 +72,11 @@ public class StartupValidator : MonoBehaviour
                                     + $" != '{expectedBehaviorName}' (yaml의 behaviors 키와 같아야 한다)");
 
             // 실제로 관측을 몇 개 내보내는지까지 확인한다. 선언값만 맞고 코드가 다를 수 있다.
-            var probe = new Unity.MLAgents.Sensors.VectorSensor(ChefAgent.ObservationSize);
-            agent.CollectObservations(probe);
-            int actual = probe.GetObservationSpec().Shape[0];
-            if (actual != ChefAgent.ObservationSize)
+            int actual = CountObservations(agent);
+            if (actual < 0)
+                problems.AppendLine($"  {Path(agent.transform)} : 관측 개수를 측정하지 못했다"
+                                    + " (VectorSensor 내부 구조가 바뀌었을 수 있다). 검사가 무력하다");
+            else if (actual != ChefAgent.ObservationSize)
                 problems.AppendLine($"  {Path(agent.transform)} : CollectObservations가 {actual}개를 냈다"
                                     + $" != 선언 {ChefAgent.ObservationSize}");
         }
@@ -111,6 +112,23 @@ public class StartupValidator : MonoBehaviour
 #if UNITY_EDITOR
         if (stopPlayOnFailure) UnityEditor.EditorApplication.isPlaying = false;
 #endif
+    }
+
+    // CollectObservations가 **실제로 몇 개를 넣었는지** 센다. 측정 불가면 -1.
+    //
+    // ★ GetObservationSpec().Shape[0]을 읽으면 안 된다. 그건 VectorSensor 생성자에 준
+    //   크기를 그대로 돌려줄 뿐이라, 관측을 1개만 넣어도 103을 반환한다. 처음에 그렇게
+    //   짜서 이 검사가 항상 통과하는 껍데기였다. 실제 개수는 내부 목록에만 있다.
+    //   (패딩/잘라내기는 Write 시점에 일어나므로 목록에는 넣은 그대로 들어 있다)
+    public static int CountObservations(ChefAgent agent)
+    {
+        var sensor = new Unity.MLAgents.Sensors.VectorSensor(ChefAgent.ObservationSize);
+        agent.CollectObservations(sensor);
+
+        var field = typeof(Unity.MLAgents.Sensors.VectorSensor).GetField("m_Observations",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var list = field?.GetValue(sensor) as System.Collections.Generic.List<float>;
+        return list?.Count ?? -1;
     }
 
     void OnDestroy()

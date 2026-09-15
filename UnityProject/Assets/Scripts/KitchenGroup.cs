@@ -32,6 +32,11 @@ public class KitchenGroup : MonoBehaviour
     // 동작하는지 자동으로 확인하려면 이쪽에서 따로 세어야 한다.
     public float TotalGroupReward { get; private set; }
 
+    // 진단용 집계. 에피소드마다 StatsRecorder로 내보내고 0으로 리셋한다.
+    int m_Transfers;
+    int m_OrdersExpired;
+    float m_LastSettledCredit;
+
     void Awake()
     {
         if (env == null) env = GetComponent<KitchenEnv>();
@@ -73,13 +78,19 @@ public class KitchenGroup : MonoBehaviour
 
         // 주문 만료 패널티. KitchenEnv가 쌓아둔 것을 가져와서 보상으로 바꾼다.
         int expired = env.TakeExpiredOrderCount();
-        if (expired > 0) AddTeamReward(rewardOrderExpired * expired);
+        if (expired > 0)
+        {
+            AddTeamReward(rewardOrderExpired * expired);
+            m_OrdersExpired += expired;
+        }
 
         if (env.IsGoalReached)
         {
             // 목표 수프 개수 달성 -> 성공 종료
             env.NoteEpisodeEnd($"목표 {env.TargetDishes}접시 달성! 새 라운드");
+            SettleUnrealizedProgress();
             AddTeamReward(rewardGoalBonus);
+            RecordStats(true);
             m_Group.EndGroupEpisode();
             ResetScene();
             return;
@@ -88,6 +99,8 @@ public class KitchenGroup : MonoBehaviour
         if (env.IsTimeUp)
         {
             env.NoteEpisodeEnd($"시간 초과 ({env.DishesServed}/{env.TargetDishes}접시) - 새 라운드");
+            SettleUnrealizedProgress();
+            RecordStats(false);
             // 타임아웃은 '실패'가 아니라 '중단'이다.
             // EndGroupEpisode로 끊으면 부트스트랩 없이 가치가 0으로 잘려서
             // value function이 "시간이 지나면 가치가 0" 이라고 잘못 배운다.
@@ -137,6 +150,44 @@ public class KitchenGroup : MonoBehaviour
     public void OnDishServed()
     {
         AddTeamReward(rewardServe);
+    }
+
+    // 에피소드가 끝나기 직전, 서빙으로 실현되지 않은 진행 보상을 전부 회수한다.
+    //
+    // 리셋하면 손/카운터/냄비의 물건은 사라지는데 그 물건들에 지급된 보상은 남는다.
+    // 그러면 '만들어서 쟁여두고 시간을 보내는' 것이 서빙 없이 팀 보상을 챙기는 길이 된다.
+    // 목표 달성으로 끝나는 경우에도 똑같이 정산한다 - 서빙된 접시의 크레딧은 이미
+    // 실현되어 빠져 있으므로, 남은 것은 전부 미실현분이다.
+    void SettleUnrealizedProgress()
+    {
+        float unrealized = env.ConsumeUnrealizedCredit();
+        m_LastSettledCredit = unrealized;
+        if (unrealized > 0f) AddTeamReward(-unrealized);
+    }
+
+    // 학습 중에 '보상이 올랐다'가 무슨 뜻인지 해석할 수 있어야 한다.
+    // 서빙이 0인데 보상이 오르는 상황을 TensorBoard에서 바로 구분하기 위한 통계다.
+    void RecordStats(bool goalReached)
+    {
+        if (!Academy.IsInitialized) return;
+
+        var stats = Academy.Instance.StatsRecorder;
+        stats.Add("Kitchen/DishesServed", env.DishesServed);
+        stats.Add("Kitchen/GoalReached", goalReached ? 1f : 0f);
+        stats.Add("Kitchen/Transfers", m_Transfers);
+        stats.Add("Kitchen/OrdersExpired", m_OrdersExpired);
+        stats.Add("Kitchen/CreditClawedBack", m_LastSettledCredit);
+        // 전달 한 번당 서빙이 몇 접시인가. 전달만 많고 서빙이 없으면 어뷰징 신호다.
+        stats.Add("Kitchen/ServesPerTransfer", m_Transfers > 0 ? (float)env.DishesServed / m_Transfers : 0f);
+
+        m_Transfers = 0;
+        m_OrdersExpired = 0;
+    }
+
+    // ChefAgent가 전달 보상을 실제로 지급했을 때 알려준다 (진단용 집계).
+    public void NoteTransfer()
+    {
+        m_Transfers++;
     }
 
     // 팀 보상은 전부 여기를 지난다. 누적값을 같이 세기 위해서다.

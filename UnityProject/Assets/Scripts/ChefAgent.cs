@@ -108,6 +108,15 @@ public class ChefAgent : Agent
     public bool HeldTransferredForTest => m_HeldTransferred;
     public float HeldCreditForTest => m_HeldCredit;
 
+    // 손에 든 물건에 딸린 진행 보상 크레딧을 꺼내고 0으로 비운다.
+    // 에피소드가 끝날 때 KitchenEnv가 손/카운터/냄비에 남은 크레딧을 전부 걷어간다.
+    public float ConsumeHeldCredit()
+    {
+        float credit = m_HeldCredit;
+        m_HeldCredit = 0f;
+        return credit;
+    }
+
     public override void Initialize()
     {
         m_Behavior = GetComponent<BehaviorParameters>();
@@ -397,6 +406,7 @@ public class ChefAgent : Agent
                     AddReward(rewardTransfer);
                     if (m_Group != null) m_Group.AwardPersonalReward(outcome.TransferPartnerIndex, rewardTransfer);
                     m_HeldTransferred = true;   // 이 물건은 전달 보상을 받았다. 다음 건널목부터는 없다.
+                    if (m_Group != null) m_Group.NoteTransfer();
                 }
                 break;
 
