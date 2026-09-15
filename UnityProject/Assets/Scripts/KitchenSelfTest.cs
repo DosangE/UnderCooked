@@ -34,7 +34,8 @@ public static class KitchenSelfTest
         allOk &= PrepPotDumpLoop(sb, env, group, agents);
         allOk &= WrongOrderServeClawsBack(sb, env, group, agents);
         allOk &= HonestPipelineStillPaid(sb, env, group, agents);
-        allOk &= EpisodeEndSettlesCredit(sb, env, group, agents);
+        allOk &= TimeoutSettlesExactly(sb, env, group, agents);
+        allOk &= HonestServeIsNotClawedBack(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -185,42 +186,80 @@ public static class KitchenSelfTest
         return ok;
     }
 
-    // 5) 에피소드가 끝날 때 서빙되지 않은 진행 보상이 회수되는가.
-    //    리셋하면 물건은 사라지는데 보상만 남으면, '만들어서 쟁여두고 시간 보내기'가
-    //    서빙 없이 팀 보상을 챙기는 길이 된다.
-    static bool EpisodeEndSettlesCredit(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    // 5) 전달까지 하고 타임아웃. 지급한 만큼만 회수되어야 한다.
+    //
+    //    예전 검사는 ConsumeUnrealizedCredit()의 반환값만 봤다. 그래서 '집어간 뒤 빈
+    //    카운터에 크레딧이 남는' 결함을 놓쳤다. 이제 실제 KitchenGroup 종료 경로까지
+    //    돌려서 팀 보상 합계로 판정한다.
+    static bool TimeoutSettlesExactly(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
     {
         Reset(env, agents);
         ForceAllOrders(env, RecipeType.GreenSoup);
-        var box = env.GetStation(StationType.GreenBox);
-        var prep = env.GetPrepFor(0);
-        var pot = env.Pot;
         float team0 = group.TotalGroupReward;
 
-        // 냄비에 하나(크레딧), 손에 하나(크레딧), 카운터에 하나(크레딧)를 남긴다
-        Act(env, agents[0], box);
-        Act(env, agents[0], prep, keepHeld: true);
-        Act(env, agents[0], pot, keepHeld: true);         // 냄비에 크레딧
-
-        Act(env, agents[1], box);
+        // B가 손질해서 카운터로 -> A가 집는다 (카운터는 비지만 크레딧 기록이 남을 수 있다)
+        Act(env, agents[1], env.GetStation(StationType.GreenBox));
         Act(env, agents[1], env.GetPrepFor(1), keepHeld: true);
-        Act(env, agents[1], env.Counters[0], keepHeld: true);   // 카운터에 크레딧
-
-        Act(env, agents[0], box);
-        Act(env, agents[0], prep, keepHeld: true);              // 손에 크레딧
+        Act(env, agents[1], env.Counters[0], keepHeld: true);
+        Act(env, agents[0], env.Counters[0]);
 
         float earned = group.TotalGroupReward - team0;
-        float outstanding = pot.PendingProgressCredit + env.Counters[0].CounterItemCredit
-                            + agents[0].HeldCreditForTest;
+        ForceTimeout(env, group);
 
-        float settled = env.ConsumeUnrealizedCredit();
-        bool ok = settled > 0.001f && Mathf.Abs(settled - outstanding) < 0.001f
-                  && Mathf.Abs(settled - earned) < 0.001f;
+        float total = group.TotalGroupReward - team0;
+        // RecordStats가 누적값을 비우므로 '방금 끝난 에피소드' 값을 읽는다.
+        float clawed = group.LastEpisodeCreditClawedBack;
+        bool ok = Mathf.Abs(total) < 0.001f && Mathf.Abs(clawed - earned) < 0.001f;
 
-        sb.AppendLine("[5] 종료 시 미실현 진행 보상   지급 +" + earned.ToString("0.00")
-                      + " / 남아 있던 크레딧 " + outstanding.ToString("0.00")
-                      + " / 정산 회수 " + settled.ToString("0.00")
-                      + " (지급액과 같아야 함)   " + Verdict(ok));
+        sb.AppendLine("[5] 전달 후 타임아웃   지급 +" + earned.ToString("0.00")
+                      + " / 회수 " + clawed.ToString("0.00") + " (지급액과 같아야 함)"
+                      + " / 최종 팀보상 " + total.ToString("+0.00;-0.00;0.00") + " (0.00 기대)   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
+    // 5b) 정상 서빙은 회수되면 안 된다.
+    //     이미 실현된 진행이 빈 카운터에 남은 찌꺼기 때문에 도로 빼앗기던 경로다.
+    static bool HonestServeIsNotClawedBack(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.GreenSoup);
+        float team0 = group.TotalGroupReward;
+
+        var pot = env.Pot;
+        var counter = env.Counters[0];
+
+        // A가 재료 2개를 손질해 냄비에 (진행 보상 +1.0)
+        for (int i = 0; i < RecipeTypeExtensions.Capacity; i++)
+        {
+            Act(env, agents[0], env.GetStation(StationType.GreenBox));
+            Act(env, agents[0], env.GetPrepFor(0), keepHeld: true);
+            Act(env, agents[0], pot, keepHeld: true);
+        }
+        pot.TickCooking(999f, 0f);
+
+        // B가 빈 그릇을 카운터로 -> A가 받아 요리를 담고 -> 카운터로 -> B가 서빙
+        Act(env, agents[1], env.GetStation(StationType.PlateStack));
+        Act(env, agents[1], counter, keepHeld: true);
+        Act(env, agents[0], counter);
+        Act(env, agents[0], pot, keepHeld: true);          // 요리를 담는다
+        Act(env, agents[0], counter, keepHeld: true);
+        Act(env, agents[1], counter);
+        Act(env, agents[1], env.GetStation(StationType.ServingHatch), keepHeld: true);
+
+        int served = env.DishesServed;
+        bool goal = env.IsGoalReached;
+        ForceTimeout(env, group);
+
+        float total = group.TotalGroupReward - team0;
+        float clawed = group.LastEpisodeCreditClawedBack;
+        float expected = 1.0f + group.RewardServe + (goal ? group.RewardGoalBonus : 0f);
+        bool ok = served == 1 && clawed < 0.001f && Mathf.Abs(total - expected) < 0.001f;
+
+        sb.AppendLine("[5b] 정상 서빙 후 종료   서빙 " + served + "회"
+                      + " / 회수 " + clawed.ToString("0.00") + " (0.00 기대)"
+                      + " / 팀보상 " + total.ToString("0.00") + " (기대 " + expected.ToString("0.00") + ")   "
+                      + Verdict(ok));
         Reset(env, agents);
         return ok;
     }
@@ -274,6 +313,19 @@ public static class KitchenSelfTest
         }
     }
 
+    // 타이머를 만료시키고 **실제 종료 경로**(KitchenGroup.FixedUpdate)를 태운다.
+    // 정산 함수를 직접 부르면 종료 경로에 연결이 빠져 있어도 검사가 통과한다.
+    static void ForceTimeout(KitchenEnv env, KitchenGroup group)
+    {
+        var timer = typeof(KitchenEnv).GetField("m_EpisodeTimer",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        timer.SetValue(env, env.EpisodeDuration + 1f);
+
+        var fixedUpdate = typeof(KitchenGroup).GetMethod("FixedUpdate",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        fixedUpdate.Invoke(group, null);
+    }
+
     static void ForceAllOrders(KitchenEnv env, RecipeType recipe)
     {
         var field = typeof(OrderBoard).GetField("m_Slots",
@@ -287,6 +339,10 @@ public static class KitchenSelfTest
     {
         env.ResetEnv();
         foreach (var agent in agents) agent.ResetAgentState();
+
+        // 시나리오 간 집계 격리. 앞 시나리오의 회수액이 섞이면 측정이 무의미해진다.
+        var group = env.GetComponent<KitchenGroup>();
+        if (group != null) group.ClearEpisodeStatsForTest();
     }
 
     static string Verdict(bool ok)

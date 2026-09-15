@@ -600,6 +600,14 @@ public class KitchenEnv : MonoBehaviour
 
         foreach (var counter in m_Counters)
         {
+            // 물건이 실제로 놓여 있는 칸만 센다. 집어간 뒤 남은 찌꺼기 값을 회수하면
+            // 이미 실현된 진행까지 도로 빼앗게 된다 (집기 경로에서도 비우지만 이중 방어).
+            if (counter.CounterItem == ItemType.None)
+            {
+                counter.SetCounterItemCredit(0f);
+                continue;
+            }
+
             total += counter.CounterItemCredit;
             counter.SetCounterItemCredit(0f);
         }
@@ -848,11 +856,15 @@ public class KitchenEnv : MonoBehaviour
                 outcome.NewItemCredit = station.ConsumeProgressCredit();
                 break;
 
-            // 카운터에서 집었다 -> 카운터가 들고 있던 기록을 이어받는다
+            // 카운터에서 집었다 -> 카운터가 들고 있던 기록을 **옮겨온다**.
+            // 카운터 쪽을 비우지 않으면 같은 크레딧이 손과 카운터 양쪽에 남아서
+            // 종료 정산 때 두 번 회수된다. 정상 서빙까지 벌하게 되는 경로였다.
             case InteractResult.TookFromCounter:
             case InteractResult.TookOwnFromCounter:
                 outcome.NewItemTransferred = counterTransferred;
                 outcome.NewItemCredit = counterCredit;
+                station.SetCounterItemTransferred(false);
+                station.SetCounterItemCredit(0f);
                 break;
 
             // 카운터에 놓았다 -> 손이 들고 있던 기록을 카운터에 넘긴다

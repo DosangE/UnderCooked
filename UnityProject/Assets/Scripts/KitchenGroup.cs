@@ -35,7 +35,9 @@ public class KitchenGroup : MonoBehaviour
     // 진단용 집계. 에피소드마다 StatsRecorder로 내보내고 0으로 리셋한다.
     int m_Transfers;
     int m_OrdersExpired;
-    float m_LastSettledCredit;
+    // 이번 에피소드에 회수된 진행 보상의 합. 냄비 비우기/잘못된 제출/종료 정산을 전부 더한다.
+    // 마지막 종료 정산액만 담으면 '중간에 얼마나 버렸는지'가 통째로 빠진다.
+    float m_CreditClawedBack;
 
     void Awake()
     {
@@ -116,6 +118,8 @@ public class KitchenGroup : MonoBehaviour
     // 그래서 지급액을 냄비에 기록해 둔다. OnPotDumped가 그걸 되돌린다.
     public float RewardPrepped => rewardPrepped;
     public float RewardIngredientInPot => rewardIngredientInPot;
+    public float RewardServe => rewardServe;
+    public float RewardGoalBonus => rewardGoalBonus;
 
     public void OnIngredientPrepped()
     {
@@ -134,7 +138,7 @@ public class KitchenGroup : MonoBehaviour
     // 이득이 된다. 커리큘럼 lesson0 임계값(reward 3.0)도 서빙 0회로 통과해버린다.
     public void OnPotDumped(float refund)
     {
-        if (refund > 0f) AddTeamReward(-refund);
+        ClawBack(refund);
     }
 
     // 진행이 무산됐다. 그 물건에 딸려 있던 진행 보상을 회수한다.
@@ -144,7 +148,15 @@ public class KitchenGroup : MonoBehaviour
     // 진행 보상 +1.0이 그대로 남는다. 크레딧이 요리를 따라가고 여기서 회수되어야 한다.
     public void OnProgressWasted(float credit)
     {
-        if (credit > 0f) AddTeamReward(-credit);
+        ClawBack(credit);
+    }
+
+    // 무산된 진행 보상을 회수하는 유일한 통로. 회수액을 같이 센다.
+    void ClawBack(float credit)
+    {
+        if (credit <= 0f) return;
+        AddTeamReward(-credit);
+        m_CreditClawedBack += credit;
     }
 
     public void OnDishServed()
@@ -160,9 +172,7 @@ public class KitchenGroup : MonoBehaviour
     // 실현되어 빠져 있으므로, 남은 것은 전부 미실현분이다.
     void SettleUnrealizedProgress()
     {
-        float unrealized = env.ConsumeUnrealizedCredit();
-        m_LastSettledCredit = unrealized;
-        if (unrealized > 0f) AddTeamReward(-unrealized);
+        ClawBack(env.ConsumeUnrealizedCredit());
     }
 
     // 학습 중에 '보상이 올랐다'가 무슨 뜻인지 해석할 수 있어야 한다.
@@ -176,13 +186,38 @@ public class KitchenGroup : MonoBehaviour
         stats.Add("Kitchen/GoalReached", goalReached ? 1f : 0f);
         stats.Add("Kitchen/Transfers", m_Transfers);
         stats.Add("Kitchen/OrdersExpired", m_OrdersExpired);
-        stats.Add("Kitchen/CreditClawedBack", m_LastSettledCredit);
+        stats.Add("Kitchen/CreditClawedBack", m_CreditClawedBack);
         // 전달 한 번당 서빙이 몇 접시인가. 전달만 많고 서빙이 없으면 어뷰징 신호다.
         stats.Add("Kitchen/ServesPerTransfer", m_Transfers > 0 ? (float)env.DishesServed / m_Transfers : 0f);
 
+        // 다음 에피소드를 위해 비우기 전에 값을 남긴다. 리셋 뒤에 읽어도 방금 끝난
+        // 에피소드의 수치를 볼 수 있어야 한다 (회귀 검사와 사후 진단 모두 그걸 읽는다).
+        LastEpisodeDishesServed = env.DishesServed;
+        LastEpisodeCreditClawedBack = m_CreditClawedBack;
+        LastEpisodeTransfers = m_Transfers;
+
         m_Transfers = 0;
         m_OrdersExpired = 0;
+        m_CreditClawedBack = 0f;
     }
+
+    // 진행 중인 에피소드의 누적 회수액.
+    public float CreditClawedBack => m_CreditClawedBack;
+
+    // 회귀 검사 전용. 시나리오마다 집계를 0에서 시작하게 한다.
+    // (검사 시나리오는 대부분 에피소드를 끝내지 않으므로, 비워주지 않으면 앞 시나리오의
+    //  회수액이 다음 시나리오 측정에 섞인다)
+    public void ClearEpisodeStatsForTest()
+    {
+        m_Transfers = 0;
+        m_OrdersExpired = 0;
+        m_CreditClawedBack = 0f;
+    }
+
+    // 방금 끝난 에피소드의 수치. RecordStats가 리셋하기 직전에 채운다.
+    public float LastEpisodeCreditClawedBack { get; private set; }
+    public int LastEpisodeDishesServed { get; private set; }
+    public int LastEpisodeTransfers { get; private set; }
 
     // ChefAgent가 전달 보상을 실제로 지급했을 때 알려준다 (진단용 집계).
     public void NoteTransfer()
