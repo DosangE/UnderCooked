@@ -8,17 +8,15 @@ Python 환경과 GPU 드라이버는 git pull로 설치되지 않는다.
 
 ## 0. 학습할 코드와 Unity 프로젝트 확인
 
-PR #7이 병합되기 전에는 `dev`만 pull해도 수정이 들어오지 않는다.
-현재 PR 검증 대상은 `dev_training-setup`의 `3f97e66`이다.
+학습에 쓸 코드는 `dev`에 있다.
 
 ```bash
 git fetch origin
-git switch dev_training-setup
-git pull --ff-only origin dev_training-setup
+git switch dev
+git pull --ff-only origin dev
 git log -1 --oneline
 ```
 
-PR 병합 후에는 `dev`로 전환해 `git pull --ff-only origin dev`를 실행한다.
 추가 수정이 있다면 그 수정도 커밋·push되어 있어야 학습 PC에서 받을 수 있다.
 
 Unity Hub에서 저장소 루트가 아닌 **`UnderCooked/UnityProject`**를 연다.
@@ -72,7 +70,7 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
 
 1. **트레이너 없이 회귀 검사를 먼저 실행한다.**
    Unity에서 Play → 메뉴 `UnderCooked/보상 회귀 검사` (`Ctrl+Shift+T`).
-   [1]~[6]과 [5b]가 전부 OK인지 확인한 뒤 **Play를 종료한다.**
+   [1]~[7]이 전부 OK인지 확인한 뒤 **Play를 종료한다.**
    검사는 실제 행동·보상·주문·타이머를 변경한다. 본 학습에 연결한 채 실행하면
    인위적인 전이가 학습 데이터와 통계에 섞인다.
 
@@ -134,6 +132,29 @@ tensorboard --logdir results
 서빙이 0인데 보상이 오르면 `Kitchen/ServesPerTransfer`와 `Kitchen/CreditClawedBack`을
 먼저 본다.
 
+### `order_slots`가 늘면 팀 보상 기준선이 계단식으로 내려간다 (오독 주의)
+
+주문 제한 시간이 25초, 에피소드가 45초다. 그래서 **슬롯 하나당 아무것도 안 해도
+에피소드당 정확히 1건이 만료된다** (t=25에 만료되고, 리필분은 t=50이라 안 온다).
+기준선 `Group Cumulative Reward −0.50`이 바로 이것이다.
+
+즉 `order_slots`가 1→2→3으로 가는 4.0M / 5.2M 지점에서 **팀 보상 기준선이 실력과
+무관하게 −0.5, −1.0씩 내려앉는다.**
+
+| order_slots | 아무것도 안 했을 때의 팀 보상 |
+|---|---|
+| 1 | −0.5 |
+| 2 | −1.0 |
+| 3 | −1.5 |
+
+커리큘럼 전환 직후 곡선이 떨어지는 것은 **정상이다.** 성능이 나빠진 게 아니라
+기준선이 내려간 것이다. 실제 성능은 `Kitchen/DishesServed`와 `Kitchen/GoalReached`로
+본다. 판단하려면 전환 전후를 비교하지 말고, **전환 후 곡선이 새 기준선에서 다시
+올라가는지**를 본다.
+
+(`target_dishes` 임계값은 **개인** 보상 기준이고 만료 패널티는 팀 쪽이므로,
+이 계단은 커리큘럼 전환에는 영향을 주지 않는다.)
+
 ---
 
 ## 4. 커리큘럼 임계값 보정
@@ -161,6 +182,22 @@ tensorboard --logdir results
 | `cook_time` 2s→5s | 2.8M |
 | `order_slots` 1→2→3 | 4.0M / 5.2M |
 
+### 최종 난이도가 실현 가능한가 (확인됨)
+
+`target_dishes`는 reward 게이트라 한 번 오르면 내려오지 않는데, 난이도 손잡이는
+progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초 안에 3접시**를
+요구받는다. 실현 불가능하면 후반 학습이 통째로 헛돈다.
+
+측정 결과 여유가 있다.
+
+- `tools/measure_reach.py` — 완벽히 협력할 때 접시 하나의 **이동 병목 1.4~1.6초**
+  (현재 배치, 세 레시피 전부)
+- 냄비가 하나라 조리는 직렬이다 → 3접시 = 조리 15초 + 이동 약 5초 ≈ **20초**
+- 에피소드 45초. **2배 이상 여유**다.
+
+그래도 `Kitchen/GoalReached`가 후반에 0에 붙어 있으면 `episodeDuration`이나
+`target_dishes` 임계값을 의심한다.
+
 ---
 
 ## 5. run-id 규칙
@@ -174,6 +211,7 @@ tensorboard --logdir results
 `results/`는 `.gitignore`에 있다. 학습 결과를 저장소에 커밋하지 않는다.
 최종 모델만 `models/undercooked.onnx`로 옮긴다.
 
+---
 
 ## 6. 2026-09-15 재검증 결과
 
@@ -197,3 +235,26 @@ tensorboard --logdir results
 Unity는 Play를 종료했고 씬 변경은 저장하지 않았다.
 대상 데스크탑의 신규 환경 설치·CUDA 연산·학습 처리량은 그 PC에서 확인해야 한다.
 커리큘럼 임계값 -0.3 / +0.1의 실제 전환 품질은 본 학습 곡선으로 검증한다.
+
+---
+
+## 7. 2026-09-18 최종 검증 결과
+
+학습 실행 전 마지막 점검. **학습은 돌리지 않았다.** Unity MCP로 에디터를 직접 확인했다.
+
+- 컴파일 에러·경고 0건. 씬 `Assets/Scenes/UnderCooked.unity`.
+- `StartupValidator`: 씬-코드 일치 (32명 / 관측 103 / 행동 [5, 2] / 에피소드 45s).
+- 보상 회귀 검사 [1]~[7] 전부 통과. 새로 추가한 [7]은 −0.49.
+- 런타임 파라미터 실측: `needsPrep=True / cookTime=5s / orderSlots=3 / recipePool=3 /
+  orderDuration=20s / episode=45s`, RedBox 표시됨, 주문 슬롯 3개 채워짐.
+- 그릇 상한 동작 확인: 나와 있는 그릇 0개·1개면 그릇함 Interact 가능, **2개면 막히고**,
+  다시 0개가 되면 풀린다.
+- 빈 그릇 쓸모 판정 확인: 냄비가 비었으면 A에게 쓸모 **없음**, 냄비를 채우면 있음,
+  같은 상태에서 B에게는 없음(냄비는 A 구역).
+
+이번에 고친 것은 §4-18 하나다(빈 그릇이 모든 어뷰징 방어의 바깥에 있던 문제).
+나머지는 문서·주석 정정과 곡선 오독 방지 안내다.
+
+Play는 매번 종료했고 씬 변경은 저장하지 않았다.
+본 학습 `undercooked_v1`은 여전히 실행 전이고, 대상 데스크탑의 환경 설치·CUDA 연산·
+학습 처리량은 그 PC에서 확인해야 한다.
