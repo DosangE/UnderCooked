@@ -36,6 +36,7 @@ public static class KitchenSelfTest
         allOk &= HonestPipelineStillPaid(sb, env, group, agents);
         allOk &= TimeoutSettlesExactly(sb, env, group, agents);
         allOk &= HonestServeIsNotClawedBack(sb, env, group, agents);
+        allOk &= FreshPlateShuttleIsNotProfitable(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -49,6 +50,11 @@ public static class KitchenSelfTest
         Reset(env, agents);
         ForceAllOrders(env, RecipeType.GreenSoup);
         var counter = env.Counters[0];
+
+        // 냄비를 채워서 '담을 요리가 있는' 상태로 만든다. 빈 그릇의 전달 보상은
+        // 이 조건에서만 나오므로(KitchenEnv.IsWantedNow), 이게 없으면 이 검사는
+        // 지급이 0인 것을 '왕복 차단이 동작한다'로 잘못 읽는다.
+        CommitPot(env);
 
         // 접시는 **딱 하나**를 처음에 한 번만 쥐여준다. 매 왕복 새로 쥐여주면 그건
         // 그때마다 다른 물건이라 보상이 나오는 게 맞고, 어뷰징을 재현한 게 아니다.
@@ -264,6 +270,46 @@ public static class KitchenSelfTest
         return ok;
     }
 
+    // 7) **매번 새 그릇**을 왕복시키는 것이 이득이면 안 된다.
+    //
+    //    검사 [1]은 '같은 물건'의 왕복만 막는 것을 확인한다. 어뷰징은 그 바깥에 있었다 -
+    //    매 사이클 새 그릇을 꺼내면 전달 기록이 없는 새 물건이라 [1]에 걸리지 않고,
+    //    그릇은 max_ingredients에도 진행 크레딧 회수에도 걸리지 않았다.
+    //    담을 요리가 없는데 그릇을 나르는 것은 손해여야 한다.
+    static bool FreshPlateShuttleIsNotProfitable(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.GreenSoup);
+
+        // 냄비는 비워둔다. 담을 요리가 없는 상태가 이 검사의 전제다.
+        var counter = env.Counters[0];
+        var hatch = env.GetStation(StationType.ServingHatch);
+        var plates = env.GetStation(StationType.PlateStack);
+
+        float before = agents[0].GetCumulativeReward() + agents[1].GetCumulativeReward()
+                       + group.TotalGroupReward;
+
+        const int Cycles = 3;
+        for (int i = 0; i < Cycles; i++)
+        {
+            Act(env, agents[1], plates);                   // B: 새 그릇 (+0.05)
+            Act(env, agents[1], counter, keepHeld: true);  // B: 카운터에 놓기
+            Act(env, agents[0], counter);                  // A: 집기  <- 여기서 전달 보상이 나오면 안 된다
+            Act(env, agents[0], counter, keepHeld: true);  // A: 되놓기
+            Act(env, agents[1], counter);                  // B: 회수
+            Act(env, agents[1], hatch, keepHeld: true);    // B: 버린다 (-0.2)
+        }
+
+        float gain = agents[0].GetCumulativeReward() + agents[1].GetCumulativeReward()
+                     + group.TotalGroupReward - before;
+        bool ok = gain < 0f;
+
+        sb.AppendLine("[7] 새 그릇 " + Cycles + "회 왕복(담을 요리 없음)   개인+팀 합계 "
+                      + gain.ToString("+0.00;-0.00;0.00") + " (0 미만 기대)   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
     // 6) 관측 개수 검사가 '진짜로' 세는가.
     //    VectorSensor.GetObservationSpec()은 생성자 인자를 그대로 돌려주므로,
     //    그걸 읽던 예전 검사는 관측이 1개여도 103으로 통과했다.
@@ -324,6 +370,18 @@ public static class KitchenSelfTest
         var fixedUpdate = typeof(KitchenGroup).GetMethod("FixedUpdate",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         fixedUpdate.Invoke(group, null);
+    }
+
+    // 냄비를 재료로 채워 '담을 요리가 있는' 상태(IsCommitted)로 만든다.
+    // 조리 완료까지는 가지 않는다 - 빈 그릇의 쓸모 판정은 IsCommitted만 본다.
+    // 냄비를 직접 조작하므로 팀 보상이 붙지 않는다 -> 보상 측정에 섞이지 않는다.
+    static void CommitPot(KitchenEnv env)
+    {
+        var pot = env.Pot;
+        if (pot == null) return;
+
+        var ing = env.NeedsPrep ? ItemType.PrepGreen : ItemType.RawGreen;
+        for (int i = 0; i < RecipeTypeExtensions.Capacity; i++) pot.Interact(0, ing, out _);
     }
 
     static void ForceAllOrders(KitchenEnv env, RecipeType recipe)

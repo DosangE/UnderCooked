@@ -86,6 +86,10 @@ public class KitchenEnv : MonoBehaviour
     [Tooltip("냄비 밖(손/카운터)에 동시에 존재할 수 있는 재료 개수. " +
              "넘으면 재료함 Interact가 막힌다 -> 한 접시씩 끝내게 만든다")]
     [SerializeField] int defaultMaxIngredients = 2;
+    [Tooltip("동시에 나와 있을 수 있는 빈 그릇 수. 냄비가 하나뿐이라 실제로는 1개면 충분하고, " +
+             "2는 '건너가는 중 1개 + 미리 꺼낸 1개'까지만 허용하는 여유다. " +
+             "커리큘럼 대상이 아니라서 EnvironmentParameters로 받지 않는다")]
+    [SerializeField] int maxPlates = 2;
 
     [Header("사람 플레이 (학습에는 영향 없음)")]
     [Tooltip("주방 하나만 남았을 때 카메라를 얼마나 위에 둘지 (셀 단위)")]
@@ -680,14 +684,39 @@ public class KitchenEnv : MonoBehaviour
         return count;
     }
 
-    // 재료함을 더 열 수 있는가. 필드에 재료가 너무 많으면 막아서 한 접시씩 끝내게 만든다.
+    // 냄비 밖에 나와 있는 빈 그릇 수. 재료와 달리 그릇은 냄비가 소비하지 않으므로
+    // (요리를 담을 때만 없어진다) 따로 센다.
+    public int PlatesInPlay()
+    {
+        int count = 0;
+
+        if (m_Agents != null)
+        {
+            foreach (var agent in m_Agents)
+                if (agent != null && agent.HeldItem == ItemType.EmptyPlate) count++;
+        }
+
+        foreach (var counter in m_Counters)
+            if (counter.CounterItem == ItemType.EmptyPlate) count++;
+
+        return count;
+    }
+
+    // 재료함/그릇함을 더 열 수 있는가. 필드에 너무 많이 나와 있으면 막아서
+    // 한 접시씩 끝내게 만든다.
     //
     // '지금 주문에 필요한 색인가'까지는 여기서 막지 않는다. 그건 마스크가 아니라
     // 보상이 가르쳐야 할 것이고, 막아버리면 "잘못 가져오는 실수"라는 학습 대상 자체가 사라진다.
     // 다만 이번 에피소드에 아예 등장하지 않는 색(lesson0의 빨강)은 구조적으로 막는다.
+    //
+    // ★ 그릇함에도 상한이 필요하다. 예전에는 그릇이 어떤 상한에도 걸리지 않아서
+    //   카운터 4칸 + 양손에 빈 그릇을 쟁여두는 것만으로 꺼내기 보상(+0.05)을 공짜로
+    //   챙길 수 있었다. 회수 대상도 아니다(그릇에는 진행 크레딧이 없다).
+    //   상한을 걸어도 막다른 상태는 생기지 않는다 - 그릇은 서빙구에 버려서 되돌릴 수 있다.
     bool SourceAllowed(Station station)
     {
         if (station.Type == StationType.RedBox && !m_Orders.UsesRed) return false;
+        if (station.Type == StationType.PlateStack) return PlatesInPlay() < maxPlates;
         if (station.Type != StationType.GreenBox && station.Type != StationType.RedBox) return true;
         return IngredientsInPlay() < m_MaxIngredients;
     }
@@ -750,7 +779,24 @@ public class KitchenEnv : MonoBehaviour
     // 지금 대기 중인 주문들을 기준으로 이 물건이 쓸모가 있는가.
     public bool IsWantedNow(ItemType item)
     {
-        if (item == ItemType.EmptyPlate) return true;
+        // 빈 그릇은 '담을 요리가 있을 때'만 쓸모가 있다.
+        //
+        // ★ 예전에는 무조건 true였다. 그러면 그릇은 어떤 방어에도 안 걸린다 -
+        //   max_ingredients는 재료만 세고, 그릇에는 회수할 진행 크레딧도 없다.
+        //   그래서 'B가 새 그릇을 꺼내(+0.05) 카운터로 넘기면(양쪽 +0.15) B가 되받아
+        //   서빙구에 버린다(-0.2)'가 사이클당 +0.15짜리 무한 반복이 됐다.
+        //   450 decision이면 서빙 0회로 개인 보상이 랜덤 기준선(-0.78)에서 0 근처까지
+        //   올라가, target_dishes lesson0 임계값(-0.3)을 서빙 없이 통과한다.
+        //   README 4-12와 정확히 같은 실패인데 그릇 쪽에만 남아 있었다.
+        //
+        //   IsCommitted를 기준으로 삼는 것이 안전한 이유: 냄비 내용물 개수는 이미 관측에
+        //   들어 있고(그리고 조리가 끝나도 안 변한다), 개수가 2 = IsCommitted이므로
+        //   정책이 이미 볼 수 있는 정보다. 숨긴 정보를 보상으로 흘리는 것이 아니다.
+        //
+        //   담을 요리가 생기기 전에 미리 그릇을 건네두는 것에는 보상이 안 붙는다.
+        //   그건 감수한다 - 조리 시간(최대 5초 = 50 decision)이면 그 뒤에 건네도 늦지 않고,
+        //   무조건 주면 위의 반복이 다시 열린다.
+        if (item == ItemType.EmptyPlate) return Pot != null && Pot.IsCommitted;
         if (item.IsCookedDish()) return m_Orders.HasOrderFor(item);
         if (item.IsIngredient()) return m_Orders.WantsColor(item.IsGreen(), PlanningGreen, PlanningRed);
         return false;
