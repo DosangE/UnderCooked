@@ -9,8 +9,8 @@ public enum ItemType
     None = 0,
     RawGreen = 1,      // 초록 생재료 (재료함 G에서 나온다)
     RawRed = 2,        // 빨강 생재료 (재료함 R에서 나온다)
-    PrepGreen = 3,     // 초록 손질됨 (초록 손질대를 거친 것)
-    PrepRed = 4,       // 빨강 손질됨 (빨강 손질대를 거친 것)
+    PrepGreen = 3,     // 초록 손질됨 (손질대를 거친 것. 손질대는 색을 가리지 않는다)
+    PrepRed = 4,       // 빨강 손질됨 (위와 같음. 색은 손질대가 아니라 재료가 정한다)
     EmptyPlate = 5,
     CookedGreen = 6,   // 초록x2  -> GreenSoup
     CookedMix = 7,     // 초록+빨강 -> MixSoup
