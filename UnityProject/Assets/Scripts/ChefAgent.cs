@@ -179,10 +179,10 @@ public class ChefAgent : Agent
         // 2) 바라보는 방향 one-hot (4)
         sensor.AddOneHotObservation(m_Facing, DirectionCount);
 
-        // 3) 손에 든 것 one-hot (4)
+        // 3) 손에 든 것 one-hot (9)
         sensor.AddOneHotObservation((int)m_HeldItem, ItemTypeCount);
 
-        // 4) 동료 상대좌표 (2) + 5) 동료 손 one-hot (4)
+        // 4) 동료 상대좌표 (2) + 5) 동료 손 one-hot (9)
         if (m_Partner != null)
         {
             sensor.AddObservation(RelativeToMe(m_Partner.Cell));
@@ -203,7 +203,7 @@ public class ChefAgent : Agent
         sensor.AddObservation(pot != null ? pot.GreenCount / capacity : 0f);
         sensor.AddObservation(pot != null ? pot.RedCount / capacity : 0f);
 
-        // 7) 카운터 슬롯 (18)
+        // 7) 카운터 슬롯 4칸 x (one-hot 9 + 상대좌표 2) = 44
         var counters = m_Env.Counters;
         for (int i = 0; i < CounterObservationSlots; i++)
         {
