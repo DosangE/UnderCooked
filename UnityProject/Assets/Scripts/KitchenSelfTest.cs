@@ -37,6 +37,8 @@ public static class KitchenSelfTest
         allOk &= TimeoutSettlesExactly(sb, env, group, agents);
         allOk &= HonestServeIsNotClawedBack(sb, env, group, agents);
         allOk &= FreshPlateShuttleIsNotProfitable(sb, env, group, agents);
+        allOk &= TransferPotDumpLoop(sb, env, group, agents);
+        allOk &= CommittedPotPlateShuttle(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -215,11 +217,16 @@ public static class KitchenSelfTest
         float total = group.TotalGroupReward - team0;
         // RecordStats가 누적값을 비우므로 '방금 끝난 에피소드' 값을 읽는다.
         float clawed = group.LastEpisodeCreditClawedBack;
-        bool ok = Mathf.Abs(total) < 0.001f && Mathf.Abs(clawed - earned) < 0.001f;
+        // A가 든 재료는 한 번 건너왔으므로 전달 보상 1회분이 개인 보상에서 회수되어야 한다.
+        float transferClawed = group.LastEpisodeTransferClawedBack;
+        bool ok = Mathf.Abs(total) < 0.001f && Mathf.Abs(clawed - earned) < 0.001f
+                  && Mathf.Abs(transferClawed - TransferReward(agents[0])) < 0.001f;
 
         sb.AppendLine("[5] 전달 후 타임아웃   지급 +" + earned.ToString("0.00")
                       + " / 회수 " + clawed.ToString("0.00") + " (지급액과 같아야 함)"
-                      + " / 최종 팀보상 " + total.ToString("+0.00;-0.00;0.00") + " (0.00 기대)   " + Verdict(ok));
+                      + " / 최종 팀보상 " + total.ToString("+0.00;-0.00;0.00") + " (0.00 기대)"
+                      + " / 전달보상 회수 " + transferClawed.ToString("0.00")
+                      + " (" + TransferReward(agents[0]).ToString("0.00") + " 기대)   " + Verdict(ok));
         Reset(env, agents);
         return ok;
     }
@@ -259,11 +266,15 @@ public static class KitchenSelfTest
 
         float total = group.TotalGroupReward - team0;
         float clawed = group.LastEpisodeCreditClawedBack;
+        // 그릇과 요리가 한 번씩 건너왔지만 둘 다 서빙으로 실현됐다. 전달 보상도 회수되면 안 된다.
+        float transferClawed = group.LastEpisodeTransferClawedBack;
         float expected = 1.0f + group.RewardServe + (goal ? group.RewardGoalBonus : 0f);
-        bool ok = served == 1 && clawed < 0.001f && Mathf.Abs(total - expected) < 0.001f;
+        bool ok = served == 1 && clawed < 0.001f && transferClawed < 0.001f
+                  && Mathf.Abs(total - expected) < 0.001f;
 
         sb.AppendLine("[5b] 정상 서빙 후 종료   서빙 " + served + "회"
                       + " / 회수 " + clawed.ToString("0.00") + " (0.00 기대)"
+                      + " / 전달보상 회수 " + transferClawed.ToString("0.00") + " (0.00 기대)"
                       + " / 팀보상 " + total.ToString("0.00") + " (기대 " + expected.ToString("0.00") + ")   "
                       + Verdict(ok));
         Reset(env, agents);
@@ -305,6 +316,88 @@ public static class KitchenSelfTest
         bool ok = gain < 0f;
 
         sb.AppendLine("[7] 새 그릇 " + Cycles + "회 왕복(담을 요리 없음)   개인+팀 합계 "
+                      + gain.ToString("+0.00;-0.00;0.00") + " (0 미만 기대)   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
+    // 8) 건너온 재료를 냄비에 넣고 비우기를 반복해도 이득이 없어야 한다.
+    //
+    //    [2]는 A 혼자 집고 손질해서 넣고 비운다. 그 경로에는 전달 보상이 없어서 검사가
+    //    통과했지만, 사이에 B -> A 전달을 끼우면 전달 보상(양쪽 +0.15)이 되돌려지지 않아
+    //    사이클당 개인 합계 +0.30이 남았다. 팀 보상은 회수되니 [2]로는 안 보인다.
+    //    커리큘럼 관문은 개인 보상만 보므로, 이 경로로 서빙 없이 lesson0를 통과했다.
+    static bool TransferPotDumpLoop(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.GreenSoup);
+        var counter = env.Counters[env.Counters.Count - 1];
+        var box = env.GetStation(StationType.GreenBox);
+        var pot = env.Pot;
+
+        float before = agents[0].GetCumulativeReward() + agents[1].GetCumulativeReward();
+        float team0 = group.TotalGroupReward;
+        int steps = 0;
+
+        const int Cycles = 3;
+        for (int i = 0; i < Cycles; i++)
+        {
+            Act(env, agents[1], box); steps++;                                    // B: 집기 (+0.05)
+            if (env.NeedsPrep) { Act(env, agents[1], env.GetPrepFor(1), keepHeld: true); steps++; }
+            Act(env, agents[1], counter, keepHeld: true); steps++;                // B: 카운터에
+            Act(env, agents[0], counter); steps++;                                // A: 집기 (양쪽 +0.15)
+            Act(env, agents[0], pot, keepHeld: true); steps++;                    // A: 투입
+            Act(env, agents[0], pot); steps++;                                    // A: 비우기
+        }
+
+        // 스텝 비용을 빼고 본다. 스텝 비용 덕분에 음수가 되는 것은 방어가 아니다.
+        float gain = agents[0].GetCumulativeReward() + agents[1].GetCumulativeReward()
+                     - before - steps * StepCost(agents[0]);
+        float team = group.TotalGroupReward - team0;
+        bool ok = gain <= 0.001f && team <= 0.001f;
+
+        sb.AppendLine("[8] 전달->투입->비우기 " + Cycles + "회   개인 합계(스텝비용 제외) "
+                      + gain.ToString("+0.00;-0.00;0.00") + " / 팀 " + team.ToString("+0.00;-0.00;0.00")
+                      + " (둘 다 0 이하 기대)   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
+    // 9) 냄비가 차 있는(담을 요리가 있는) 동안 새 그릇을 건넸다가 되받아 버려도 이득이 없어야 한다.
+    //
+    //    [7]은 냄비가 빈 경우만 본다. 냄비를 채워 두고 요리를 안 뜨면 IsCommitted가 계속
+    //    참이라 그릇은 계속 '쓸모 있음'이고, 전달 보상(양쪽 +0.15)이 버리기(-0.2)보다 커서
+    //    사이클당 개인 합계 +0.15가 남았다.
+    static bool CommittedPotPlateShuttle(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.GreenSoup);
+        CommitPot(env);
+
+        var counter = env.Counters[0];
+        var hatch = env.GetStation(StationType.ServingHatch);
+        var plates = env.GetStation(StationType.PlateStack);
+
+        float before = agents[0].GetCumulativeReward() + agents[1].GetCumulativeReward();
+        float team0 = group.TotalGroupReward;
+
+        const int Cycles = 3;
+        for (int i = 0; i < Cycles; i++)
+        {
+            Act(env, agents[1], plates);                   // B: 새 그릇 (+0.05)
+            Act(env, agents[1], counter, keepHeld: true);  // B: 카운터에
+            Act(env, agents[0], counter);                  // A: 집기 (양쪽 +0.15, 담을 요리가 있으니 지급은 정상)
+            Act(env, agents[0], counter, keepHeld: true);  // A: 되놓기
+            Act(env, agents[1], counter);                  // B: 회수
+            Act(env, agents[1], hatch, keepHeld: true);    // B: 버린다 -> 전달 보상도 회수되어야 한다
+        }
+
+        float gain = agents[0].GetCumulativeReward() + agents[1].GetCumulativeReward()
+                     - before - 6 * Cycles * StepCost(agents[0]);
+        float team = group.TotalGroupReward - team0;
+        bool ok = env.Pot.IsCommitted && gain < 0f && team <= 0.001f;
+
+        sb.AppendLine("[9] 냄비가 찬 동안 새 그릇 " + Cycles + "회 왕복   개인 합계(스텝비용 제외) "
                       + gain.ToString("+0.00;-0.00;0.00") + " (0 미만 기대)   " + Verdict(ok));
         Reset(env, agents);
         return ok;
