@@ -41,6 +41,19 @@ public class KitchenGroup : MonoBehaviour
     // 이번 에피소드에 회수된 전달 보상 (셰프 한 명당 금액의 합).
     float m_TransferClawedBack;
 
+    // 서빙까지 가는 체인의 고리별 통과 횟수. 보상과 무관한 순수 관측이다.
+    // 서빙이 0일 때 '어느 고리에서 끊기는가'를 보려고 둔다. 전달·회수 지표만으로는
+    // 냄비가 찼는지, 요리를 떴는지 구분할 수 없었다 (reports/2026-09-25 §3-5).
+    public enum ChainStep { PotCommitted, PlateToPotSide, DishTaken, DishToServeSide }
+    static readonly string[] ChainStatNames =
+    {
+        "Kitchen/PotCommitted",     // 냄비가 재료로 다 차서 조리가 확정됨
+        "Kitchen/PlatesToChefA",    // 빈 그릇이 냄비 쪽 셰프에게 건너감 (보상 지급 여부와 무관)
+        "Kitchen/DishesTaken",      // 냄비에서 완성 요리를 뜸
+        "Kitchen/DishesToChefB",    // 완성 요리가 서빙구 쪽 셰프에게 건너감 (보상 지급 여부와 무관)
+    };
+    readonly int[] m_Chain = new int[ChainStatNames.Length];
+
     void Awake()
     {
         if (env == null) env = GetComponent<KitchenEnv>();
@@ -205,6 +218,7 @@ public class KitchenGroup : MonoBehaviour
         stats.Add("Kitchen/TransferClawedBack", m_TransferClawedBack);
         // 전달 한 번당 서빙이 몇 접시인가. 전달만 많고 서빙이 없으면 어뷰징 신호다.
         stats.Add("Kitchen/ServesPerTransfer", m_Transfers > 0 ? (float)env.DishesServed / m_Transfers : 0f);
+        for (int i = 0; i < m_Chain.Length; i++) stats.Add(ChainStatNames[i], m_Chain[i]);
 
         // 다음 에피소드를 위해 비우기 전에 값을 남긴다. 리셋 뒤에 읽어도 방금 끝난
         // 에피소드의 수치를 볼 수 있어야 한다 (회귀 검사와 사후 진단 모두 그걸 읽는다).
@@ -212,11 +226,9 @@ public class KitchenGroup : MonoBehaviour
         LastEpisodeCreditClawedBack = m_CreditClawedBack;
         LastEpisodeTransferClawedBack = m_TransferClawedBack;
         LastEpisodeTransfers = m_Transfers;
+        System.Array.Copy(m_Chain, m_LastEpisodeChain, m_Chain.Length);
 
-        m_Transfers = 0;
-        m_OrdersExpired = 0;
-        m_CreditClawedBack = 0f;
-        m_TransferClawedBack = 0f;
+        ClearEpisodeStatsForTest();
     }
 
     // 진행 중인 에피소드의 누적 회수액.
@@ -225,12 +237,15 @@ public class KitchenGroup : MonoBehaviour
     // 회귀 검사 전용. 시나리오마다 집계를 0에서 시작하게 한다.
     // (검사 시나리오는 대부분 에피소드를 끝내지 않으므로, 비워주지 않으면 앞 시나리오의
     //  회수액이 다음 시나리오 측정에 섞인다)
+    // RecordStats도 에피소드 끝에 이걸로 비운다 - 리셋 항목이 두 곳에 따로 있으면
+    // 새 지표를 한쪽에만 추가하는 실수가 생긴다.
     public void ClearEpisodeStatsForTest()
     {
         m_Transfers = 0;
         m_OrdersExpired = 0;
         m_CreditClawedBack = 0f;
         m_TransferClawedBack = 0f;
+        System.Array.Clear(m_Chain, 0, m_Chain.Length);
     }
 
     // 방금 끝난 에피소드의 수치. RecordStats가 리셋하기 직전에 채운다.
@@ -240,10 +255,19 @@ public class KitchenGroup : MonoBehaviour
     public int LastEpisodeDishesServed { get; private set; }
     public int LastEpisodeTransfers { get; private set; }
 
+    readonly int[] m_LastEpisodeChain = new int[ChainStatNames.Length];
+    public int LastEpisodeChain(ChainStep step) => m_LastEpisodeChain[(int)step];
+
     // ChefAgent가 전달 보상을 실제로 지급했을 때 알려준다 (진단용 집계).
     public void NoteTransfer()
     {
         m_Transfers++;
+    }
+
+    // ChefAgent가 체인의 한 고리를 통과했을 때 알려준다 (진단용 집계).
+    public void NoteChainStep(ChainStep step)
+    {
+        m_Chain[(int)step]++;
     }
 
     // 팀 보상은 전부 여기를 지난다. 누적값을 같이 세기 위해서다.

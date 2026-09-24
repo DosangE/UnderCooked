@@ -474,6 +474,37 @@ public class ChefAgent : Agent
 
             // TookDishFromPot / PlacedOnCounter / TookOwnFromCounter / Nothing 은 보상 없음
         }
+
+        NoteChainStep(outcome.Result);
+    }
+
+    // 서빙까지 가는 체인의 고리 통과를 KitchenGroup에 알린다. 보상에는 영향이 없다.
+    // 전달 고리는 전달 보상 지급 여부와 무관하게 센다 - '건너갔는가'를 보려는 것이지
+    // '보상받았는가'는 Kitchen/Transfers가 이미 센다.
+    void NoteChainStep(InteractResult result)
+    {
+        if (m_Group == null) return;
+
+        switch (result)
+        {
+            case InteractResult.PlacedInPot:
+            case InteractResult.PlacedInPotWrong:
+                // 확정된 냄비는 재료를 더 받지 않으므로, 넣은 직후 확정이면 이 투입이 채운 것이다.
+                var pot = m_Env.Pot;
+                if (pot != null && pot.IsCommitted) m_Group.NoteChainStep(KitchenGroup.ChainStep.PotCommitted);
+                break;
+
+            case InteractResult.TookDishFromPot:
+                m_Group.NoteChainStep(KitchenGroup.ChainStep.DishTaken);
+                break;
+
+            case InteractResult.TookFromCounter:
+                if (m_HeldItem == ItemType.EmptyPlate && m_Env.GetStationZone(StationType.Pot) == agentIndex)
+                    m_Group.NoteChainStep(KitchenGroup.ChainStep.PlateToPotSide);
+                else if (m_HeldItem.IsCookedDish() && m_Env.GetStationZone(StationType.ServingHatch) == agentIndex)
+                    m_Group.NoteChainStep(KitchenGroup.ChainStep.DishToServeSide);
+                break;
+        }
     }
 
     // ─────────────────────────── 표현 ───────────────────────────

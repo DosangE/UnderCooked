@@ -828,6 +828,18 @@ tensorboard --logdir results
 | `Kitchen/Transfers` | 전달 성사 횟수 |
 | `Kitchen/ServesPerTransfer` | 전달 대비 서빙. 낮으면 전달만 하고 서빙이 없다 |
 | `Kitchen/OrdersExpired` | 주문 만료 수 |
+
+서빙이 0이면 **체인 고리별 통과 횟수**로 어디서 끊기는지 본다. 보상과 무관한 순수 관측이고,
+전달 고리는 전달 보상 지급 여부와 상관없이 센다. 정상 서빙 한 번은 네 개가 모두 1이다
+(회귀 검사 [5b]).
+
+| 지표 | 고리 |
+|---|---|
+| `Kitchen/PotCommitted` | 냄비가 재료로 다 차서 조리 확정 |
+| `Kitchen/PlatesToChefA` | 빈 그릇이 냄비 쪽 셰프(A)에게 건너감 |
+| `Kitchen/DishesTaken` | 냄비에서 완성 요리를 뜸 |
+| `Kitchen/DishesToChefB` | 완성 요리가 서빙구 쪽 셰프(B)에게 건너감 |
+
 - [ ] **주문 관측 ablation** — 주문을 가리면 정책이 한 요리만 만드는지
 - [ ] 최종 정책 데모 GIF
 

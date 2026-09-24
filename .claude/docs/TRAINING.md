@@ -144,6 +144,8 @@ tensorboard --logdir results
 환경 쪽 진단 지표(`KitchenGroup.RecordStats`)는 `README.md` §6 표를 본다.
 서빙이 0인데 보상이 오르면 `Kitchen/ServesPerTransfer`, `Kitchen/CreditClawedBack`,
 `Kitchen/TransferClawedBack`을 먼저 본다.
+서빙이 0이면 체인 지표 `Kitchen/PotCommitted` → `PlatesToChefA` → `DishesTaken` →
+`DishesToChefB` 순으로 보고, 처음 0으로 떨어지는 고리가 막힌 곳이다.
 
 ### `order_slots`가 늘면 팀 보상 기준선이 계단식으로 내려간다 (오독 주의)
 
