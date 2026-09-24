@@ -1,0 +1,57 @@
+# UnderCooked - lesson0 diagnostic run (no curriculum).
+#
+# ASCII ONLY (see undercooked.yaml header - load_config() uses the OS codepage).
+#
+# Purpose: find out whether the current reward design can solve lesson0 at all,
+# with every difficulty knob held still. undercooked_v1 served 0 dishes in 1.44M
+# steps while the progress curricula kept raising difficulty underneath it.
+# Report: ../reports/2026-09-25-undercooked_v1-serve-zero.md
+#
+# Run:
+#   mlagents-learn configs/undercooked_lesson0.yaml --run-id=undercooked_lesson0 --torch-device cuda
+#
+# Everything under behaviors is identical to undercooked.yaml except max_steps.
+# Keep it that way - this run only isolates the curriculum.
+
+behaviors:
+  Chef:
+    trainer_type: poca
+
+    hyperparameters:
+      batch_size: 1024        # multiple of sequence_length (64)
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 64
+        memory_size: 128
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+    keep_checkpoints: 5
+    checkpoint_interval: 500000
+    max_steps: 3000000        # report section 5 (1): 2-3M; if still 0 serves, go to (2)
+    time_horizon: 128
+    summary_freq: 20000
+
+# All knobs fixed at the lesson0 values of undercooked.yaml.
+environment_parameters:
+  target_dishes: 1.0
+  recipe_pool_size: 1.0
+  needs_prep: 0.0
+  cook_time: 2.0
+  order_slots: 1.0
+  order_duration: 25.0
+  max_ingredients: 2.0
