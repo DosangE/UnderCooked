@@ -807,8 +807,9 @@ public class KitchenEnv : MonoBehaviour
         //   max_ingredients는 재료만 세고, 그릇에는 회수할 진행 크레딧도 없다.
         //   그래서 'B가 새 그릇을 꺼내(+0.05) 카운터로 넘기면(양쪽 +0.15) B가 되받아
         //   서빙구에 버린다(-0.2)'가 사이클당 +0.15짜리 무한 반복이 됐다.
-        //   450 decision이면 서빙 0회로 개인 보상이 랜덤 기준선(-0.78)에서 0 근처까지
-        //   올라가, target_dishes lesson0 임계값(-0.3)을 서빙 없이 통과한다.
+        //   450 decision이면 서빙 0회로 개인 보상이 당시 랜덤 기준선(-0.78, README 4-19
+        //   수정 전 측정값)에서 0 근처까지 올라가, target_dishes lesson0 임계값(-0.3)을
+        //   서빙 없이 통과했다. 현재 기준선은 .claude/docs/TRAINING.md 3절.
         //   README 4-12와 정확히 같은 실패인데 그릇 쪽에만 남아 있었다.
         //
         //   IsCommitted를 기준으로 삼는 것이 안전한 이유: 냄비 내용물 개수는 이미 관측에

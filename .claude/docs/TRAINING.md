@@ -120,13 +120,26 @@ tensorboard --logdir results
 개인 보상에는 매 스텝 −0.002가 붙어 있어서 450 decision짜리 에피소드는 그것만으로
 −0.9다. 성과는 `Group Cumulative Reward`로 본다.
 
-**랜덤 정책(lesson0) 기준선** — 20k 스텝 스모크 런 실측:
-`Cumulative Reward −0.78` / `Group Cumulative Reward −0.50` / `Extrinsic Reward −2.06`
-/ `Episode Length 450`. 학습이 시작되면 이 값들보다 올라가야 한다.
+**랜덤 정책(lesson0) 기준선** — 2026-09-24 스모크 런 실측 (PR #8 병합 후 `dev` `604eba7`,
+80k 스텝, 20k마다 4회 요약):
+
+| 스칼라 | 값 |
+|---|---|
+| `Environment/Cumulative Reward` | **−0.84 ~ −0.91** (−0.880 / −0.908 / −0.888 / −0.839) |
+| `Environment/Group Cumulative Reward` | **−0.50** (4회 모두) |
+| `Policy/Extrinsic Reward` | **−2.18 ~ −2.32** (−2.260 / −2.316 / −2.277 / −2.178) |
+| `Environment/Episode Length` | **449 ~ 450** |
+
+학습이 시작되면 이 값들보다 올라가야 한다.
+
+> 예전 문서의 `−0.78 / −2.06`은 **README §4-19 수정 전** 측정값이다. 그때는 랜덤 행동으로
+> 우연히 받은 전달 보상이 에피소드 끝까지 남았다. 지금은 서빙으로 이어지지 않은 전달 보상이
+> 종료 정산 때 회수되므로 개인 기준선이 조금 더 낮다. lesson0 임계값 −0.3과의 간격은
+> 오히려 넓어졌다.
 
 `Policy/Extrinsic Reward`는 앞의 둘의 합이 아니다. POCA는 `add_groupmate_rewards = True`라
-**동료의 개인 보상까지 더한다** (−2.06 = 2 × (−0.78) + (−0.50)). 즉 개인 보상도
-최적화 관점에서는 팀이 같이 진다.
+**동료의 개인 보상까지 더한다** (위 요약 네 번 모두 `Extrinsic = 2 × Cumulative + Group`,
+예: −2.260 = 2 × (−0.880) + (−0.50)). 즉 개인 보상도 최적화 관점에서는 팀이 같이 진다.
 
 환경 쪽 진단 지표(`KitchenGroup.RecordStats`)는 `README.md` §6 표를 본다.
 서빙이 0인데 보상이 오르면 `Kitchen/ServesPerTransfer`, `Kitchen/CreditClawedBack`,
