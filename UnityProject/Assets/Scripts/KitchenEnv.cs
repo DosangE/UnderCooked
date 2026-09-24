@@ -623,6 +623,28 @@ public class KitchenEnv : MonoBehaviour
         return total;
     }
 
+    // ConsumeUnrealizedCredit의 전달 보상판. 셰프 한 명당 금액으로 돌려준다.
+    // 두 크레딧은 늘 같은 물건에 같이 붙어 다니므로 훑는 곳도 같다.
+    public float ConsumeUnrealizedTransferCredit()
+    {
+        float total = 0f;
+
+        var pot = Pot;
+        if (pot != null) total += pot.ConsumeTransferCredit();
+
+        foreach (var counter in m_Counters)
+        {
+            if (counter.CounterItem != ItemType.None) total += counter.CounterItemTransferCredit;
+            counter.SetCounterItemTransferCredit(0f);
+        }
+
+        if (m_Agents != null)
+            foreach (var agent in m_Agents)
+                if (agent != null) total += agent.ConsumeHeldTransferCredit();
+
+        return total;
+    }
+
     // 그 에이전트가 쓸 수 있는 손질대. 구역마다 하나씩 있으므로 항상 하나 나온다.
     public Station GetPrepFor(int agentIndex)
     {
@@ -811,7 +833,8 @@ public class KitchenEnv : MonoBehaviour
 
     // 에이전트가 cell 을 향해 Interact 했을 때. 실제 상태 변경까지 여기서 일어난다.
     public InteractOutcome TryInteract(int agentIndex, Vector2Int cell, ItemType heldItem,
-                                       bool heldTransferred = false, float heldCredit = 0f)
+                                       bool heldTransferred = false, float heldCredit = 0f,
+                                       float heldTransferCredit = 0f)
     {
         var outcome = new InteractOutcome
         {
@@ -819,6 +842,7 @@ public class KitchenEnv : MonoBehaviour
             NewHeldItem = heldItem,
             NewItemTransferred = heldTransferred,
             NewItemCredit = heldCredit,
+            NewItemTransferCredit = heldTransferCredit,
             TransferPartnerIndex = -1
         };
 
@@ -832,6 +856,7 @@ public class KitchenEnv : MonoBehaviour
         int placedBy = station.Type == StationType.Counter ? station.CounterPlacedBy : -1;
         bool counterTransferred = station.Type == StationType.Counter && station.CounterItemTransferred;
         float counterCredit = station.Type == StationType.Counter ? station.CounterItemCredit : 0f;
+        float counterTransferCredit = station.Type == StationType.Counter ? station.CounterItemTransferCredit : 0f;
 
         outcome.Result = station.Interact(agentIndex, heldItem, out var newHeld);
         outcome.NewHeldItem = newHeld;
@@ -839,8 +864,8 @@ public class KitchenEnv : MonoBehaviour
         if (outcome.Result == InteractResult.TookFromCounter) outcome.TransferPartnerIndex = placedBy;
 
         // 물건의 '이미 전달 보상을 받았다' 기록을 손과 카운터 사이에서 옮긴다.
-        UpdateItemRecords(station, outcome.Result, heldTransferred, heldCredit,
-                          counterTransferred, counterCredit, ref outcome);
+        UpdateItemRecords(station, outcome.Result, heldTransferred, heldCredit, heldTransferCredit,
+                          counterTransferred, counterCredit, counterTransferCredit, ref outcome);
 
         // Station은 주문표를 모른다. 주문과의 대조는 전부 여기서 한다.
         switch (outcome.Result)
@@ -882,9 +907,14 @@ public class KitchenEnv : MonoBehaviour
     //
     // (2)는 반대로 냄비 -> 완성 요리 -> 카운터 -> 동료까지 **계속 따라간다.**
     // 서빙이 성공해야 비로소 확정되기 때문이다.
+    //
+    // (3) 딸려 있는 전달 보상 크레딧도 (2)와 똑같이 따라간다. 다른 점은 냄비에 넣는 순간
+    //     여기서 바로 냄비로 옮긴다는 것뿐이다 (진행 크레딧은 투입 보상과 합산해야 해서
+    //     ChefAgent가 옮긴다). 요리를 뜰 때는 냄비 몫 + 그 요리를 담은 **그릇의 몫**을
+    //     합친다 - 건너온 그릇은 그 요리의 일부가 되었기 때문이다.
     static void UpdateItemRecords(Station station, InteractResult result,
-                                  bool heldTransferred, float heldCredit,
-                                  bool counterTransferred, float counterCredit,
+                                  bool heldTransferred, float heldCredit, float heldTransferCredit,
+                                  bool counterTransferred, float counterCredit, float counterTransferCredit,
                                   ref InteractOutcome outcome)
     {
         switch (result)
@@ -894,12 +924,14 @@ public class KitchenEnv : MonoBehaviour
             case InteractResult.Prepped:
                 outcome.NewItemTransferred = false;
                 outcome.NewItemCredit = heldCredit;   // 손질은 크레딧을 유지(냄비에서 합산된다)
+                outcome.NewItemTransferCredit = heldTransferCredit;
                 break;
 
             // 냄비에서 요리를 떴다 -> 새 물건이지만 **냄비의 크레딧을 그대로 물려받는다**
             case InteractResult.TookDishFromPot:
                 outcome.NewItemTransferred = false;
                 outcome.NewItemCredit = station.ConsumeProgressCredit();
+                outcome.NewItemTransferCredit = station.ConsumeTransferCredit() + heldTransferCredit;
                 break;
 
             // 카운터에서 집었다 -> 카운터가 들고 있던 기록을 **옮겨온다**.
@@ -909,27 +941,39 @@ public class KitchenEnv : MonoBehaviour
             case InteractResult.TookOwnFromCounter:
                 outcome.NewItemTransferred = counterTransferred;
                 outcome.NewItemCredit = counterCredit;
+                outcome.NewItemTransferCredit = counterTransferCredit;
                 station.SetCounterItemTransferred(false);
                 station.SetCounterItemCredit(0f);
+                station.SetCounterItemTransferCredit(0f);
                 break;
 
             // 카운터에 놓았다 -> 손이 들고 있던 기록을 카운터에 넘긴다
             case InteractResult.PlacedOnCounter:
                 station.SetCounterItemTransferred(heldTransferred);
                 station.SetCounterItemCredit(heldCredit);
+                station.SetCounterItemTransferCredit(heldTransferCredit);
                 outcome.NewItemTransferred = false;   // 손은 비었다
                 outcome.NewItemCredit = 0f;
+                outcome.NewItemTransferCredit = 0f;
+                break;
+
+            // 냄비에 넣었다 -> 전달 크레딧은 냄비 배치로 옮긴다
+            case InteractResult.PlacedInPot:
+            case InteractResult.PlacedInPotWrong:
+                station.AddTransferCredit(heldTransferCredit);
+                outcome.NewItemTransferred = false;
+                outcome.NewItemCredit = 0f;
+                outcome.NewItemTransferCredit = 0f;
                 break;
 
             // 물건이 손에서 사라진다 -> 손의 기록도 비운다.
             // (크레딧의 확정/회수는 ChefAgent가 결과별로 처리한다)
-            case InteractResult.PlacedInPot:
-            case InteractResult.PlacedInPotWrong:
             case InteractResult.Served:
             case InteractResult.ServedWrongOrder:
             case InteractResult.Wasted:
                 outcome.NewItemTransferred = false;
                 outcome.NewItemCredit = 0f;
+                outcome.NewItemTransferCredit = 0f;
                 break;
         }
     }

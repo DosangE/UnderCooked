@@ -70,7 +70,7 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
 
 1. **트레이너 없이 회귀 검사를 먼저 실행한다.**
    Unity에서 Play → 메뉴 `UnderCooked/보상 회귀 검사` (`Ctrl+Shift+T`).
-   [1]~[7]이 전부 OK인지 확인한 뒤 **Play를 종료한다.**
+   [1]~[9]가 전부 OK인지 확인한 뒤 **Play를 종료한다.**
    검사는 실제 행동·보상·주문·타이머를 변경한다. 본 학습에 연결한 채 실행하면
    인위적인 전이가 학습 데이터와 통계에 섞인다.
 
@@ -129,8 +129,8 @@ tensorboard --logdir results
 최적화 관점에서는 팀이 같이 진다.
 
 환경 쪽 진단 지표(`KitchenGroup.RecordStats`)는 `README.md` §6 표를 본다.
-서빙이 0인데 보상이 오르면 `Kitchen/ServesPerTransfer`와 `Kitchen/CreditClawedBack`을
-먼저 본다.
+서빙이 0인데 보상이 오르면 `Kitchen/ServesPerTransfer`, `Kitchen/CreditClawedBack`,
+`Kitchen/TransferClawedBack`을 먼저 본다.
 
 ### `order_slots`가 늘면 팀 보상 기준선이 계단식으로 내려간다 (오독 주의)
 
@@ -258,3 +258,19 @@ Unity는 Play를 종료했고 씬 변경은 저장하지 않았다.
 Play는 매번 종료했고 씬 변경은 저장하지 않았다.
 본 학습 `undercooked_v1`은 여전히 실행 전이고, 대상 데스크탑의 환경 설치·CUDA 연산·
 학습 처리량은 그 PC에서 확인해야 한다.
+
+---
+
+## 8. 2026-09-24 전달 보상 회수 추가
+
+§7 이후 학습 직전 점검에서 **서빙 0회로 lesson0 관문을 넘는 경로 2개**를 에디터에서 재현했다
+(README §4-19). 전달 보상이 회수 체계 바깥에 있었던 것이 원인이다.
+
+- 수정 전 재현(5사이클): 전달→투입→비우기 개인 합계 사이클당 +0.30,
+  냄비가 찬 동안 새 그릇 왕복 +0.15. 팀 보상은 두 경우 모두 0.
+- 수정 후: 컴파일 에러 0건, 회귀 검사 [1]~[9] 전부 통과.
+  [8] 0.00 / [9] −0.45, 정상 파이프라인 [4]와 정상 서빙 [5b]는 그대로.
+- 새 진단 지표 `Kitchen/TransferClawedBack`을 추가했다.
+
+Unity MCP로 에디터에서 직접 실행했다. Play는 매번 종료했고 씬은 변경하지 않았다.
+본 학습은 여전히 실행 전이다.

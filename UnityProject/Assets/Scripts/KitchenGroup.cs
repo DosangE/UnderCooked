@@ -38,6 +38,8 @@ public class KitchenGroup : MonoBehaviour
     // 이번 에피소드에 회수된 진행 보상의 합. 냄비 비우기/잘못된 제출/종료 정산을 전부 더한다.
     // 마지막 종료 정산액만 담으면 '중간에 얼마나 버렸는지'가 통째로 빠진다.
     float m_CreditClawedBack;
+    // 이번 에피소드에 회수된 전달 보상 (셰프 한 명당 금액의 합).
+    float m_TransferClawedBack;
 
     void Awake()
     {
@@ -173,6 +175,19 @@ public class KitchenGroup : MonoBehaviour
     void SettleUnrealizedProgress()
     {
         ClawBack(env.ConsumeUnrealizedCredit());
+        ClawBackTransfer(env.ConsumeUnrealizedTransferCredit());
+    }
+
+    // 무산된 물건에 딸린 전달 보상을 회수하는 유일한 통로. 셰프 한 명당 금액을 받아
+    // **양쪽 셰프의 개인 보상에서** 똑같이 뺀다 - 지급할 때 둘 다 받았기 때문이다.
+    //
+    // 팀 보상에서 빼면 안 된다. 학습 신호(POCA는 동료 개인 보상까지 더한다)로는 상쇄되지만
+    // 커리큘럼 임계값은 개인 보상만 보므로, 관문은 여전히 서빙 없이 통과된다 (README 4-16).
+    public void ClawBackTransfer(float perAgent)
+    {
+        if (perAgent <= 0f) return;
+        foreach (var agent in agents) agent.AddReward(-perAgent);
+        m_TransferClawedBack += perAgent;
     }
 
     // 학습 중에 '보상이 올랐다'가 무슨 뜻인지 해석할 수 있어야 한다.
@@ -187,6 +202,7 @@ public class KitchenGroup : MonoBehaviour
         stats.Add("Kitchen/Transfers", m_Transfers);
         stats.Add("Kitchen/OrdersExpired", m_OrdersExpired);
         stats.Add("Kitchen/CreditClawedBack", m_CreditClawedBack);
+        stats.Add("Kitchen/TransferClawedBack", m_TransferClawedBack);
         // 전달 한 번당 서빙이 몇 접시인가. 전달만 많고 서빙이 없으면 어뷰징 신호다.
         stats.Add("Kitchen/ServesPerTransfer", m_Transfers > 0 ? (float)env.DishesServed / m_Transfers : 0f);
 
@@ -194,11 +210,13 @@ public class KitchenGroup : MonoBehaviour
         // 에피소드의 수치를 볼 수 있어야 한다 (회귀 검사와 사후 진단 모두 그걸 읽는다).
         LastEpisodeDishesServed = env.DishesServed;
         LastEpisodeCreditClawedBack = m_CreditClawedBack;
+        LastEpisodeTransferClawedBack = m_TransferClawedBack;
         LastEpisodeTransfers = m_Transfers;
 
         m_Transfers = 0;
         m_OrdersExpired = 0;
         m_CreditClawedBack = 0f;
+        m_TransferClawedBack = 0f;
     }
 
     // 진행 중인 에피소드의 누적 회수액.
@@ -212,10 +230,13 @@ public class KitchenGroup : MonoBehaviour
         m_Transfers = 0;
         m_OrdersExpired = 0;
         m_CreditClawedBack = 0f;
+        m_TransferClawedBack = 0f;
     }
 
     // 방금 끝난 에피소드의 수치. RecordStats가 리셋하기 직전에 채운다.
     public float LastEpisodeCreditClawedBack { get; private set; }
+    public float LastEpisodeTransferClawedBack { get; private set; }
+    public float TransferClawedBack => m_TransferClawedBack;
     public int LastEpisodeDishesServed { get; private set; }
     public int LastEpisodeTransfers { get; private set; }
 

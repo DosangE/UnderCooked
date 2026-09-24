@@ -43,6 +43,14 @@ public class Station : MonoBehaviour
         CounterItemCredit = value;
     }
 
+    // 카운터에 놓인 그 물건에 딸린 전달 보상 크레딧 (셰프 한 명당 금액).
+    public float CounterItemTransferCredit { get; private set; }
+
+    public void SetCounterItemTransferCredit(float value)
+    {
+        CounterItemTransferCredit = value;
+    }
+
     // --- 냄비 상태 ---
     // 색깔별 개수다. 레시피가 '초록x2' 같은 조합이므로 bool로는 표현할 수 없다.
     public int GreenCount { get; private set; }
@@ -88,6 +96,22 @@ public class Station : MonoBehaviour
         return credit;
     }
 
+    // 이번 배치의 재료들이 건너오면서 받은 전달 보상의 합 (셰프 한 명당 금액).
+    // 진행 보상 크레딧과 똑같이 비우면 회수되고, 요리를 꺼내면 그 요리에 옮겨 실린다.
+    public float PendingTransferCredit { get; private set; }
+
+    public void AddTransferCredit(float amount)
+    {
+        PendingTransferCredit += amount;
+    }
+
+    public float ConsumeTransferCredit()
+    {
+        float credit = PendingTransferCredit;
+        PendingTransferCredit = 0f;
+        return credit;
+    }
+
     // 조리 경과 시간. **사람용 화면 표시 전용이다.**
     // 관측에 절대 넣지 말 것. 넣는 순간 "언제 다 넣었는지 기억한다"는 RNN의 근거가 사라진다.
     public float CookTimer => m_CookTimer;
@@ -110,7 +134,9 @@ public class Station : MonoBehaviour
         CounterPlacedBy = -1;
         CounterItemTransferred = false;
         CounterItemCredit = 0f;
+        CounterItemTransferCredit = 0f;
         PendingProgressCredit = 0f;
+        PendingTransferCredit = 0f;
         GreenCount = 0;
         RedCount = 0;
         IsCooking = false;
