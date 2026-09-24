@@ -269,13 +269,24 @@ public static class KitchenSelfTest
         // 그릇과 요리가 한 번씩 건너왔지만 둘 다 서빙으로 실현됐다. 전달 보상도 회수되면 안 된다.
         float transferClawed = group.LastEpisodeTransferClawedBack;
         float expected = 1.0f + group.RewardServe + (goal ? group.RewardGoalBonus : 0f);
+        // 체인 진단 지표: 이 시나리오는 모든 고리를 정확히 한 번씩 지난다.
+        string chain = "";
+        bool chainOk = true;
+        foreach (KitchenGroup.ChainStep step in System.Enum.GetValues(typeof(KitchenGroup.ChainStep)))
+        {
+            int n = group.LastEpisodeChain(step);
+            chainOk &= n == 1;
+            chain += (chain.Length > 0 ? "/" : "") + n;
+        }
+
         bool ok = served == 1 && clawed < 0.001f && transferClawed < 0.001f
-                  && Mathf.Abs(total - expected) < 0.001f;
+                  && Mathf.Abs(total - expected) < 0.001f && chainOk;
 
         sb.AppendLine("[5b] 정상 서빙 후 종료   서빙 " + served + "회"
                       + " / 회수 " + clawed.ToString("0.00") + " (0.00 기대)"
                       + " / 전달보상 회수 " + transferClawed.ToString("0.00") + " (0.00 기대)"
-                      + " / 팀보상 " + total.ToString("0.00") + " (기대 " + expected.ToString("0.00") + ")   "
+                      + " / 팀보상 " + total.ToString("0.00") + " (기대 " + expected.ToString("0.00") + ")"
+                      + " / 체인(냄비확정/그릇→A/뜨기/요리→B) " + chain + " (1/1/1/1 기대)   "
                       + Verdict(ok));
         Reset(env, agents);
         return ok;
