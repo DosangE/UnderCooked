@@ -39,6 +39,7 @@ public static class KitchenSelfTest
         allOk &= FreshPlateShuttleIsNotProfitable(sb, env, group, agents);
         allOk &= TransferPotDumpLoop(sb, env, group, agents);
         allOk &= CommittedPotPlateShuttle(sb, env, group, agents);
+        allOk &= WrongRecipeCommitIsCounted(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -142,13 +143,46 @@ public static class KitchenSelfTest
         Act(env, agents[1], env.GetStation(StationType.ServingHatch), keepHeld: true);
 
         float team = group.TotalGroupReward - team0;
-        bool ok = creditOnDish > 0.001f && creditOnPartner > 0.001f && team <= 0.001f;
+        // 채울 때는 주문이 있었고(GreenSoup) 제출할 때 사라졌다 -> 확정 불일치 0, 제출 불일치 1
+        int committedWrong = group.OrderMissThisEpisode(KitchenGroup.OrderMiss.PotCommittedWrong);
+        int servedWrong = group.OrderMissThisEpisode(KitchenGroup.OrderMiss.ServedWrongOrder);
+        bool ok = creditOnDish > 0.001f && creditOnPartner > 0.001f && team <= 0.001f
+                  && committedWrong == 0 && servedWrong == 1;
 
         sb.AppendLine("[3] 주문에 없는 요리 제출   조리 후 팀보상 +" + teamAfterCook.ToString("0.00")
                       + " -> 요리에 실린 크레딧 " + creditOnDish.ToString("0.00")
                       + " -> 동료에게 승계 " + creditOnPartner.ToString("0.00")
-                      + " -> 제출 후 팀보상 " + team.ToString("+0.00;-0.00;0.00") + " (0 이하 기대)   " + Verdict(ok));
+                      + " -> 제출 후 팀보상 " + team.ToString("+0.00;-0.00;0.00") + " (0 이하 기대)"
+                      + " / 불일치(확정/제출) " + committedWrong + "/" + servedWrong + " (0/1 기대)   " + Verdict(ok));
         sb.AppendLine("    (제출한 요리 = " + dish + ", 서빙 성공 " + env.DishesServed + "회)");
+        Reset(env, agents);
+        return ok;
+    }
+
+    // 10) 처음부터 주문에 없는 레시피로 냄비를 채우면 '확정 불일치'로 세야 한다.
+    //     [3]은 채운 뒤에 주문이 사라지는 경우다. 둘을 가르는 것이 이 지표의 목적이다.
+    static bool WrongRecipeCommitIsCounted(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.RedSoup);   // 주문은 전부 RedSoup인데 초록 2개로 채운다
+
+        var box = env.GetStation(StationType.GreenBox);
+        var prep = env.GetPrepFor(0);
+        var pot = env.Pot;
+        for (int i = 0; i < RecipeTypeExtensions.Capacity; i++)
+        {
+            Act(env, agents[0], box);
+            Act(env, agents[0], prep, keepHeld: true);
+            Act(env, agents[0], pot, keepHeld: true);
+        }
+
+        int committed = pot.IsCommitted ? 1 : 0;
+        int committedWrong = group.OrderMissThisEpisode(KitchenGroup.OrderMiss.PotCommittedWrong);
+        int servedWrong = group.OrderMissThisEpisode(KitchenGroup.OrderMiss.ServedWrongOrder);
+        bool ok = committed == 1 && committedWrong == 1 && servedWrong == 0;
+
+        sb.AppendLine("[10] 주문에 없는 레시피로 냄비 확정   확정 " + committed + "회"
+                      + " / 불일치(확정/제출) " + committedWrong + "/" + servedWrong + " (1/0 기대)   " + Verdict(ok));
         Reset(env, agents);
         return ok;
     }

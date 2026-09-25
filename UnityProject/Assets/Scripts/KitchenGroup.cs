@@ -54,6 +54,18 @@ public class KitchenGroup : MonoBehaviour
     };
     readonly int[] m_Chain = new int[ChainStatNames.Length];
 
+    // 주문과 맞지 않은 요리가 어디서 생기는가. 보상과 무관한 순수 관측이다.
+    // 최종 모델의 실패 에피소드는 요리를 충분히 만들고도 주문과 안 맞아 버렸다
+    // (reports/2026-09-25-training-results.md §5). 그 원인을 둘로 가른다.
+    //   ServedWrongOrder - PotCommittedWrong ≈ 냄비를 채울 땐 맞았는데 그 사이 주문이 사라진 경우
+    public enum OrderMiss { PotCommittedWrong, ServedWrongOrder }
+    static readonly string[] OrderMissStatNames =
+    {
+        "Kitchen/PotCommittedWrong",   // 냄비가 다 찬 순간, 그 레시피를 원하는 대기 주문이 없었음
+        "Kitchen/ServedWrongOrder",    // 서빙구에 낸 요리를 원하는 대기 주문이 없었음
+    };
+    readonly int[] m_OrderMiss = new int[OrderMissStatNames.Length];
+
     void Awake()
     {
         if (env == null) env = GetComponent<KitchenEnv>();
@@ -219,6 +231,7 @@ public class KitchenGroup : MonoBehaviour
         // 전달 한 번당 서빙이 몇 접시인가. 전달만 많고 서빙이 없으면 어뷰징 신호다.
         stats.Add("Kitchen/ServesPerTransfer", m_Transfers > 0 ? (float)env.DishesServed / m_Transfers : 0f);
         for (int i = 0; i < m_Chain.Length; i++) stats.Add(ChainStatNames[i], m_Chain[i]);
+        for (int i = 0; i < m_OrderMiss.Length; i++) stats.Add(OrderMissStatNames[i], m_OrderMiss[i]);
 
         // 다음 에피소드를 위해 비우기 전에 값을 남긴다. 리셋 뒤에 읽어도 방금 끝난
         // 에피소드의 수치를 볼 수 있어야 한다 (회귀 검사와 사후 진단 모두 그걸 읽는다).
@@ -246,6 +259,7 @@ public class KitchenGroup : MonoBehaviour
         m_CreditClawedBack = 0f;
         m_TransferClawedBack = 0f;
         System.Array.Clear(m_Chain, 0, m_Chain.Length);
+        System.Array.Clear(m_OrderMiss, 0, m_OrderMiss.Length);
     }
 
     // 방금 끝난 에피소드의 수치. RecordStats가 리셋하기 직전에 채운다.
@@ -268,6 +282,15 @@ public class KitchenGroup : MonoBehaviour
     public void NoteChainStep(ChainStep step)
     {
         m_Chain[(int)step]++;
+    }
+
+    // 진행 중인 에피소드의 주문 불일치 횟수. 회귀 검사가 읽는다.
+    public int OrderMissThisEpisode(OrderMiss miss) => m_OrderMiss[(int)miss];
+
+    // ChefAgent가 주문과 맞지 않는 요리를 확정/제출했을 때 알려준다 (진단용 집계).
+    public void NoteOrderMiss(OrderMiss miss)
+    {
+        m_OrderMiss[(int)miss]++;
     }
 
     // 팀 보상은 전부 여기를 지난다. 누적값을 같이 세기 위해서다.
