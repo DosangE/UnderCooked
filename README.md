@@ -4,7 +4,7 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 두 셰프가 카운터를 사이에 두고 재료와 그릇을 주고받아, **주문표에 적힌 요리를**
 만들어 서빙한다. **MA-POCA**로 팀 단위 협동 정책을 학습시킨다.
 
-> 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 74% (`undercooked_final`).
+> 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 90% (`undercooked_final2`).
 > 결과는 §6, 최종 모델은 `models/undercooked.onnx`.
 
 ---
@@ -806,7 +806,8 @@ tensorboard --logdir results
 | `undercooked_v1` | 기본 커리큘럼, 무작위 초기화 | **1.44M 스텝까지 서빙 0회**, 중단 |
 | `undercooked_lesson0` | lesson0 고정 (`configs/undercooked_lesson0.yaml`), 3M | 1.96M에 첫 서빙, 3M에 성공률 99.7% |
 | `undercooked_v2` | 기본 커리큘럼, `--initialize-from=undercooked_lesson0`, 8M | 최종 난이도 성공률 약 54% |
-| `undercooked_final` | 최종 난이도 고정 (`configs/undercooked_final.yaml`), `--initialize-from=undercooked_v2`, 3M | **최종 난이도 성공률 약 74%** → `models/undercooked.onnx` |
+| `undercooked_final` | 최종 난이도 고정 (`configs/undercooked_final.yaml`), `--initialize-from=undercooked_v2`, 3M | 최종 난이도 성공률 약 74% |
+| `undercooked_final2` | 같은 설정, `--initialize-from=undercooked_final`, 3M | **최종 난이도 성공률 약 90%** → `models/undercooked.onnx` |
 
 v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 lesson0 기준 약 2M)보다 먼저
 난이도가 올라갔다(1.2M 레시피 2종, 1.6M 손질). 분석은
@@ -861,13 +862,31 @@ v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 less
   3번 이상 채웠지만 평균 1.8개를 주문과 맞지 않게 버렸다. 위 v2 항목의 "만드는 속도"는
   성공/실패를 섞은 평균에서 나온 판단이었다. 분석은 `reports/2026-09-25-training-results.md` §5.
 
-- [x] 학습 곡선 (TensorBoard) — 위 표. 이벤트 파일은 `results/undercooked_v2`, `results/undercooked_final`
+**최종 모델 `undercooked_final2`.** 주문 불일치 지표를 추가하고 같은 설정으로 3M 스텝 더 학습했다.
+
+| 지표 | final (2.5–3M) | final2 (2.5–3M) | final2 Unity 추론 (439 에피소드) |
+|---|---|---|---|
+| `Kitchen/GoalReached` | 0.74 | **0.905** | **0.900** |
+| `Kitchen/DishesServed` | 2.63 | 2.89 | 2.88 |
+| `Kitchen/PotCommitted` | 3.49 | 3.47 | 3.44 |
+| `Kitchen/PotCommittedWrong` | – | 0.63 (런 초반 0.96) | – |
+| `Kitchen/ServedWrongOrder` | – | 0.48 | – |
+| `Kitchen/OrdersExpired` | 2.18 | 1.40 | – |
+| `Environment/Episode Length` | 356 | 306 | – |
+
+- 냄비 확정 횟수는 그대로인데 서빙이 늘었다. **주문과 맞는 레시피를 고르는 능력**이 좋아졌다.
+  주문에 없는 레시피로 채우는 비율이 28% → 18%로 줄었다.
+- 틀린 요리 제출(0.48)이 잘못 채운 횟수(0.63)보다 적다. 불일치는 대부분 "채울 때부터 틀림"이고,
+  "채운 뒤 주문이 사라짐"은 거의 없다.
+- Unity 추론 성공 에피소드는 평균 28.5초(중앙값 25.7초)에 끝난다.
+
+- [x] 학습 곡선 (TensorBoard) — 위 표. 이벤트 파일은 `results/undercooked_v2`, `results/undercooked_final`, `results/undercooked_final2`
 - [x] 커리큘럼 lesson 전환 시점 — 위 표
 - [ ] **memory on/off ablation** — 조리 완료를 **똑같이 숨긴 조건에서** RNN on/off를
       비교한다. 이래야 "기억이 얼마나 도움이 되는가"라는 근거가 유지된다
 - [ ] (진단용) 조리 완료를 관측에 넣은 조건 — 협업이 안 배워질 때 원인을 분리하는 기준선
 - [x] 전달 횟수 대비 서빙 수 — §4-12 어뷰징이 실제로 막혔는지. v1은 서빙 0회로 lesson0 관문을
-      넘지 못했고(팀 보상 −0.500 고정, 전달 보상 100% 회수), 최종 모델은 전달 8.0회당 서빙 2.6회
+      넘지 못했고(팀 보상 −0.500 고정, 전달 보상 100% 회수), 최종 모델은 전달 8.9회당 서빙 2.9회
 
 먼저 **보상 스칼라 3종을 구분해야 한다.** 셋의 단위가 서로 달라서, 섞어 읽으면
 곡선을 통째로 잘못 해석한다 (§4-16).
@@ -901,6 +920,13 @@ v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 less
 | `Kitchen/PlatesToChefA` | 빈 그릇이 냄비 쪽 셰프(A)에게 건너감 |
 | `Kitchen/DishesTaken` | 냄비에서 완성 요리를 뜸 |
 | `Kitchen/DishesToChefB` | 완성 요리가 서빙구 쪽 셰프(B)에게 건너감 |
+
+서빙은 되는데 목표를 못 채우면 **주문 불일치**를 본다. 역시 순수 관측이다.
+
+| 지표 | 읽는 법 |
+|---|---|
+| `Kitchen/PotCommittedWrong` | 냄비가 다 찬 순간 그 레시피를 원하는 주문이 없었다. 처음부터 잘못 만든 것 (회귀 검사 [10]) |
+| `Kitchen/ServedWrongOrder` | 주문과 다른 요리를 제출했다. 위 값을 빼면 채울 땐 맞았는데 그 사이 주문이 만료·소진된 경우 (회귀 검사 [3]) |
 
 - [ ] **주문 관측 ablation** — 주문을 가리면 정책이 한 요리만 만드는지
 - [ ] 최종 정책 데모 GIF

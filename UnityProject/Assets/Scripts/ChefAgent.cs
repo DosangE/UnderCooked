@@ -475,13 +475,13 @@ public class ChefAgent : Agent
             // TookDishFromPot / PlacedOnCounter / TookOwnFromCounter / Nothing 은 보상 없음
         }
 
-        NoteChainStep(outcome.Result);
+        NoteDiagnostics(outcome.Result);
     }
 
-    // 서빙까지 가는 체인의 고리 통과를 KitchenGroup에 알린다. 보상에는 영향이 없다.
+    // 진단용 집계(체인 고리 통과, 주문 불일치)를 KitchenGroup에 알린다. 보상에는 영향이 없다.
     // 전달 고리는 전달 보상 지급 여부와 무관하게 센다 - '건너갔는가'를 보려는 것이지
     // '보상받았는가'는 Kitchen/Transfers가 이미 센다.
-    void NoteChainStep(InteractResult result)
+    void NoteDiagnostics(InteractResult result)
     {
         if (m_Group == null) return;
 
@@ -491,7 +491,18 @@ public class ChefAgent : Agent
             case InteractResult.PlacedInPotWrong:
                 // 확정된 냄비는 재료를 더 받지 않으므로, 넣은 직후 확정이면 이 투입이 채운 것이다.
                 var pot = m_Env.Pot;
-                if (pot != null && pot.IsCommitted) m_Group.NoteChainStep(KitchenGroup.ChainStep.PotCommitted);
+                if (pot != null && pot.IsCommitted)
+                {
+                    m_Group.NoteChainStep(KitchenGroup.ChainStep.PotCommitted);
+                    // 채운 순간의 판정은 KitchenEnv.TryInteract가 '만들어질 요리를 원하는 대기 주문이
+                    // 있는가'로 내린다. 그래서 확정 시점의 Wrong은 곧 주문에 없는 레시피다.
+                    if (result == InteractResult.PlacedInPotWrong)
+                        m_Group.NoteOrderMiss(KitchenGroup.OrderMiss.PotCommittedWrong);
+                }
+                break;
+
+            case InteractResult.ServedWrongOrder:
+                m_Group.NoteOrderMiss(KitchenGroup.OrderMiss.ServedWrongOrder);
                 break;
 
             case InteractResult.TookDishFromPot:
