@@ -66,6 +66,11 @@ public class KitchenGroup : MonoBehaviour
     };
     readonly int[] m_OrderMiss = new int[OrderMissStatNames.Length];
 
+    // 덜 끓은 냄비를 그릇으로 뜨려 한 횟수(헛도리). 보상과 무관한 순수 관측이다.
+    // 조리 완료는 관측에도 마스크에도 드러나지 않으므로(README §4-2), 이 값이 낮을수록
+    // '재료를 언제 다 넣었는가'를 기억하고 있다는 뜻이다. memory on/off 비교에 쓴다.
+    int m_PotNotReady;
+
     void Awake()
     {
         if (env == null) env = GetComponent<KitchenEnv>();
@@ -232,6 +237,7 @@ public class KitchenGroup : MonoBehaviour
         stats.Add("Kitchen/ServesPerTransfer", m_Transfers > 0 ? (float)env.DishesServed / m_Transfers : 0f);
         for (int i = 0; i < m_Chain.Length; i++) stats.Add(ChainStatNames[i], m_Chain[i]);
         for (int i = 0; i < m_OrderMiss.Length; i++) stats.Add(OrderMissStatNames[i], m_OrderMiss[i]);
+        stats.Add("Kitchen/PotNotReady", m_PotNotReady);
 
         // 다음 에피소드를 위해 비우기 전에 값을 남긴다. 리셋 뒤에 읽어도 방금 끝난
         // 에피소드의 수치를 볼 수 있어야 한다 (회귀 검사와 사후 진단 모두 그걸 읽는다).
@@ -260,6 +266,7 @@ public class KitchenGroup : MonoBehaviour
         m_TransferClawedBack = 0f;
         System.Array.Clear(m_Chain, 0, m_Chain.Length);
         System.Array.Clear(m_OrderMiss, 0, m_OrderMiss.Length);
+        m_PotNotReady = 0;
     }
 
     // 방금 끝난 에피소드의 수치. RecordStats가 리셋하기 직전에 채운다.
@@ -291,6 +298,15 @@ public class KitchenGroup : MonoBehaviour
     public void NoteOrderMiss(OrderMiss miss)
     {
         m_OrderMiss[(int)miss]++;
+    }
+
+    // 진행 중인 에피소드의 헛도리 횟수. 회귀 검사가 읽는다.
+    public int PotNotReadyThisEpisode => m_PotNotReady;
+
+    // ChefAgent가 덜 끓은 냄비를 뜨려 했을 때 알려준다 (진단용 집계).
+    public void NotePotNotReady()
+    {
+        m_PotNotReady++;
     }
 
     // 팀 보상은 전부 여기를 지난다. 누적값을 같이 세기 위해서다.
