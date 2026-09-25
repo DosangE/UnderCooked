@@ -219,7 +219,10 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 
 | run-id | 용도 |
 |---|---|
-| `undercooked_v1` | 본 학습. 이어서 돌릴 때도 이 id를 쓴다 |
+| `undercooked_v1` | 첫 본 학습 (무작위 초기화). 1.44M에서 서빙 0회로 중단 |
+| `undercooked_lesson0` | lesson0 고정 진단 런 (`configs/undercooked_lesson0.yaml`). 3M, 성공률 99.7% |
+| `undercooked_v2` | 본 학습. `--initialize-from=undercooked_lesson0`, 기본 커리큘럼 8M. 최종 난이도 54% |
+| `undercooked_final` | 최종 난이도 고정 (`configs/undercooked_final.yaml`), `--initialize-from=undercooked_v2`, 3M. 74%. **최종 모델의 출처** |
 | `undercooked_<내용>` | ablation / 실험 (`undercooked_nomemory`, `undercooked_noorder` 등) |
 | `smoke` | 배선 확인용 1~2분 런. 확인 후 `results/smoke`를 지운다 |
 
