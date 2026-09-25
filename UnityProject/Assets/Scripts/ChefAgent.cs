@@ -54,8 +54,11 @@ public class ChefAgent : Agent
              "아무것도 안 하는 것보다 확실히 나빠야 '일단 만들고 보자'가 최적이 되지 않는다")]
     [SerializeField] float rewardServedWrongOrder = -0.5f;
     [Tooltip("냄비에 넣었더니 대기 주문 중 어느 것도 만들 수 없게 된 경우. " +
-             "이게 없으면 아무 재료나 처넣는 것이 팀 보상 +0.3을 그냥 받는 길이 된다")]
-    [SerializeField] float rewardPotWrongIngredient = -0.1f;
+             "이게 없으면 아무 재료나 처넣는 것이 팀 보상 +0.3을 그냥 받는 길이 된다. " +
+             "-0.1이던 것을 -0.3으로 올렸다: 최종 모델의 실패는 거의 전부 주문에 없는 레시피로 냄비를 " +
+             "채운 것이었고, 그 손해(냄비가 묶이고 결국 버려짐)는 몇 초 뒤에야 온다 " +
+             "(reports/2026-09-25-training-results.md §8)")]
+    [SerializeField] float rewardPotWrongIngredient = -0.3f;
     [Tooltip("냄비를 비웠다. 실수를 되돌리는 비용. 너무 크면 되돌리느니 포기하는 게 낫게 된다")]
     [SerializeField] float rewardPotDump = -0.05f;
     [Tooltip("조리가 덜 끝났는데 요리를 뜨려고 한 헛도리. 스텝 비용만으로는 너무 싸서 " +

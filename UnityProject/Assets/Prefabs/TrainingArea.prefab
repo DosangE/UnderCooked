@@ -548,7 +548,7 @@ MonoBehaviour:
   rewardTransfer: 0.15
   rewardWasted: -0.2
   rewardServedWrongOrder: -0.5
-  rewardPotWrongIngredient: -0.1
+  rewardPotWrongIngredient: -0.3
   rewardPotDump: -0.05
   rewardPotNotReady: -0.02
   rewardPerStep: -0.002
@@ -4377,7 +4377,7 @@ MonoBehaviour:
   rewardTransfer: 0.15
   rewardWasted: -0.2
   rewardServedWrongOrder: -0.5
-  rewardPotWrongIngredient: -0.1
+  rewardPotWrongIngredient: -0.3
   rewardPotDump: -0.05
   rewardPotNotReady: -0.02
   rewardPerStep: -0.002
