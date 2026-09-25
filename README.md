@@ -4,7 +4,7 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 두 셰프가 카운터를 사이에 두고 재료와 그릇을 주고받아, **주문표에 적힌 요리를**
 만들어 서빙한다. **MA-POCA**로 팀 단위 협동 정책을 학습시킨다.
 
-> 상태: 본 학습 완료 (`undercooked_v2`, 8M 스텝). 최종 난이도에서 3접시 목표 달성률 약 54%.
+> 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 74% (`undercooked_final`).
 > 결과는 §6, 최종 모델은 `models/undercooked.onnx`.
 
 ---
@@ -805,7 +805,8 @@ tensorboard --logdir results
 |---|---|---|
 | `undercooked_v1` | 기본 커리큘럼, 무작위 초기화 | **1.44M 스텝까지 서빙 0회**, 중단 |
 | `undercooked_lesson0` | lesson0 고정 (`configs/undercooked_lesson0.yaml`), 3M | 1.96M에 첫 서빙, 3M에 성공률 99.7% |
-| `undercooked_v2` | 기본 커리큘럼, `--initialize-from=undercooked_lesson0`, 8M | **최종 난이도 성공률 약 54%** → `models/undercooked.onnx` |
+| `undercooked_v2` | 기본 커리큘럼, `--initialize-from=undercooked_lesson0`, 8M | 최종 난이도 성공률 약 54% |
+| `undercooked_final` | 최종 난이도 고정 (`configs/undercooked_final.yaml`), `--initialize-from=undercooked_v2`, 3M | **최종 난이도 성공률 약 74%** → `models/undercooked.onnx` |
 
 v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 lesson0 기준 약 2M)보다 먼저
 난이도가 올라갔다(1.2M 레시피 2종, 1.6M 손질). 분석은
@@ -838,13 +839,31 @@ v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 less
 - 마지막 1M 스텝은 성공률 48% → 54%로 거의 제자리였다 (linear 학습률 감소).
 - 손질 전환 붕괴로 약 1.5M 스텝을 잃었다. progress 게이트는 이전 단계를 풀었는지 보지 않는다.
 
-- [x] 학습 곡선 (TensorBoard) — 위 표. 이벤트 파일은 `results/undercooked_v2`
+**최종 모델 `undercooked_final`.** v2 정책에서 최종 난이도를 고정하고 3M 스텝 더 학습했다.
+학습률이 3e-4부터 다시 시작한다. 커리큘럼 전환이 없으므로 위의 붕괴는 일어나지 않는다.
+각 런 마지막 0.5M 스텝 평균:
+
+| 지표 | v2 (7.5–8M) | final (2.5–3M) |
+|---|---|---|
+| `Kitchen/GoalReached` | 0.54 | **0.74** |
+| `Kitchen/DishesServed` | 2.27 | **2.63** |
+| `Environment/Group Cumulative Reward` | +8.83 | **+10.74** |
+| `Environment/Cumulative Reward` | −0.35 | **−0.08** |
+| `Kitchen/OrdersExpired` | 2.31 | 2.18 |
+| 체인 (냄비 확정 / 뜨기 / 요리→B) | 3.35 / 3.13 / 3.28 | 3.49 / 3.33 / 3.37 |
+| 요리→B 중 서빙 비율 | 69% | **78%** |
+| `Environment/Episode Length` | 378 | 356 |
+
+- 앞 1.5M 스텝은 주로 **주문 대조**가 좋아졌고(69% → 약 80%), 뒤에서 **만드는 속도**가 조금 늘었다.
+- 3M 시점에도 성공률이 오르는 중이었다 (1.8–2.0M 60% → 2.5–3.0M 74%).
+
+- [x] 학습 곡선 (TensorBoard) — 위 표. 이벤트 파일은 `results/undercooked_v2`, `results/undercooked_final`
 - [x] 커리큘럼 lesson 전환 시점 — 위 표
 - [ ] **memory on/off ablation** — 조리 완료를 **똑같이 숨긴 조건에서** RNN on/off를
       비교한다. 이래야 "기억이 얼마나 도움이 되는가"라는 근거가 유지된다
 - [ ] (진단용) 조리 완료를 관측에 넣은 조건 — 협업이 안 배워질 때 원인을 분리하는 기준선
 - [x] 전달 횟수 대비 서빙 수 — §4-12 어뷰징이 실제로 막혔는지. v1은 서빙 0회로 lesson0 관문을
-      넘지 못했고(팀 보상 −0.500 고정, 전달 보상 100% 회수), v2 최종은 전달 6.6회당 서빙 2.3회
+      넘지 못했고(팀 보상 −0.500 고정, 전달 보상 100% 회수), 최종 모델은 전달 8.0회당 서빙 2.6회
 
 먼저 **보상 스칼라 3종을 구분해야 한다.** 셋의 단위가 서로 달라서, 섞어 읽으면
 곡선을 통째로 잘못 해석한다 (§4-16).
