@@ -1,0 +1,59 @@
+# UnderCooked - memory ablation, memory ON.
+#
+# ASCII ONLY (see undercooked.yaml header - load_config() uses the OS codepage).
+#
+# Purpose: does the RNN actually help? Cook completion is hidden from both the
+# observation and the action mask (README 4-2), so a policy has to remember when
+# the pot was filled to avoid scooping too early (PotNotReady, -0.02).
+# This file and undercooked_ablation_mem_off.yaml differ ONLY in the
+# network_settings.memory block. Keep it that way.
+#
+# Both runs start from random init (memory changes the network shape, so
+# --initialize-from is not possible). Difficulty is fixed at lesson0 with
+# cook_time 2 -> 5 so that there is something to remember.
+#
+# Run:
+#   mlagents-learn configs/undercooked_ablation_mem_on.yaml --run-id=undercooked_mem_on --torch-device cuda
+
+behaviors:
+  Chef:
+    trainer_type: poca
+
+    hyperparameters:
+      batch_size: 1024        # multiple of sequence_length (64)
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 64
+        memory_size: 128
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+    keep_checkpoints: 5
+    checkpoint_interval: 500000
+    max_steps: 4000000
+    time_horizon: 128
+    summary_freq: 20000
+
+# lesson0 values of undercooked.yaml, except cook_time 2 -> 5.
+environment_parameters:
+  target_dishes: 1.0
+  recipe_pool_size: 1.0
+  needs_prep: 0.0
+  cook_time: 5.0
+  order_slots: 1.0
+  order_duration: 25.0
+  max_ingredients: 2.0

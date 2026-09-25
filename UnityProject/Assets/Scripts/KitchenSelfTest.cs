@@ -40,6 +40,7 @@ public static class KitchenSelfTest
         allOk &= TransferPotDumpLoop(sb, env, group, agents);
         allOk &= CommittedPotPlateShuttle(sb, env, group, agents);
         allOk &= WrongRecipeCommitIsCounted(sb, env, group, agents);
+        allOk &= UndercookedScoopIsCounted(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -183,6 +184,39 @@ public static class KitchenSelfTest
 
         sb.AppendLine("[10] 주문에 없는 레시피로 냄비 확정   확정 " + committed + "회"
                       + " / 불일치(확정/제출) " + committedWrong + "/" + servedWrong + " (1/0 기대)   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
+    // 11) 덜 끓은 냄비를 그릇으로 뜨면 '헛도리'로 세고, 다 끓은 뒤 뜨는 건 세지 않아야 한다.
+    //     memory on/off 비교에서 '조리 완료 시점을 기억하는가'를 직접 보는 지표다.
+    static bool UndercookedScoopIsCounted(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.GreenSoup);
+
+        var box = env.GetStation(StationType.GreenBox);
+        var prep = env.GetPrepFor(0);
+        var pot = env.Pot;
+        for (int i = 0; i < RecipeTypeExtensions.Capacity; i++)
+        {
+            Act(env, agents[0], box);
+            Act(env, agents[0], prep, keepHeld: true);
+            Act(env, agents[0], pot, keepHeld: true);
+        }
+
+        Act(env, agents[0], pot, ItemType.EmptyPlate);       // 조리 중에 뜬다 -> 헛도리
+        int early = group.PotNotReadyThisEpisode;
+        bool stillPlate = agents[0].HeldItem == ItemType.EmptyPlate;
+
+        pot.TickCooking(999f, 0f);
+        Act(env, agents[0], pot, keepHeld: true);             // 다 끓은 뒤 뜬다 -> 정상
+        int after = group.PotNotReadyThisEpisode;
+        bool gotDish = agents[0].HeldItem.IsCookedDish();
+
+        bool ok = early == 1 && stillPlate && after == 1 && gotDish;
+        sb.AppendLine("[11] 덜 끓은 냄비 뜨기   헛도리 조리 중 " + early + "회 (1 기대)"
+                      + " -> 완료 후 " + after + "회 (1 기대), 요리 담김 " + gotDish + "   " + Verdict(ok));
         Reset(env, agents);
         return ok;
     }
