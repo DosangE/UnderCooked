@@ -481,7 +481,7 @@ public class ChefAgent : Agent
         NoteDiagnostics(outcome.Result);
     }
 
-    // 진단용 집계(체인 고리 통과, 주문 불일치)를 KitchenGroup에 알린다. 보상에는 영향이 없다.
+    // 진단용 집계(체인 고리 통과, 주문 불일치, 헛도리)를 KitchenGroup에 알린다. 보상에는 영향이 없다.
     // 전달 고리는 전달 보상 지급 여부와 무관하게 센다 - '건너갔는가'를 보려는 것이지
     // '보상받았는가'는 Kitchen/Transfers가 이미 센다.
     void NoteDiagnostics(InteractResult result)
@@ -506,6 +506,10 @@ public class ChefAgent : Agent
 
             case InteractResult.ServedWrongOrder:
                 m_Group.NoteOrderMiss(KitchenGroup.OrderMiss.ServedWrongOrder);
+                break;
+
+            case InteractResult.PotNotReady:
+                m_Group.NotePotNotReady();
                 break;
 
             case InteractResult.TookDishFromPot:

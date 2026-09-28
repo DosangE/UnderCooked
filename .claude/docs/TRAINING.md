@@ -70,7 +70,7 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
 
 1. **트레이너 없이 회귀 검사를 먼저 실행한다.**
    Unity에서 Play → 메뉴 `UnderCooked/보상 회귀 검사` (`Ctrl+Shift+T`).
-   [1]~[10]과 [5b], 출력 11개 항목이 전부 OK인지 확인한 뒤 **Play를 종료한다.**
+   [1]~[11]과 [5b], 출력 12개 항목이 전부 OK인지 확인한 뒤 **Play를 종료한다.**
    검사는 실제 행동·보상·주문·타이머를 변경한다. 본 학습에 연결한 채 실행하면
    인위적인 전이가 학습 데이터와 통계에 섞인다.
 
@@ -225,6 +225,8 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 | `undercooked_final` | 최종 난이도 고정 (`configs/undercooked_final.yaml`), `--initialize-from=undercooked_v2`, 3M. 74% |
 | `undercooked_final2` | 같은 설정, `--initialize-from=undercooked_final`, 3M. 90% |
 | `undercooked_final3` | 같은 설정 + 잘못된 재료 투입 벌점 −0.3, `--initialize-from=undercooked_final2`, 3M. 98%. **최종 모델의 출처** |
+| `undercooked_mem_on` | memory ablation, memory 켬 (`configs/undercooked_ablation_mem_on.yaml`). lesson0 + 조리 5초, 무작위 초기화 4M. 첫 서빙 1.8M, 3.5–4M 100% |
+| `undercooked_mem_off` | memory ablation, memory 끔 (`configs/undercooked_ablation_mem_off.yaml`). 같은 조건. 첫 서빙 1.2M, 2.5M 이후 100%. `reports/2026-09-26-memory-ablation.md` |
 | `undercooked_<내용>` | ablation / 실험 (`undercooked_nomemory`, `undercooked_noorder` 등) |
 | `smoke` | 배선 확인용 1~2분 런. 확인 후 `results/smoke`를 지운다 |
 
