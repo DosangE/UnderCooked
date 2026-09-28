@@ -33,10 +33,10 @@ cd UnderCooked
 tensorboard --logdir results
 ```
 
-- [ ] **`Environment/Cumulative Reward`** — 과제가 수렴 증명으로 지정한 스칼라. 필수
-- [ ] `Kitchen/GoalReached` — 실제 성공률. 3번 그래프를 읽을 수 있게 해 준다
-- [ ] `Environment/Group Cumulative Reward` — 팀 보상 (실질적인 성과 곡선)
-- [ ] (선택) `Kitchen/PotCommittedWrong` — final2 → final3에서 벌점 조정의 효과
+- [x] **`Environment/Cumulative Reward`** — 과제가 수렴 증명으로 지정한 스칼라. 필수
+- [x] `Kitchen/GoalReached` — 실제 성공률. 3번 그래프를 읽을 수 있게 해 준다
+- [x] `Environment/Group Cumulative Reward` — 팀 보상 (실질적인 성과 곡선)
+- [x] (선택) `Kitchen/PotCommittedWrong` — final2 → final3에서 벌점 조정의 효과
 
 캡처 방법:
 
@@ -46,6 +46,7 @@ tensorboard --logdir results
   한 장에 겹친 뒤 범례로 구분한다.
 - 저장 위치: `assets/tb_cumulative_reward.png`, `assets/tb_goal_reached.png`,
   `assets/tb_group_reward.png` (파일명은 README에서 참조하므로 맞춘다)
+- 2026-09-29: TensorBoard 화면 캡처 대신 이벤트 파일 값을 그대로 읽어 matplotlib으로 그렸다. 런을 학습 순서대로 이어 붙여 누적 스텝으로 표시. `assets/tb_pot_committed_wrong.png`도 추가
 
 **그래프에 붙일 설명 (그래프를 잘못 읽지 않도록).** `Environment/Cumulative Reward`는
 **개인 보상(`AddReward`)만** 담는다. 매 스텝 −0.002가 깔려 있어서 최대로 올라가도 +0.46이다.
@@ -68,7 +69,7 @@ tensorboard --logdir results
 
 ## 2. 데모 GIF
 
-- [ ] `assets/demo.gif` (README §7 파일 구조에 이미 이 경로로 적혀 있다)
+- [x] `assets/demo.gif` (README §7 파일 구조에 이미 이 경로로 적혀 있다)
 
 **주의: 트레이너 없이 Play하면 최종 난이도가 아니다.** `KitchenEnv`의 기본값은 학습의
 최종 값과 다르다.
@@ -100,7 +101,7 @@ tensorboard --logdir results
 
 학습 환경을 바꿀 필요는 없다. 문서가 예전 계획에 머물러 있으므로 **문서를 실제 값으로 고친다.**
 
-- [ ] **§8 환경 버전**을 실제 학습 환경으로 고친다 (`reports/2026-09-25-preflight.md` 실측).
+- [x] **§8 환경 버전**을 실제 학습 환경으로 고친다 (`reports/2026-09-25-preflight.md` 실측).
 
   | 항목 | 현재 문서 | 실제 학습 |
   |---|---|---|
@@ -113,7 +114,7 @@ tensorboard --logdir results
   `.claude/docs/TRAINING.md` §1과 `configs/undercooked.yaml` 주석의 "installed mlagents 1.1.0"도
   같은 기준으로 맞춘다. yaml은 ASCII 전용이다.
 
-- [ ] **§5 실행** — 지금은 실패한 `undercooked_v1` 명령만 있다. 최종 모델을 재현하는 순서로 바꾼다.
+- [x] **§5 실행** — 지금은 실패한 `undercooked_v1` 명령만 있다. 최종 모델을 재현하는 순서로 바꾼다.
   ```bash
   mlagents-learn configs/undercooked_lesson0.yaml --run-id=undercooked_lesson0 --torch-device cuda
   mlagents-learn configs/undercooked.yaml       --run-id=undercooked_v2     --initialize-from=undercooked_lesson0 --torch-device cuda
@@ -124,12 +125,12 @@ tensorboard --logdir results
   주의: `undercooked_final3` 전까지는 `rewardPotWrongIngredient`가 −0.1이었다. 현재 코드는 −0.3이다.
   현재 코드로 처음부터 이 순서를 다시 돌려 본 적은 없다. 이 점을 명령 아래에 한 줄 적는다.
 
-- [ ] **§6 결과** — §1의 그래프 이미지를 넣는다. 체크리스트의 `학습 곡선 (TensorBoard) — 위 표`를
+- [x] **§6 결과** — §1의 그래프 이미지를 넣는다. 체크리스트의 `학습 곡선 (TensorBoard) — 위 표`를
   이미지 링크로 바꾼다. `최종 정책 데모 GIF` 항목을 체크한다.
-- [ ] **상단 "개요 / 데모"** — 과제 README 양식은 맨 위에 GIF 1장과 한 문단을 요구한다. 제목 아래에 GIF를 넣는다.
-- [ ] **회고** 절 — 과제 README 양식에 있는데 현재 README에는 없다. 짧게 추가한다.
+- [x] **상단 "개요 / 데모"** — 과제 README 양식은 맨 위에 GIF 1장과 한 문단을 요구한다. 제목 아래에 GIF를 넣는다.
+- [x] **회고** 절 — 과제 README 양식에 있는데 현재 README에는 없다. 짧게 추가한다.
   재료: v1 실패 → lesson0 분리, progress 커리큘럼의 손질 붕괴, 병목 판단 정정(속도 → 주문 대조), 벌점 조정.
-- [ ] 미완료로 남길 항목은 "하지 않음"으로 분명히 적는다. 과제 필수는 아니다.
+- [x] 미완료로 남길 항목은 "하지 않음"으로 분명히 적는다. 과제 필수는 아니다.
   - memory on/off ablation
   - 조리 완료를 관측에 넣은 진단 조건
   - 주문 관측 ablation
