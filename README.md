@@ -14,6 +14,7 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 
 > 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 98% (`undercooked_final3`),
 > Unity 추론 97.1% (에피소드 478개). 결과는 §6, 최종 모델은 `models/undercooked.onnx`.
+> 최종 보고서는 `reports/2026-09-29-final-report.md`, 학습 결과 파일은 `archive/`.
 
 ---
 
@@ -1041,7 +1042,9 @@ UnderCooked/
 │   ├── undercooked_lesson0.yaml        lesson0 고정
 │   └── undercooked_final.yaml          최종 난이도 고정
 ├── models/undercooked.onnx             최종 모델 (undercooked_final3)
-├── reports/                            학습 결과·분석 보고서
+├── reports/                            학습 결과·분석 보고서 (최종: 2026-09-29-final-report.md)
+├── archive/runs/                       런 6개의 TensorBoard 이벤트·설정·모델·로그
+├── archive/tools/                      지표 요약, 추론 확인, 그래프·GIF 생성 스크립트
 └── assets/
     ├── demo.gif                        최종 정책 데모
     └── tb_*.png                        학습 곡선 (§6)
