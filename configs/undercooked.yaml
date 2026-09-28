@@ -66,8 +66,8 @@ environment_parameters:
   # measure: reward is compared against Environment/Cumulative Reward, and that
   # scalar sums AddReward ONLY. AddGroupReward does not touch it - it is reported
   # separately as Environment/Group Cumulative Reward, and the two are merged only
-  # in the learning signal (Policy/Extrinsic Reward). Sources, in the installed
-  # mlagents 1.1.0: agent_processor.py _episode_rewards += step.reward, then
+  # in the learning signal (Policy/Extrinsic Reward). Sources, in the mlagents
+  # 1.2.0.dev0 used for training: agent_processor.py _episode_rewards += step.reward, then
   # rl_trainer.py _update_end_episode_stats -> reward_buffer, which is what the
   # curriculum reads.
   #

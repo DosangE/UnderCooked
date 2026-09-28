@@ -20,7 +20,7 @@ git log -1 --oneline
 추가 수정이 있다면 그 수정도 커밋·push되어 있어야 학습 PC에서 받을 수 있다.
 
 Unity Hub에서 저장소 루트가 아닌 **`UnderCooked/UnityProject`**를 연다.
-Unity **6000.3.19f1**로 패키지 복원과 컴파일을 마친 뒤
+Unity **6000.3.18f1**(실제 학습에 쓴 버전. 처음 계획은 19f1)로 패키지 복원과 컴파일을 마친 뒤
 **`Assets/Scenes/UnderCooked.unity`**를 연다. Console에 컴파일 에러가 없어야 한다.
 `Packages/manifest.json`과 `packages-lock.json`은 함께 유지한다.
 
@@ -59,8 +59,13 @@ python -c "import sys, torch, mlagents_envs; print(sys.version); print(torch.__v
 
 CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을 먼저 확인한다.
 
-> 이 저장소를 만든 노트북 환경은 `torch 2.2.2+cpu` / Python 3.10.12 / numpy 1.23.5다.
-> Unity 쪽은 Unity 6000.3.19f1 + `com.unity.ml-agents` 4.0.3.
+> **실제 학습 환경** (데스크탑, `reports/2026-09-25-preflight.md` 실측): Python 3.10.12,
+> `mlagents` / `mlagents-envs` **1.2.0.dev0** (`C:/Users/User/ml-agents` 소스 설치), torch **2.2.2+cu121**,
+> numpy 1.23.5, protobuf 3.20.3. Unity **6000.3.18f1** + `com.unity.ml-agents` 4.0.3.
+> 위 설치 명령의 pip `mlagents==1.1.0`으로 학습을 처음부터 재현해 보지는 않았다.
+>
+> 이 저장소를 만든 노트북 환경은 `torch 2.2.2+cpu` / Python 3.10.12 / numpy 1.23.5,
+> Unity 6000.3.19f1이었다.
 
 ---
 
