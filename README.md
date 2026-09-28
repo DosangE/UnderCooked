@@ -4,8 +4,16 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 두 셰프가 카운터를 사이에 두고 재료와 그릇을 주고받아, **주문표에 적힌 요리를**
 만들어 서빙한다. **MA-POCA**로 팀 단위 협동 정책을 학습시킨다.
 
-> 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 98% (`undercooked_final3`).
-> 결과는 §6, 최종 모델은 `models/undercooked.onnx`.
+![최종 정책 데모](assets/demo.gif)
+
+최종 모델(`models/undercooked.onnx`)이 최종 난이도로 한 에피소드를 플레이하는 모습이다
+(손질 켜짐, 레시피 3종, 조리 5초, 주문 슬롯 3, 주문 25초, 목표 3접시).
+냄비는 북쪽 셰프 A 구역에, 그릇함과 서빙구는 남쪽 셰프 B 구역에만 있어서 재료·빈 그릇·완성 요리가
+반드시 가운데 카운터를 건너야 한다. 두 셰프는 MA-POCA 팀 정책으로 누가 무엇을 나를지와
+주문판에 맞는 요리 고르기를 스스로 배웠다. 위쪽 띠는 녹화할 때 기록한 서빙 수와 대기 주문이다.
+
+> 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 98% (`undercooked_final3`),
+> Unity 추론 97.1% (에피소드 478개). 결과는 §6, 최종 모델은 `models/undercooked.onnx`.
 
 ---
 
@@ -740,15 +748,26 @@ lesson0에서 개인 보상만으로 실제로 벌 수 있는 값:
 conda activate mlagents
 cd UnderCooked
 
-# 학습 (먼저 실행 -> "Listening on port 5004" 뜨면 Unity 에디터에서 Play)
-mlagents-learn configs/undercooked.yaml --run-id=undercooked_v1
+# 최종 모델을 만든 순서. 각 줄마다 먼저 실행 -> "Listening on port 5004" 뜨면 Unity 에디터에서 Play
+mlagents-learn configs/undercooked_lesson0.yaml --run-id=undercooked_lesson0 --torch-device cuda
+mlagents-learn configs/undercooked.yaml       --run-id=undercooked_v2     --initialize-from=undercooked_lesson0 --torch-device cuda
+mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final  --initialize-from=undercooked_v2       --torch-device cuda
+mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final2 --initialize-from=undercooked_final    --torch-device cuda
+mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final3 --initialize-from=undercooked_final2   --torch-device cuda
 
-# 이어서 학습
-mlagents-learn configs/undercooked.yaml --run-id=undercooked_v1 --resume
+# 끊긴 런 이어서 학습
+mlagents-learn <config> --run-id=<run-id> --resume
 
 # TensorBoard (별도 터미널)
 tensorboard --logdir results
 ```
+
+- 한 런이 끝나면(`Copied ... Chef.onnx`) Play를 멈추고 다음 줄을 실행한다. RTX 2080 SUPER 기준 1M 스텝당 약 13분.
+- **`undercooked_final3` 전까지는 주문에 없는 재료 투입 벌점(`rewardPotWrongIngredient`)이 −0.1이었다.**
+  현재 코드는 −0.3이다. 현재 코드로 이 순서를 처음부터 다시 돌려 본 적은 없다.
+- `undercooked_v1`(기본 커리큘럼, 무작위 초기화)은 서빙 0회로 실패한 런이다. lesson0을 먼저 고정 학습하는
+  이유는 §6과 `reports/2026-09-25-undercooked_v1-serve-zero.md`에 있다.
+- 실행 전 체크리스트(회귀 검사 등)는 `.claude/docs/TRAINING.md` §2.
 
 ### Heuristic 플레이 (사람이 직접)
 
@@ -801,6 +820,31 @@ tensorboard --logdir results
 ---
 
 ## 6. 결과
+
+### 학습 곡선 (TensorBoard)
+
+각 런은 이전 런에서 `--initialize-from`으로 이어 학습했고 스텝이 0부터 다시 시작한다.
+아래 그래프는 학습 순서대로 이어 붙여 가로축을 누적 스텝으로 그렸다. 값은 `results/<run-id>/Chef/`의
+TensorBoard 이벤트 파일에서 그대로 읽었다. 흐린 선은 원값, 진한 선은 EMA(0.8) 평활값이다.
+
+**`Environment/Cumulative Reward`는 개인 보상(`AddReward`)만 담는다.** 매 스텝 −0.002가 깔려 있어서
+최대로 올라가도 약 +0.46이다. 서빙 +3, 목표 +2 같은 팀 보상은 `Group Cumulative Reward`에 찍힌다.
+그래서 성과는 `Kitchen/GoalReached`와 함께 읽는다 (§4-16).
+
+![Environment/Cumulative Reward](assets/tb_cumulative_reward.png)
+
+![Kitchen/GoalReached](assets/tb_goal_reached.png)
+
+![Environment/Group Cumulative Reward](assets/tb_group_reward.png)
+
+- lesson0은 쉬운 난이도라 목표 달성 100%에 닿은 뒤 v2로 넘어간다.
+- v2 초반(누적 4.2M~4.6M, v2 기준 1.2M~1.6M)에 **레시피 2종, 손질 전환이 이어지며 서빙 0으로 무너진다.**
+  이후 손질 경로를 스스로 다시 찾아 누적 5.5M 무렵부터 팀 보상이, 7M 무렵부터 목표 달성이 회복된다 (아래 표).
+- final 이후는 최종 난이도 고정이다. 달성률이 final 74% → final2 90% → final3 98%로 올라간다.
+
+![Kitchen/PotCommittedWrong](assets/tb_pot_committed_wrong.png)
+
+주문에 없는 재료 투입 벌점을 −0.1 → −0.3으로 올린 final3에서 잘못 채운 횟수가 약 0.6회 → 0.2회로 줄었다.
 
 ### 학습 경과 (2026-09-25)
 
@@ -905,11 +949,12 @@ v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 less
 - Unity 추론 서빙 분포: 1접시 3 / 2접시 11 / 3접시 464. 성공 에피소드 평균 27.7초(중앙값 25.4초).
 - 벌점을 올린 뒤에도 회귀 검사 11개 항목이 전부 통과했다. 벌점이 커지면 반복 어뷰징 경로는 더 손해가 된다.
 
-- [x] 학습 곡선 (TensorBoard) — 위 표. 이벤트 파일은 `results/undercooked_v2`, `results/undercooked_final`, `results/undercooked_final2`, `results/undercooked_final3`
+- [x] 학습 곡선 (TensorBoard) — [위 그래프](#학습-곡선-tensorboard). 이벤트 파일은 `results/undercooked_lesson0`, `results/undercooked_v2`, `results/undercooked_final`, `results/undercooked_final2`, `results/undercooked_final3`
 - [x] 커리큘럼 lesson 전환 시점 — 위 표
-- [ ] **memory on/off ablation** — 조리 완료를 **똑같이 숨긴 조건에서** RNN on/off를
-      비교한다. 이래야 "기억이 얼마나 도움이 되는가"라는 근거가 유지된다
-- [ ] (진단용) 조리 완료를 관측에 넣은 조건 — 협업이 안 배워질 때 원인을 분리하는 기준선
+- [ ] **memory on/off ablation** — 이 제출에는 **포함하지 않는다.** 조리 완료를 똑같이 숨긴 조건에서
+      RNN on/off를 비교하는 실험은 별도 브랜치(PR #17, 병합 안 함)에서 진행했다. 따라서 §3 ①의
+      설계 의도(조리 완료를 숨겨 기억을 쓰게 한다)가 실제로 효과가 있는지는 이 저장소 안에서 검증하지 않았다
+- [ ] (진단용) 조리 완료를 관측에 넣은 조건 — **하지 않음.** 과제 필수 항목이 아니다
 - [x] 전달 횟수 대비 서빙 수 — §4-12 어뷰징이 실제로 막혔는지. v1은 서빙 0회로 lesson0 관문을
       넘지 못했고(팀 보상 −0.500 고정, 전달 보상 100% 회수), 최종 모델은 전달 9.2회당 서빙 3.0회
 
@@ -953,8 +998,8 @@ v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 less
 | `Kitchen/PotCommittedWrong` | 냄비가 다 찬 순간 그 레시피를 원하는 주문이 없었다. 처음부터 잘못 만든 것 (회귀 검사 [10]) |
 | `Kitchen/ServedWrongOrder` | 주문과 다른 요리를 제출했다. 위 값을 빼면 채울 땐 맞았는데 그 사이 주문이 만료·소진된 경우 (회귀 검사 [3]) |
 
-- [ ] **주문 관측 ablation** — 주문을 가리면 정책이 한 요리만 만드는지
-- [ ] 최종 정책 데모 GIF
+- [ ] **주문 관측 ablation** — 주문을 가리면 정책이 한 요리만 만드는지. **하지 않음.** 과제 필수 항목이 아니다
+- [x] 최종 정책 데모 GIF — 맨 위 `assets/demo.gif`
 
 ---
 
@@ -991,12 +1036,59 @@ UnderCooked/
 ├── UnityProject/Assets/Editor/
 │   └── UnderCookedMenu.cs              메뉴 [UnderCooked/보상 회귀 검사]
 ├── tools/measure_reach.py              맵 이동량/부하 쏠림 측정 (§4-10)
-├── configs/undercooked.yaml            ASCII 전용 (§4-4)
-├── models/undercooked.onnx
-└── assets/demo.gif
+├── configs/
+│   ├── undercooked.yaml                기본 커리큘럼. ASCII 전용 (§4-4)
+│   ├── undercooked_lesson0.yaml        lesson0 고정
+│   └── undercooked_final.yaml          최종 난이도 고정
+├── models/undercooked.onnx             최종 모델 (undercooked_final3)
+├── reports/                            학습 결과·분석 보고서
+└── assets/
+    ├── demo.gif                        최종 정책 데모
+    └── tb_*.png                        학습 곡선 (§6)
 ```
 
 ## 8. 환경 버전
 
-Unity 6000.3.19f1 · URP 17.3.0 · `com.unity.ml-agents` 4.0.3 ·
-Python 3.10.12 · pip `mlagents` 1.1.0 · PyTorch 2.2.2+cpu (CPU 학습)
+실제 학습에 쓴 환경이다 (`reports/2026-09-25-preflight.md` 실측, 데스크탑 RTX 2080 SUPER).
+
+| 항목 | 버전 |
+|---|---|
+| Unity | 6000.3.18f1 · URP 17.3.0 |
+| Unity ML-Agents 패키지 | `com.unity.ml-agents` 4.0.3 (통신 API 1.5.0) |
+| Python | 3.10.12 |
+| `mlagents` / `mlagents-envs` | 1.2.0.dev0 (ml-agents 저장소 소스 설치) |
+| PyTorch | 2.2.2+cu121 (CUDA 학습) |
+| numpy / protobuf | 1.23.5 / 3.20.3 |
+
+처음 계획은 Unity 6000.3.19f1, pip `mlagents` 1.1.0, PyTorch 2.2.2+cpu였다.
+
+---
+
+## 9. 회고
+
+**잘 된 것**
+
+- 협동을 보상이 아니라 **맵 구조로 강제한 것.** 냄비와 서빙구를 서로 다른 구역에 두니 혼자 다 하는 정책이
+  물리적으로 불가능했다.
+- **진단 지표를 먼저 만든 것.** 서빙 체인 고리별 통과 횟수(`PotCommitted` → `DishesToChefB`)와 주문 불일치
+  지표가 있어서, 서빙이 0이거나 성공률이 멈췄을 때 어디가 막혔는지 곡선만 보고 짚을 수 있었다.
+- 회귀 검사(메뉴 `UnderCooked/보상 회귀 검사`)로 보상 규칙을 실제 행동 경로에서 확인한 뒤에 학습을 돌렸다.
+  §4에서 찾은 어뷰징 경로는 회귀 검사 항목으로 남겨 다시 열리지 않게 했다.
+
+**시행착오**
+
+1. **v1 실패 → lesson0 분리.** 기본 커리큘럼을 무작위 초기화로 돌리자 1.44M 스텝까지 서빙 0회였다.
+   progress 커리큘럼이 첫 서빙(고정 lesson0 기준 약 2M)보다 먼저 난이도를 올렸다. lesson0만 고정해
+   서빙을 먼저 배우게 한 뒤 `--initialize-from`으로 이어 가는 방식으로 바꿨다.
+2. **손질 전환에서 무너짐.** v2에서 손질이 켜지자 생재료를 냄비에 넣던 정책이 서빙 0으로 무너졌다가
+   스스로 회복했다. 그 사이 약 1.5M 스텝을 잃었다. progress 게이트는 이전 단계를 풀었는지 보지 않는다.
+3. **병목 판단 정정.** 처음에는 에피소드 평균만 보고 "만드는 속도가 병목"이라고 적었다. Unity 추론으로
+   실패 에피소드만 따로 보니 냄비는 충분히 채우는데 주문과 다른 레시피를 만들고 있었다
+   (`reports/2026-09-25-training-results.md` §5). 평균 지표는 성공과 실패를 섞는다.
+4. **벌점 조정.** 주문 대조가 병목이라는 것을 확인하고 주문에 없는 재료 투입 벌점을 −0.1 → −0.3으로 올렸다.
+   잘못 채우는 비율이 18% → 7%로 줄고 목표 달성률이 90% → 98%가 됐다.
+
+**남은 한계**
+
+- 최종 모델은 5개 런을 이어서 만들었고, 벌점 −0.3인 현재 코드로 처음부터 재현해 보지 않았다.
+- Memory(RNN)의 효과는 이 저장소 안에서 검증하지 않았다 (§6).
