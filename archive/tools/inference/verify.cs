@@ -1,0 +1,1 @@
+var env = UnityEngine.Object.FindFirstObjectByType<KitchenEnv>(); var so = new UnityEditor.SerializedObject(env); var p = so.FindProperty("defaultTargetDishes"); return p.propertyType + " " + p.intValue + " / prep " + so.FindProperty("defaultNeedsPrep").boolValue + " / dirty " + UnityEngine.SceneManagement.SceneManager.GetActiveScene().isDirty;

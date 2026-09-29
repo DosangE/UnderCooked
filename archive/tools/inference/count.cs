@@ -1,0 +1,1 @@
+var s = UnityEditor.SessionState.GetString("ucTally", ""); return s.Split(new[]{";"}, System.StringSplitOptions.RemoveEmptyEntries).Length + " episodes / time " + UnityEngine.Time.time.ToString("0");
