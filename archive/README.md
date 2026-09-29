@@ -15,6 +15,15 @@
 | `undercooked_final2` | 같은 설정, `--initialize-from=undercooked_final` | 3M | 최종 난이도 90.5% |
 | `undercooked_final3` | 같은 설정 + 벌점 −0.3, `--initialize-from=undercooked_final2` | 3M | **최종 난이도 97.8%** |
 
+보완 실험 (`reports/2026-09-29-experiment-results.md`):
+
+| 폴더 | 설정 파일 | 스텝 | 결과 |
+|---|---|---|---|
+| `eval_final2` | `eval_final.yaml` (폴더 안, `undercooked_final.yaml`의 max_steps만 400k), `--inference --initialize-from=undercooked_final2` | 400k | 학습 없이 추론 92.0% (환경 확인용) |
+| `undercooked_stage_s1` | `configs/undercooked_stage.yaml`, `--seed=1` | 4.53M (중단) | 0단계에서 서빙 0회. 실패 런 |
+| `pen01_s1` ~ `s3` | `configs/undercooked_final_pen01.yaml`, `--initialize-from=undercooked_final2`, `--seed=1~3` | 3M | 95.7–97.6% |
+| `pen03_s1` ~ `s3` | `configs/undercooked_final_pen03.yaml`, 같은 출발점, `--seed=1~3` | 3M | 94.7–97.3% |
+
 런 폴더마다 들어 있는 것:
 
 | 파일 | 내용 |
