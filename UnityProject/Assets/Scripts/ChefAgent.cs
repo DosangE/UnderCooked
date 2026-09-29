@@ -392,7 +392,7 @@ public class ChefAgent : Agent
                 // 넣긴 넣었는데 이걸로는 어떤 대기 주문도 만들 수 없다.
                 // 팀 보상 +0.3은 주지 않고 개인 패널티만 준다.
                 // 손질 보상은 이미 나갔으므로 그것만 냄비 크레딧에 달아 회수 대상으로 둔다.
-                AddReward(rewardPotWrongIngredient);
+                AddReward(m_Env.PotWrongIngredientPenaltyOr(rewardPotWrongIngredient));
                 // 투입 보상은 안 줬지만 손질 보상은 이미 나갔다. 그 크레딧을 냄비에 실어
                 // 비울 때 회수되게 한다.
                 if (m_Group != null && creditBefore > 0f)
