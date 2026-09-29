@@ -170,10 +170,16 @@ README §5의 순서를 그대로 따른다. 각 런은 이전 런의 `results/<
 ```bash
 mlagents-learn configs/undercooked_lesson0.yaml --run-id=undercooked_lesson0 --torch-device cuda
 mlagents-learn configs/undercooked.yaml       --run-id=undercooked_v2     --initialize-from=undercooked_lesson0 --torch-device cuda
-mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final  --initialize-from=undercooked_v2       --torch-device cuda
-mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final2 --initialize-from=undercooked_final    --torch-device cuda
-mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final3 --initialize-from=undercooked_final2   --torch-device cuda
+mlagents-learn configs/undercooked_final_pen01.yaml --run-id=undercooked_final  --initialize-from=undercooked_v2     --torch-device cuda
+mlagents-learn configs/undercooked_final_pen01.yaml --run-id=undercooked_final2 --initialize-from=undercooked_final  --torch-device cuda
+mlagents-learn configs/undercooked_final_pen03.yaml --run-id=undercooked_final3 --initialize-from=undercooked_final2 --torch-device cuda
 ```
+
+잘못된 재료 투입 벌점은 final2까지 −0.1, final3부터 −0.3으로 학습했다. 코드 기본값은 −0.3이므로
+앞의 네 런은 yaml에 `wrong_ingredient_penalty: -0.1`이 들어간 설정으로 돌린다
+(`undercooked_lesson0.yaml`, `undercooked.yaml`, `undercooked_final_pen01.yaml`).
+`undercooked_final_pen01/03.yaml`은 `undercooked_final.yaml`에 이 한 줄만 더한 것이다.
+Play 후 콘솔에 `[KitchenEnv] wrong_ingredient_penalty = ...`가 찍히는지 확인한다.
 
 실행 전 체크리스트는 `.claude/docs/TRAINING.md` §2. 체크포인트는 보관하지 않았으므로, 중간 런부터 이어 가려면
 해당 런까지 다시 학습해야 한다.

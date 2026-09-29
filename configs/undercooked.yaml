@@ -195,3 +195,8 @@ environment_parameters:
 
   # Ingredients allowed outside the pot at once (hands + counters).
   max_ingredients: 2.0
+
+  # Penalty this run was originally trained with. The code default became -0.3
+  # later (commit bd77c86, before undercooked_final3), so without this line the
+  # run would not reproduce. Unity prints "[KitchenEnv] wrong_ingredient_penalty = -0.1".
+  wrong_ingredient_penalty: -0.1
