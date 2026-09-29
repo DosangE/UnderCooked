@@ -1025,6 +1025,7 @@ UnderCooked/
 │       ├── KitchenGroup.cs             SimpleMultiAgentGroup, 팀 보상, 종료
 │       ├── StartupValidator.cs         씬-코드 불일치 검사, 어긋나면 Play 중단
 │       ├── KitchenSelfTest.cs          보상 회귀 검사 (실제 행동 경로로 확인)
+│       ├── StageCurriculum.cs          성공률로 단계를 올리는 커리큘럼 (실험 A, 켜야만 동작)
 │       │
 │       │   -- 아래 4개는 사람 플레이 전용. 관측/보상/행동에 전혀 관여하지 않는다 --
 │       ├── KitchenPlan.cs              struct: '지금 무슨 요리를 만드는 중인가'
@@ -1040,7 +1041,9 @@ UnderCooked/
 ├── configs/
 │   ├── undercooked.yaml                기본 커리큘럼. ASCII 전용 (§4-4)
 │   ├── undercooked_lesson0.yaml        lesson0 고정
-│   └── undercooked_final.yaml          최종 난이도 고정
+│   ├── undercooked_final.yaml          최종 난이도 고정
+│   ├── undercooked_stage.yaml          실험 A: 성공률 단계 커리큘럼, 처음부터 한 번에
+│   └── undercooked_final_pen01/03.yaml 실험 B: 벌점 −0.1 / −0.3 대조
 ├── models/undercooked.onnx             최종 모델 (undercooked_final3)
 ├── reports/                            학습 결과·분석 보고서 (최종: 2026-09-29-final-report.md)
 ├── archive/runs/                       런 6개의 TensorBoard 이벤트·설정·모델·로그
