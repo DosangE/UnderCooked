@@ -1,0 +1,93 @@
+# UnderCooked - one run from scratch to final difficulty, success-gated stages.
+#
+# ASCII ONLY (see undercooked.yaml header - load_config() uses the OS codepage).
+#
+# Purpose: the final model (undercooked_final3) was built from 5 chained runs,
+# and the current code (wrong-ingredient penalty -0.3) was never trained from
+# scratch. This config tries to reach final difficulty in ONE run from random
+# init with the current code, and is run with 3 seeds.
+#
+# Why not the curriculum in undercooked.yaml: its difficulty knobs moved on
+# training progress (step count), so they fired before the skill was learned
+# (v1: no serve by 1.44M; v2: collapse when chopping turned on at 1.6M).
+# A reward-gated curriculum is not usable either: measure: reward only sees
+# the individual reward, which differs across runs and stages at the same
+# success rate (archive/runs event files).
+#
+# So the stages are gated on the success rate itself (Kitchen/GoalReached),
+# inside the environment. The stage table lives in
+# UnityProject/Assets/Scripts/StageCurriculum.cs:
+#   0: 1 dish,  1 recipe, no prep,  cook 2s, 1 slot   (= old lesson0)
+#   1: 3 dishes
+#   2: 2 recipes
+#   3: prep on in 50% of episodes
+#   4: prep always on
+#   5: 3 recipes, cook 5s
+#   6: 2 slots
+#   7: 3 slots                                        (= undercooked_final.yaml)
+# Watch Kitchen/Stage and Kitchen/StageSuccessRate in TensorBoard, and the
+# "[StageCurriculum] ..." lines in the Unity console.
+#
+# Run (seed 1..3, one after another):
+#   mlagents-learn configs/undercooked_stage.yaml --run-id=undercooked_stage_s1 --seed=1 --torch-device cuda
+#   mlagents-learn configs/undercooked_stage.yaml --run-id=undercooked_stage_s2 --seed=2 --torch-device cuda
+#   mlagents-learn configs/undercooked_stage.yaml --run-id=undercooked_stage_s3 --seed=3 --torch-device cuda
+#
+# Resuming: Unity restarts at stage_start, not where the run stopped. Before
+# --resume, set stage_start to the last Kitchen/Stage value.
+#
+# Everything under behaviors is identical to undercooked.yaml except max_steps.
+
+behaviors:
+  Chef:
+    trainer_type: poca
+
+    hyperparameters:
+      batch_size: 1024        # multiple of sequence_length (64)
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 64
+        memory_size: 128
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+    keep_checkpoints: 5
+    checkpoint_interval: 500000
+    # Same total budget as the 5 chained runs (lesson0 3M + v2 8M + final x3 9M).
+    max_steps: 20000000
+    time_horizon: 128
+    summary_freq: 20000
+
+environment_parameters:
+  # 1 = use the stage table. target_dishes / recipe_pool_size / needs_prep /
+  # cook_time / order_slots are then ignored, so they are not set here.
+  stage_curriculum: 1.0
+  # Advance when the last stage_window episodes of the current stage (all 16
+  # kitchens together) reach this success rate. One episode is ~300-900 steps,
+  # so 500 episodes is roughly 0.15-0.45M steps.
+  stage_success_threshold: 0.8
+  stage_window: 500
+  # Safety cap so an unattended run cannot sit on one stage forever
+  # (roughly 2-5M steps). A forced advance is logged with a star in the
+  # Unity console; report it if it happens.
+  stage_max_episodes: 6000
+  stage_start: 0
+
+  order_duration: 25.0
+  max_ingredients: 2.0
+  # wrong_ingredient_penalty is NOT set: the code default (-0.3) is used,
+  # because this run is meant to test the current code as-is.
