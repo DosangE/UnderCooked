@@ -131,6 +131,12 @@ A s1이 초반 단계에서 오래 멈춰 있으면 나머지를 돌리기 전�
   (일부러 틀린 코드를 넣으면 에러가 나는 것도 확인했다.)
 - ML-Agents 설정 파서(`RunOptions.from_dict`, POCA 플러그인 등록)로 새 yaml 3개 파싱 통과. ASCII 전용 확인.
 - 새 yaml과 기존 yaml의 차이는 의도한 줄뿐이다 (`max_steps`, `environment_parameters`).
-- **아직 안 한 것:** Unity 에디터에서의 컴파일과 회귀 검사 실행 (UnityMCP 미연결), 학습.
+- 노트북 Unity 6000.3.19f1 에디터(UnityMCP): 컴파일 에러·경고 0건, 트레이너 없이 Play 후 회귀 검사 **13개 항목 전부 통과**.
+  [12] 7개 하위 항목 전부 o, 손질 섞임 98/200. [13] yaml 없음 −0.30, yaml −0.1 → −0.10. 검사 후 콘솔 에러 0건, Play 종료, 작업 트리 변경 없음.
+- 노트북 CPU 스모크 런 (트레이너 연결, 60k 스텝, `undercooked_stage.yaml`에서 임계값 0 / 창 20판 / 벌점 −0.1로 바꾼 임시 설정):
+  콘솔에 `학습 모드 (트레이너 연결됨, 주방 16개)`, `[StageCurriculum] 켜짐. 시작 단계 0 ...`,
+  `[KitchenEnv] wrong_ingredient_penalty = -0.1 (yaml 값 사용)`이 찍혔고, 학습 중 단계가 20판마다 0 → 1 → 2로 올랐다.
+  TensorBoard에 `Kitchen/Stage`, `Kitchen/StageSuccessRate`가 기록됐다. 예외 0건. `results/smoke`는 지웠다.
+- **아직 안 한 것:** 데스크탑(Unity 6000.3.18f1)에서의 회귀 검사, 본 학습.
 - 트레이너 파라미터는 주방의 첫 `ResetEnv`보다 늦게 도착할 수 있다. 그래서 `stage_curriculum`은 켜질 때까지
   매 에피소드 다시 읽는다. 처음 몇 판은 기존 경로로 돌고 판정에서 빠진다.
