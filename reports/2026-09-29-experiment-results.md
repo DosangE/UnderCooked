@@ -197,8 +197,32 @@ s2 이어 학습 모델이 보인 행동(덜 버림, 잘못 채운 판의 약 1/
   성공한 s2와 lesson0도 첫 성공이 2M 넘어 나왔다. 0단계의 서빙 발견이 이 설계에서 가장 불안정한 부분이다.
 - **단계표의 5단계(주문 슬롯 1, 레시피 3)는 최종 난이도보다 어렵다.** 강제 승급 상한이 없었다면 s2는 20M 안에 끝나지 못했다.
   다음에 고친다면 레시피 3종을 슬롯 2개 이상과 함께 넣거나, 5단계를 빼고 4 → 6으로 가는 것을 먼저 시험한다.
-- 실패가 시드 운인지 벌점 −0.3(lesson0은 −0.1) 탓인지는 아직 가리지 못했다. 실험 B에서 −0.3은 최종 난이도 이어 학습에서는
-  이득이 없었지만, 0단계 탐색에 대한 영향은 따로 재지 않았다. 실패한 시드(1, 3)를 벌점 −0.1로 다시 돌려 확인한다 (후속 실험).
+- **실패는 벌점 탓이 아니다** (§2-4). 0단계에서는 잘못된 재료 벌점이 발생할 수 없고, 벌점 −0.1로 같은 시드를 다시 돌린 런은
+  −0.3 런과 비트 단위로 같았다. 0단계의 성패는 시드가 정한다.
+
+### 2-4. 후속: 실패한 시드를 벌점 −0.1로 (`configs/undercooked_stage_pen01.yaml`)
+
+질문: s1, s3가 0단계에서 실패한 것이 벌점 −0.3 때문인가 (lesson0은 −0.1로 0단계를 풀었다).
+설정: `undercooked_stage.yaml`에 `wrong_ingredient_penalty: -0.1` 한 줄만 더했다. 실패한 시드 1, 3으로 4.5M까지.
+
+| 런 | 스텝 | 결과 |
+|---|---|---|
+| `undercooked_stage_pen01_s1` | 4.5M | 서빙 0회. `undercooked_stage_s1`과 기록된 226개 지점 전부 **비트 단위로 같다** |
+| `undercooked_stage_pen01_s3` | 2.08M (중단) | `undercooked_stage_s3`와 기록된 101개 지점 전부 비트 단위로 같아 중단 |
+
+(비교한 스칼라: `Environment/Cumulative Reward`, `Kitchen/PotCommitted`, `Kitchen/PotCommittedWrong`, `Policy/Entropy`)
+
+**이유: 0단계에서는 벌점이 한 번도 발생하지 않는다.** 0단계는 레시피 1종(초록 수프)이라 빨강 재료함이 꺼진다
+(`KitchenEnv`의 `SetStationVisible(StationType.RedBox, m_Orders.UsesRed)`). 초록만 넣을 수 있으니 주문에 없는 재료를 넣는 경우가 없다.
+s1, s2, s3 모두 0단계 동안 `Kitchen/PotCommittedWrong` 합계가 0이다. 벌점 값이 바뀌어도 보상이 한 번도 달라지지 않으므로,
+같은 시드면 학습이 완전히 같게 흘러간다 (이 환경과 트레이너는 시드가 같으면 결정적이다).
+
+- **결론: 0단계 실패는 벌점과 무관하다. 시드가 정한다.** lesson0(−0.1)이 풀린 것도 벌점 덕이 아니라 그 런의 무작위 시드 덕이다.
+  0단계와 같은 조건의 런은 지금까지 4개(lesson0, s1, s2, s3)이고 그중 2개가 서빙을 찾았다.
+- 이 대조는 돌리기 전에 "0단계에서 벌점이 발생할 수 있는가"를 확인했으면 필요 없었다. 1시간 23분을 썼다.
+- 부수적으로 **같은 시드면 결과가 비트 단위로 재현된다**는 것을 확인했다. 시드 간 차이가 곧 운의 크기다.
+- 0단계 발견을 안정시키려면 탐색 쪽을 바꿔야 한다 (예: 0단계에서 엔트로피 계수 `beta`를 키우기, 요리 뜨기까지의 중간 보상).
+  하지 않았다.
 
 ## 3. 실험 B: 벌점 −0.1 vs −0.3
 
@@ -256,6 +280,8 @@ final2 체크포인트(`undercooked_final2/Chef/checkpoint.pt`)에서 3M, 벌점
 | `undercooked_stage_s1` | `configs/undercooked_stage.yaml`, `--seed=1` | 4.53M (중단) | 0단계, 서빙 0회 |
 | `undercooked_stage_s2` | `configs/undercooked_stage.yaml`, `--seed=2` | 20M | 13.28M에 7단계, 마지막 0.5M 94.5% |
 | `undercooked_stage_s3` | `configs/undercooked_stage.yaml`, `--seed=3` | 4.52M (중단) | 0단계, 서빙 0회 |
+| `undercooked_stage_pen01_s1` | `configs/undercooked_stage_pen01.yaml`, `--seed=1` | 4.5M | stage_s1과 비트 단위로 같음 |
+| `undercooked_stage_pen01_s3` | `configs/undercooked_stage_pen01.yaml`, `--seed=3` | 2.08M (중단) | stage_s3와 비트 단위로 같음 |
 | `undercooked_stage_s2_ft` | `configs/undercooked_final_pen03.yaml`, `--initialize-from=undercooked_stage_s2`, `--seed=2` | 3M | 93.9% (오르지 않음) |
 | `eval_stage_s2_ft` | `eval_final.yaml` (폴더 안, `undercooked_final_pen03.yaml`의 max_steps만 600k), `--inference --initialize-from=undercooked_stage_s2_ft` | 600k | 추론 95.6%, 에피소드 기록 `episodes.txt` |
 | `eval_final3` | 같은 설정, `--initialize-from=undercooked_final3` | 600k | 추론 97.5%, 에피소드 기록 `episodes.txt` |
