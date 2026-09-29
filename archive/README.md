@@ -23,6 +23,7 @@
 | `undercooked_stage_s1` | `configs/undercooked_stage.yaml`, `--seed=1` | 4.53M (중단) | 0단계에서 서빙 0회. 실패 런 |
 | `undercooked_stage_s2` | `configs/undercooked_stage.yaml`, `--seed=2` | 20M | 무작위 초기화에서 한 번에 최종 난이도. 94.5% (강제 승급 1회) |
 | `undercooked_stage_s2_ft` | `configs/undercooked_final_pen03.yaml`, `--initialize-from=undercooked_stage_s2`, `--seed=2` | 3M | 93.9%. 이어 학습해도 오르지 않았다 |
+| `eval_stage_s2_ft`, `eval_final3` | `eval_final.yaml` (폴더 안), `--inference` | 600k | 추론 95.6% / 97.5%. 에피소드별 기록 `episodes.txt` (실패 분석용) |
 | `pen01_s1` ~ `s3` | `configs/undercooked_final_pen01.yaml`, `--initialize-from=undercooked_final2`, `--seed=1~3` | 3M | 95.7–97.6% |
 | `pen03_s1` ~ `s3` | `configs/undercooked_final_pen03.yaml`, 같은 출발점, `--seed=1~3` | 3M | 94.7–97.3% |
 
@@ -58,6 +59,8 @@ tensorboard --logdir archive/runs
 | `mcp.sh`, `mcp_exec.py` | 로컬 UnityMCP 서버(`127.0.0.1:8080/mcp`)에 직접 요청. C# 코드 실행 |
 | `inference/*.cs` | Unity 추론 확인 절차 (`.claude/docs/TRAINING.md`, 모델 할당 → 집계 → 원상복구) |
 | `analyze_tally.py` | 추론 집계 결과를 성공/실패로 나눠 요약 |
+| `inference/episode_log.cs` | 트레이너(`--inference`)가 돌리는 동안 주방별 에피소드 기록. 씬을 바꾸지 않는다 |
+| `analyze_episodes.py` | `episode_log.cs` 기록을 성공/실패, 잘못 채움 횟수별로 요약 |
 | `figures/export.py` | 이벤트 파일 → CSV. `python export.py out.csv archive/runs` |
 | `figures/plot.py` | CSV → `assets/tb_*.png` (matplotlib, 맑은 고딕) |
 | `figures/cam.cs`, `rec.cs` | Play 중 임시 카메라로 주방 하나의 한 에피소드를 프레임 PNG로 녹화. `<FRAMES_DIR>`를 바꿔 쓴다 |

@@ -122,6 +122,36 @@ Unity 콘솔 원문은 `archive/runs/undercooked_stage_s2/stage_log.txt`.
   실패 에피소드를 따로 보지는 않았다.
 - 누적 23M에서 93.9%. 같은 누적 스텝의 기존 체인(final3, 20M)은 97.8%다. **한 번에 학습한 정책은 이어 붙인 정책보다 약 4%p 낮은 곳에서 멈췄다.**
 
+### 2-2c. 왜 94%에서 멈추나: 실패 에피소드 분석
+
+s2 이어 학습 모델과 기존 최종 모델(final3)을 같은 방법으로 돌려 에피소드마다 기록했다.
+트레이너 `--inference`(학습 없음, 최종 난이도, 600k 스텝)로 정책을 돌리고, Unity 쪽은 `archive/tools/inference/episode_log.cs`로
+주방 16개의 에피소드 종료마다 서빙 수·냄비 확정·잘못 채움·틀린 제출·주문 만료·서빙 시각을 남겼다 (씬·스크립트 변경 없음).
+원자료 `archive/runs/eval_stage_s2_ft/episodes.txt`, `archive/runs/eval_final3/episodes.txt`, 요약 `archive/tools/analyze_episodes.py`.
+
+| | s2 이어 학습 (한 번에 학습) | final3 (기존 체인) |
+|---|---|---|
+| 에피소드 | 1134 | 1100 |
+| 목표 달성 | 95.6% | 97.5% |
+| 잘못 채움 0회인 판의 성공률 | **99.9%** | 99.2% |
+| 잘못 채움이 1회 이상인 판의 비율 | **21.8%** | 16.7% |
+| 그런 판의 성공률 | **80.2%** | 88.6% |
+| (잘못 채움 1회 / 2회 / 3회일 때 성공률) | 85.8% / 51.6% / 0% | 95.1% / 78.1% / 12.5% |
+| 잘못 채운 판에서 틀린 요리 제출 (버리기) | 0.46회 | **1.08회** |
+| 잘못 채운 판에서 맞게 채운 냄비 | 2.19개 | **2.75개** |
+| 성공한 판의 길이 (중앙값) | **24.5초** | 25.2초 |
+
+- **실패는 거의 전부 주문에 없는 레시피로 냄비를 채운 판이다.** s2 이어 학습의 실패 50판 중 49판이 그렇다.
+  잘못 채우지 않은 판은 두 모델 모두 99% 이상 성공하고, s2 쪽이 오히려 조금 빠르다.
+- 차이는 두 가지다.
+  1. **잘못 채우는 빈도.** 21.8% 대 16.7%. 주문을 읽고 레시피를 고르는 정확도가 낮다.
+  2. **잘못 채운 뒤 만회.** final3는 틀린 요리를 서빙구에 내서 치우고(1.08회) 맞는 냄비를 더 만든다(2.75개).
+     s2는 덜 버리고(0.46회) 덜 만든다(2.19개). 틀린 요리를 들고 있다가 시간을 쓰는 경향으로 보인다.
+- 이 측정의 성공률(95.6%)은 학습 중 값(93.9%)보다 조금 높다. 표본과 측정 방식(학습 중에는 정책이 계속 바뀐다)이 달라서다.
+  두 모델을 같은 방법으로 쟀으므로 비교는 유효하다.
+- final3는 최종 난이도만 9M 학습했고(학습률 스케줄 3번), s2는 이어 학습까지 9.7M이다(2번). 비슷한 양인데 만회 행동이 다른 이유는
+  확인하지 않았다. 잘못 채우는 비율을 더 낮추거나 틀린 요리를 빨리 버리게 하는 것이 남은 차이를 줄이는 길이다.
+
 ### 2-3. 결론
 
 | 성공 기준 (계획서) | 결과 |
@@ -195,6 +225,8 @@ final2 체크포인트(`undercooked_final2/Chef/checkpoint.pt`)에서 3M, 벌점
 | `undercooked_stage_s1` | `configs/undercooked_stage.yaml`, `--seed=1` | 4.53M (중단) | 0단계, 서빙 0회 |
 | `undercooked_stage_s2` | `configs/undercooked_stage.yaml`, `--seed=2` | 20M | 13.28M에 7단계, 마지막 0.5M 94.5% |
 | `undercooked_stage_s2_ft` | `configs/undercooked_final_pen03.yaml`, `--initialize-from=undercooked_stage_s2`, `--seed=2` | 3M | 93.9% (오르지 않음) |
+| `eval_stage_s2_ft` | `eval_final.yaml` (폴더 안, `undercooked_final_pen03.yaml`의 max_steps만 600k), `--inference --initialize-from=undercooked_stage_s2_ft` | 600k | 추론 95.6%, 에피소드 기록 `episodes.txt` |
+| `eval_final3` | 같은 설정, `--initialize-from=undercooked_final3` | 600k | 추론 97.5%, 에피소드 기록 `episodes.txt` |
 | `pen01_s1` ~ `s3` | `configs/undercooked_final_pen01.yaml`, `--initialize-from=undercooked_final2`, `--seed=1~3` | 3M | 95.7–97.6% |
 | `pen03_s1` ~ `s3` | `configs/undercooked_final_pen03.yaml`, 같은 출발점, `--seed=1~3` | 3M | 94.7–97.3% |
 
