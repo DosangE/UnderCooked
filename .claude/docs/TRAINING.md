@@ -75,7 +75,8 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
 
 1. **트레이너 없이 회귀 검사를 먼저 실행한다.**
    Unity에서 Play → 메뉴 `UnderCooked/보상 회귀 검사` (`Ctrl+Shift+T`).
-   [1]~[10]과 [5b], 출력 11개 항목이 전부 OK인지 확인한 뒤 **Play를 종료한다.**
+   [1]~[10], [12], [13]과 [5b], 출력 13개 항목이 전부 OK인지 확인한 뒤 **Play를 종료한다.**
+   ([11]은 memory 비교 실험 브랜치(PR #17)가 쓰는 번호라 비워 두었다.)
    검사는 실제 행동·보상·주문·타이머를 변경한다. 본 학습에 연결한 채 실행하면
    인위적인 전이가 학습 데이터와 통계에 섞인다.
 
@@ -100,8 +101,13 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
    ```
    - 첫 줄이 에러로 바뀌면 Play가 자동으로 멈춘다. 그대로 학습하면 안 된다.
    - 둘째 줄이 `사람 플레이 모드`거나 주방이 16개가 아니면 **Play를 종료하고 2번부터 다시 한다.**
+   - 실험 설정이면 한 줄이 더 나와야 한다. 안 나오면 설정이 적용되지 않은 것이다.
+     - `undercooked_stage.yaml`: `[StageCurriculum] 켜짐. 시작 단계 0 (...)`
+     - `undercooked_final_pen01/03.yaml`: `[KitchenEnv] wrong_ingredient_penalty = -0.1` (또는 `-0.3`)
 
 5. 이어서 학습하려면 `--resume`, 같은 run-id로 처음부터 다시 하려면 `--force`.
+   `undercooked_stage.yaml`을 `--resume`할 때는 Unity가 단계 0부터 다시 시작하므로,
+   yaml의 `stage_start`를 TensorBoard `Kitchen/Stage`의 마지막 값으로 먼저 바꾼다.
 
 TensorBoard는 별도 터미널에서:
 
@@ -230,6 +236,8 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 | `undercooked_final` | 최종 난이도 고정 (`configs/undercooked_final.yaml`), `--initialize-from=undercooked_v2`, 3M. 74% |
 | `undercooked_final2` | 같은 설정, `--initialize-from=undercooked_final`, 3M. 90% |
 | `undercooked_final3` | 같은 설정 + 잘못된 재료 투입 벌점 −0.3, `--initialize-from=undercooked_final2`, 3M. 98%. **최종 모델의 출처** |
+| `undercooked_stage_s1` ~ `s3` | 실험 A. `configs/undercooked_stage.yaml`, 무작위 초기화, `--seed=1~3`, 20M. 성공률 단계 커리큘럼으로 한 번에 최종 난이도까지 |
+| `pen01_s1` ~ `s3`, `pen03_s1` ~ `s3` | 실험 B. `configs/undercooked_final_pen01/03.yaml`, 같은 체크포인트에서 `--seed=1~3`, 3M. 벌점만 다르다 |
 | `undercooked_<내용>` | ablation / 실험 (`undercooked_nomemory`, `undercooked_noorder` 등) |
 | `smoke` | 배선 확인용 1~2분 런. 확인 후 `results/smoke`를 지운다 |
 

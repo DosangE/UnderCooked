@@ -40,6 +40,8 @@ public static class KitchenSelfTest
         allOk &= TransferPotDumpLoop(sb, env, group, agents);
         allOk &= CommittedPotPlateShuttle(sb, env, group, agents);
         allOk &= WrongRecipeCommitIsCounted(sb, env, group, agents);
+        allOk &= StageCurriculumAdvancesOnSuccess(sb, env, group, agents);
+        allOk &= WrongIngredientPenaltyFromYaml(sb, env, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -185,6 +187,123 @@ public static class KitchenSelfTest
                       + " / 불일치(확정/제출) " + committedWrong + "/" + servedWrong + " (1/0 기대)   " + Verdict(ok));
         Reset(env, agents);
         return ok;
+    }
+
+    // 12) 단계 커리큘럼은 '최근 N판 성공률'이 임계값을 넘을 때만 승급해야 한다.
+    //     스텝 수로 올리던 예전 커리큘럼이 두 번 무너졌다(v1, v2). 창이 덜 찼는데 올라가거나,
+    //     이전 단계 에피소드가 새 단계 판정에 섞이면 같은 일이 다시 생긴다.
+    static bool StageCurriculumAdvancesOnSuccess(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        int last = StageCurriculum.LastStage;
+        bool window, stale, threshold, forced, endPath, table, mixed;
+        int prepCount = 0;
+        const int Rolls = 200;
+
+        try
+        {
+            // (a) 창(10판)이 덜 차면 전부 성공이어도 그대로, 다 차는 순간 승급
+            StageCurriculum.EnableForTest(0.8f, 10, 0, 1);
+            for (int i = 0; i < 9; i++) StageCurriculum.Report(1, true);
+            bool notYet = StageCurriculum.Current == 1;
+            StageCurriculum.Report(1, true);
+            window = notYet && StageCurriculum.Current == 2;
+
+            // (b) 승급 전에 시작한 에피소드(이전 단계)는 새 단계 판정에 들어가지 않는다
+            for (int i = 0; i < 20; i++) StageCurriculum.Report(1, true);
+            stale = StageCurriculum.Current == 2;
+
+            // (c) 7/10이면 머물고, 가장 오래된 실패가 빠져 8/10이 되는 순간 승급
+            for (int i = 0; i < 3; i++) StageCurriculum.Report(2, false);
+            for (int i = 0; i < 7; i++) StageCurriculum.Report(2, true);
+            bool stay = StageCurriculum.Current == 2;
+            StageCurriculum.Report(2, true);
+            threshold = stay && StageCurriculum.Current == 3;
+
+            // (d) 판 수 상한(8판)이면 성공률과 무관하게 승급, 마지막 단계에서는 더 오르지 않는다
+            StageCurriculum.EnableForTest(1f, 5, 8, last - 1);
+            for (int i = 0; i < 7; i++) StageCurriculum.Report(last - 1, false);
+            bool before = StageCurriculum.Current == last - 1;
+            StageCurriculum.Report(last - 1, false);
+            bool after = StageCurriculum.Current == last;
+            for (int i = 0; i < 20; i++) StageCurriculum.Report(last, true);
+            forced = before && after && StageCurriculum.Current == last;
+
+            // (e) 실제 종료 경로. 타임아웃 한 판이 KitchenGroup.RecordStats를 거쳐 판정에 들어가고,
+            //     다음 ResetEnv가 새 단계를 적용해야 한다. (임계 0, 창 1 -> 한 판이면 승급)
+            StageCurriculum.EnableForTest(0f, 1, 0, 0);
+            Reset(env, agents);
+            bool stage0 = env.Stage == 0 && env.TargetDishes == 1 && !env.NeedsPrep
+                          && Mathf.Approximately(env.CookTime, 2f)
+                          && env.Orders.ActiveSlots == 1 && env.Orders.PoolSize == 1;
+            ForceTimeout(env, group);
+            endPath = stage0 && StageCurriculum.Current == 1 && env.Stage == 1 && env.TargetDishes == 3;
+
+            // (f) 마지막 단계는 기존 최종 난이도(configs/undercooked_final.yaml)와 같아야 한다
+            StageCurriculum.EnableForTest(0.8f, 500, 0, last);
+            Reset(env, agents);
+            table = env.Stage == last && env.TargetDishes == 3 && env.NeedsPrep
+                    && Mathf.Approximately(env.CookTime, 5f)
+                    && env.Orders.ActiveSlots == 3 && env.Orders.PoolSize == 3;
+
+            // (g) 손질 절반 단계(3)는 에피소드마다 손질이 섞여 나온다
+            StageCurriculum.EnableForTest(0.8f, 500, 0, 3);
+            for (int i = 0; i < Rolls; i++)
+            {
+                env.ResetEnv();
+                if (env.NeedsPrep) prepCount++;
+            }
+            mixed = prepCount > Rolls * 0.3f && prepCount < Rolls * 0.7f;
+        }
+        finally
+        {
+            // 검사가 켠 커리큘럼을 반드시 끈다. 남아 있으면 이후 Play가 단계 표로 돈다.
+            StageCurriculum.DisableForTest();
+            Reset(env, agents);
+        }
+
+        bool ok = window && stale && threshold && forced && endPath && table && mixed
+                  && env.Stage == -1;
+        sb.AppendLine("[12] 단계 커리큘럼   창 " + Mark(window) + " / 이전 단계 무시 " + Mark(stale)
+                      + " / 80% 경계 " + Mark(threshold) + " / 상한 " + Mark(forced)
+                      + " / 종료 경로 " + Mark(endPath) + " / 최종 단계 표 " + Mark(table)
+                      + " / 손질 섞임 " + prepCount + "/" + Rolls + "   " + Verdict(ok));
+        return ok;
+    }
+
+    // 13) yaml의 wrong_ingredient_penalty가 있으면 그 값이, 없으면 ChefAgent 값이 벌점이어야 한다.
+    //     벌점 비교 실험(-0.1 vs -0.3)은 이 값 하나로 갈린다. 적용이 안 되면 두 조건이 같은 실험이 된다.
+    static bool WrongIngredientPenaltyFromYaml(StringBuilder sb, KitchenEnv env, ChefAgent[] agents)
+    {
+        float fallback = FloatField(agents[0], "rewardPotWrongIngredient");
+        const float Override = -0.1f;
+
+        float none = WrongIngredientGain(env, agents, float.NaN);
+        float yaml = WrongIngredientGain(env, agents, Override);
+        Reset(env, agents);
+
+        bool ok = Mathf.Abs(none - fallback) < 1e-4f && Mathf.Abs(yaml - Override) < 1e-4f
+                  && Mathf.Abs(fallback - Override) > 1e-3f;
+        sb.AppendLine("[13] 잘못된 재료 투입 벌점   yaml 없음 " + none.ToString("+0.00;-0.00")
+                      + " (" + fallback.ToString("+0.00;-0.00") + " 기대) / yaml " + Override.ToString("+0.00;-0.00")
+                      + " -> " + yaml.ToString("+0.00;-0.00") + "   " + Verdict(ok));
+        return ok;
+    }
+
+    // 주문은 전부 RedSoup인데 초록을 넣는다. 첫 재료부터 어떤 주문도 만들 수 없게 된다.
+    // 투입 한 번의 개인 보상 변화(스텝 비용 제외)를 돌려준다.
+    static float WrongIngredientGain(KitchenEnv env, ChefAgent[] agents, float overrideValue)
+    {
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.RedSoup);
+        typeof(KitchenEnv).GetField("m_PotWrongIngredientOverride",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .SetValue(env, overrideValue);
+
+        Act(env, agents[0], env.GetStation(StationType.GreenBox));
+        if (env.NeedsPrep) Act(env, agents[0], env.GetPrepFor(0), keepHeld: true);
+        float before = agents[0].GetCumulativeReward();
+        Act(env, agents[0], env.Pot, keepHeld: true);
+        return agents[0].GetCumulativeReward() - before - StepCost(agents[0]);
     }
 
     // 4) 정상 파이프라인의 전달 2회는 그대로 보상받아야 한다.
@@ -544,6 +663,11 @@ public static class KitchenSelfTest
     static string Verdict(bool ok)
     {
         return ok ? "OK" : "★ 실패";
+    }
+
+    static string Mark(bool ok)
+    {
+        return ok ? "o" : "★x";
     }
 
     static float TransferReward(ChefAgent agent)

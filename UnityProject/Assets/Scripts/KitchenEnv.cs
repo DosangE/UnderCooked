@@ -127,6 +127,15 @@ public class KitchenEnv : MonoBehaviour
     float m_CookTime;
     int m_TargetDishes;
     int m_MaxIngredients;
+    int m_Stage = -1;
+    float m_PotWrongIngredientOverride = float.NaN;
+    static bool s_PenaltyOverrideLogged;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        s_PenaltyOverrideLogged = false;
+    }
     float m_EpisodeTimer;
     int m_ExpiredOrders;      // KitchenGroup이 가져가서 패널티로 바꾼다
     bool m_Initialized;
@@ -203,6 +212,18 @@ public class KitchenEnv : MonoBehaviour
     }
 
     public int TargetDishes => m_TargetDishes;
+
+    // 이번 에피소드가 시작할 때의 StageCurriculum 단계. 꺼져 있으면 -1.
+    public int Stage => m_Stage;
+
+    // 주문에 없는 재료 투입 벌점. yaml의 wrong_ingredient_penalty가 있으면 그 값,
+    // 없으면 ChefAgent의 직렬화 값(fallback)을 쓴다. 벌점 비교 실험을 코드 수정 없이
+    // 설정 파일만으로 돌리려고 둔다 (configs/undercooked_final_pen*.yaml).
+    public float PotWrongIngredientPenaltyOr(float fallback)
+    {
+        return float.IsNaN(m_PotWrongIngredientOverride) ? fallback : m_PotWrongIngredientOverride;
+    }
+
     public int DishesServed { get; private set; }
     public bool IsGoalReached => DishesServed >= m_TargetDishes;
 
@@ -470,14 +491,41 @@ public class KitchenEnv : MonoBehaviour
     public void ResetEnv()
     {
         var envParams = Academy.Instance.EnvironmentParameters;
-        m_NeedsPrep = envParams.GetWithDefault("needs_prep", defaultNeedsPrep ? 1f : 0f) >= 0.5f;
-        m_TargetDishes = Mathf.Max(1, Mathf.RoundToInt(envParams.GetWithDefault("target_dishes", defaultTargetDishes)));
-        m_CookTime = Mathf.Max(0f, envParams.GetWithDefault("cook_time", defaultCookTime));
         m_MaxIngredients = Mathf.Max(1, Mathf.RoundToInt(envParams.GetWithDefault("max_ingredients", defaultMaxIngredients)));
+        m_PotWrongIngredientOverride = envParams.GetWithDefault("wrong_ingredient_penalty", float.NaN);
+        if (!float.IsNaN(m_PotWrongIngredientOverride) && !s_PenaltyOverrideLogged)
+        {
+            // 벌점 비교 실험은 이 값 하나가 전부다. 실제로 적용됐는지 콘솔에서 확인할 수 있어야 한다.
+            s_PenaltyOverrideLogged = true;
+            Debug.Log($"[KitchenEnv] wrong_ingredient_penalty = {m_PotWrongIngredientOverride:0.###} (yaml 값 사용)");
+        }
 
-        m_Orders.Configure(
-            Mathf.RoundToInt(envParams.GetWithDefault("order_slots", defaultOrderSlots)),
-            Mathf.RoundToInt(envParams.GetWithDefault("recipe_pool_size", defaultRecipePoolSize)),
+        int orderSlots;
+        int recipePool;
+        StageCurriculum.Configure(envParams);
+        if (StageCurriculum.Enabled)
+        {
+            // 단계 커리큘럼이 켜져 있으면 난이도 손잡이 5개를 단계 표에서 가져온다.
+            // yaml의 개별 파라미터(target_dishes 등)는 이때 읽지 않는다.
+            m_Stage = StageCurriculum.Current;
+            var stage = StageCurriculum.Stages[m_Stage];
+            m_NeedsPrep = stage.PrepChance >= 1f || (stage.PrepChance > 0f && Random.value < stage.PrepChance);
+            m_TargetDishes = stage.TargetDishes;
+            m_CookTime = stage.CookTime;
+            orderSlots = stage.OrderSlots;
+            recipePool = stage.RecipePool;
+        }
+        else
+        {
+            m_Stage = -1;
+            m_NeedsPrep = envParams.GetWithDefault("needs_prep", defaultNeedsPrep ? 1f : 0f) >= 0.5f;
+            m_TargetDishes = Mathf.Max(1, Mathf.RoundToInt(envParams.GetWithDefault("target_dishes", defaultTargetDishes)));
+            m_CookTime = Mathf.Max(0f, envParams.GetWithDefault("cook_time", defaultCookTime));
+            orderSlots = Mathf.RoundToInt(envParams.GetWithDefault("order_slots", defaultOrderSlots));
+            recipePool = Mathf.RoundToInt(envParams.GetWithDefault("recipe_pool_size", defaultRecipePoolSize));
+        }
+
+        m_Orders.Configure(orderSlots, recipePool,
             envParams.GetWithDefault("order_duration", defaultOrderDuration));
         m_Orders.ResetBoard();
 
