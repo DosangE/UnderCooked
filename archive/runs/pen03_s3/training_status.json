@@ -1,0 +1,89 @@
+{
+    "target_dishes": {
+        "lesson_num": 0
+    },
+    "recipe_pool_size": {
+        "lesson_num": 0
+    },
+    "needs_prep": {
+        "lesson_num": 0
+    },
+    "cook_time": {
+        "lesson_num": 0
+    },
+    "order_slots": {
+        "lesson_num": 0
+    },
+    "order_duration": {
+        "lesson_num": 0
+    },
+    "max_ingredients": {
+        "lesson_num": 0
+    },
+    "wrong_ingredient_penalty": {
+        "lesson_num": 0
+    },
+    "Chef": {
+        "checkpoints": [
+            {
+                "steps": 1499934,
+                "file_path": "results\\pen03_s3\\Chef\\Chef-1499934.onnx",
+                "reward": 0.388964230394257,
+                "creation_time": 1790683539.2133312,
+                "auxillary_file_paths": [
+                    "results\\pen03_s3\\Chef\\Chef-1499934.pt"
+                ]
+            },
+            {
+                "steps": 1999884,
+                "file_path": "results\\pen03_s3\\Chef\\Chef-1999884.onnx",
+                "reward": 0.552857040294579,
+                "creation_time": 1790683907.9654565,
+                "auxillary_file_paths": [
+                    "results\\pen03_s3\\Chef\\Chef-1999884.pt"
+                ]
+            },
+            {
+                "steps": 2499888,
+                "file_path": "results\\pen03_s3\\Chef\\Chef-2499888.onnx",
+                "reward": 0.6071999220177531,
+                "creation_time": 1790684273.4887414,
+                "auxillary_file_paths": [
+                    "results\\pen03_s3\\Chef\\Chef-2499888.pt"
+                ]
+            },
+            {
+                "steps": 2999934,
+                "file_path": "results\\pen03_s3\\Chef\\Chef-2999934.onnx",
+                "reward": 0.7093332558870316,
+                "creation_time": 1790684640.796421,
+                "auxillary_file_paths": [
+                    "results\\pen03_s3\\Chef\\Chef-2999934.pt"
+                ]
+            },
+            {
+                "steps": 3000062,
+                "file_path": "results\\pen03_s3\\Chef\\Chef-3000062.onnx",
+                "reward": 0.7093332558870316,
+                "creation_time": 1790684640.96336,
+                "auxillary_file_paths": [
+                    "results\\pen03_s3\\Chef\\Chef-3000062.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 3000062,
+            "file_path": "results\\pen03_s3\\Chef.onnx",
+            "reward": 0.7093332558870316,
+            "creation_time": 1790684640.96336,
+            "auxillary_file_paths": [
+                "results\\pen03_s3\\Chef\\Chef-3000062.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}
