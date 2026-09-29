@@ -15,6 +15,7 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 > 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 98% (`undercooked_final3`),
 > Unity 추론 97.1% (에피소드 478개). 결과는 §6, 최종 모델은 `models/undercooked.onnx`.
 > 최종 보고서는 `reports/2026-09-29-final-report.md`, 학습 결과 파일은 `archive/`.
+> 보완 실험 결과는 `reports/2026-09-29-experiment-results.md`, 전체 과정·시행착오·학습 시간은 `reports/2026-09-30-full-log.md`.
 
 ---
 
@@ -1076,6 +1077,8 @@ UnderCooked/
 | numpy / protobuf | 1.23.5 / 3.20.3 |
 
 처음 계획은 Unity 6000.3.19f1, pip `mlagents` 1.1.0, PyTorch 2.2.2+cpu였다.
+보완 실험(09-29~30)은 같은 PC에서 Unity **6000.3.25f1**로 돌렸다 (나머지는 위와 같다). final2 추론 결과가 학습 당시와 같아서
+(92.0% vs 90.5%) 환경 차이는 없다고 봤다.
 
 ---
 
