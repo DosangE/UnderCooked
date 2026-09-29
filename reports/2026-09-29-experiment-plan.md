@@ -8,7 +8,7 @@
 | 현재 코드(벌점 −0.3)로 처음부터 학습해 본 적이 없다 | A |
 | 모든 런이 한 번씩만 학습됐다 (시드 1개). 벌점 효과(90% → 98%)에 대조군이 없다 | A, B 모두 시드 3개 |
 
-코드와 설정은 브랜치 `dev_exp-stage-curriculum`에 있다. 학습은 데스크탑에서 한다.
+코드와 설정은 `dev`에 있다 (PR #22). 학습은 데스크탑에서 한다.
 
 ---
 
@@ -77,8 +77,8 @@
 
 ```bash
 git fetch origin
-git switch dev_exp-stage-curriculum
-git pull --ff-only
+git switch dev
+git pull --ff-only origin dev
 ```
 
 Unity에서 `UnityProject`를 열고 컴파일 에러가 없는지 본다. 새 파일은 `Assets/Scripts/StageCurriculum.cs`다.
