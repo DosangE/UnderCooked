@@ -21,6 +21,7 @@
 |---|---|---|---|
 | `eval_final2` | `eval_final.yaml` (폴더 안, `undercooked_final.yaml`의 max_steps만 400k), `--inference --initialize-from=undercooked_final2` | 400k | 학습 없이 추론 92.0% (환경 확인용) |
 | `undercooked_stage_s1` | `configs/undercooked_stage.yaml`, `--seed=1` | 4.53M (중단) | 0단계에서 서빙 0회. 실패 런 |
+| `undercooked_stage_s2` | `configs/undercooked_stage.yaml`, `--seed=2` | 20M | 무작위 초기화에서 한 번에 최종 난이도. 94.5% (강제 승급 1회) |
 | `pen01_s1` ~ `s3` | `configs/undercooked_final_pen01.yaml`, `--initialize-from=undercooked_final2`, `--seed=1~3` | 3M | 95.7–97.6% |
 | `pen03_s1` ~ `s3` | `configs/undercooked_final_pen03.yaml`, 같은 출발점, `--seed=1~3` | 3M | 94.7–97.3% |
 
