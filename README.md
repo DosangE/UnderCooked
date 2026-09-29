@@ -752,9 +752,9 @@ cd UnderCooked
 # 최종 모델을 만든 순서. 각 줄마다 먼저 실행 -> "Listening on port 5004" 뜨면 Unity 에디터에서 Play
 mlagents-learn configs/undercooked_lesson0.yaml --run-id=undercooked_lesson0 --torch-device cuda
 mlagents-learn configs/undercooked.yaml       --run-id=undercooked_v2     --initialize-from=undercooked_lesson0 --torch-device cuda
-mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final  --initialize-from=undercooked_v2       --torch-device cuda
-mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final2 --initialize-from=undercooked_final    --torch-device cuda
-mlagents-learn configs/undercooked_final.yaml --run-id=undercooked_final3 --initialize-from=undercooked_final2   --torch-device cuda
+mlagents-learn configs/undercooked_final_pen01.yaml --run-id=undercooked_final  --initialize-from=undercooked_v2     --torch-device cuda
+mlagents-learn configs/undercooked_final_pen01.yaml --run-id=undercooked_final2 --initialize-from=undercooked_final  --torch-device cuda
+mlagents-learn configs/undercooked_final_pen03.yaml --run-id=undercooked_final3 --initialize-from=undercooked_final2 --torch-device cuda
 
 # 끊긴 런 이어서 학습
 mlagents-learn <config> --run-id=<run-id> --resume
@@ -763,9 +763,14 @@ mlagents-learn <config> --run-id=<run-id> --resume
 tensorboard --logdir results
 ```
 
+잘못된 재료 투입 벌점은 final2까지 −0.1, final3부터 −0.3으로 학습했다. 코드 기본값은 −0.3이므로
+앞의 네 런은 yaml에 `wrong_ingredient_penalty: -0.1`이 들어간 설정으로 돌린다
+(`undercooked_lesson0.yaml`, `undercooked.yaml`, `undercooked_final_pen01.yaml`).
+`undercooked_final_pen01/03.yaml`은 `undercooked_final.yaml`에 이 한 줄만 더한 것이다.
+Play 후 콘솔에 `[KitchenEnv] wrong_ingredient_penalty = ...`가 찍히는지 확인한다.
+
 - 한 런이 끝나면(`Copied ... Chef.onnx`) Play를 멈추고 다음 줄을 실행한다. RTX 2080 SUPER 기준 1M 스텝당 약 13분.
-- **`undercooked_final3` 전까지는 주문에 없는 재료 투입 벌점(`rewardPotWrongIngredient`)이 −0.1이었다.**
-  현재 코드는 −0.3이다. 현재 코드로 이 순서를 처음부터 다시 돌려 본 적은 없다.
+- 위 yaml로 벌점은 원래 값과 맞췄지만, 현재 코드로 이 순서를 처음부터 다시 돌려 본 적은 없다.
 - `undercooked_v1`(기본 커리큘럼, 무작위 초기화)은 서빙 0회로 실패한 런이다. lesson0을 먼저 고정 학습하는
   이유는 §6과 `reports/2026-09-25-undercooked_v1-serve-zero.md`에 있다.
 - 실행 전 체크리스트(회귀 검사 등)는 `.claude/docs/TRAINING.md` §2.
