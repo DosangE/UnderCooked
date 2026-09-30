@@ -23,6 +23,8 @@
 | `undercooked_stage_s1` | `configs/undercooked_stage.yaml`, `--seed=1` | 4.53M (중단) | 0단계에서 서빙 0회. 실패 런 |
 | `undercooked_stage_s2` | `configs/undercooked_stage.yaml`, `--seed=2` | 20M | 무작위 초기화에서 한 번에 최종 난이도. 94.5% (강제 승급 1회) |
 | `undercooked_stage_s3` | `configs/undercooked_stage.yaml`, `--seed=3` | 4.52M (중단) | 0단계에서 서빙 0회. 실패 런 |
+| `undercooked_stage_s4` | `configs/undercooked_stage.yaml`, `--seed=4` | 20M | 한 번에 최종 난이도. 92.0% (강제 승급 1회) |
+| `undercooked_stage_pen01_s1`, `_s3` | `configs/undercooked_stage_pen01.yaml` (벌점 −0.1), `--seed=1`, `3` | 4.5M / 2.08M | 벌점 −0.3 런과 비트 단위로 같다. 0단계에서는 벌점이 발생하지 않는다 |
 | `undercooked_stage_s2_ft` | `configs/undercooked_final_pen03.yaml`, `--initialize-from=undercooked_stage_s2`, `--seed=2` | 3M | 93.9%. 이어 학습해도 오르지 않았다 |
 | `eval_stage_s2_ft`, `eval_final3` | `eval_final.yaml` (폴더 안), `--inference` | 600k | 추론 95.6% / 97.5%. 에피소드별 기록 `episodes.txt` (실패 분석용) |
 | `pen01_s1` ~ `s3` | `configs/undercooked_final_pen01.yaml`, `--initialize-from=undercooked_final2`, `--seed=1~3` | 3M | 95.7–97.6% |
