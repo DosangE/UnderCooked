@@ -42,6 +42,7 @@ public static class KitchenSelfTest
         allOk &= WrongRecipeCommitIsCounted(sb, env, group, agents);
         allOk &= StageCurriculumAdvancesOnSuccess(sb, env, group, agents);
         allOk &= WrongIngredientPenaltyFromYaml(sb, env, agents);
+        allOk &= WrongDishHoldPenalty(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -304,6 +305,104 @@ public static class KitchenSelfTest
         float before = agents[0].GetCumulativeReward();
         Act(env, agents[0], env.Pot, keepHeld: true);
         return agents[0].GetCumulativeReward() - before - StepCost(agents[0]);
+    }
+
+    // 14) 주문과 맞지 않는 요리가 있는 동안에만, 있는 개수만큼 팀 벌점이 붙어야 한다.
+    //     손에만 붙으면 카운터에 내려놓아 피하고, 버린 뒤에도 붙으면 버릴 이유가 없다.
+    //     yaml에 값이 없으면 꺼져 있어야 한다 (최종 모델의 학습 조건).
+    static bool WrongDishHoldPenalty(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        const float Penalty = -0.02f;
+        const int Ticks = 50;
+        float expected = Penalty * Ticks * Time.fixedDeltaTime;
+
+        // (a) 손에 든 틀린 요리
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.RedSoup);
+        agents[0].GiveForTest(ItemType.CookedGreen);
+        float held = HoldTicks(env, group, Penalty, Ticks);
+
+        // (b) 카운터에 놓인 틀린 요리
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.RedSoup);
+        env.Counters[0].Interact(0, ItemType.CookedGreen, out _);
+        float counter = HoldTicks(env, group, Penalty, Ticks);
+
+        // (c) 틀리게 확정된 냄비 (초록 두 개 = GreenSoup, 주문은 RedSoup뿐)
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.RedSoup);
+        CommitPot(env);
+        float pot = HoldTicks(env, group, Penalty, Ticks);
+
+        // (d) 틀린 요리 두 개 -> 두 배
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.RedSoup);
+        agents[0].GiveForTest(ItemType.CookedGreen);
+        env.Counters[0].Interact(0, ItemType.CookedMix, out _);
+        float two = HoldTicks(env, group, Penalty, Ticks);
+
+        // (e) 주문에 맞는 요리는 벌점 없음
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.GreenSoup);
+        agents[0].GiveForTest(ItemType.CookedGreen);
+        float right = HoldTicks(env, group, Penalty, Ticks);
+
+        // (f) 서빙구에 버리면 벌점이 멈춘다 (실제 행동 경로)
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.RedSoup);
+        SetHoldPenalty(env, Penalty);
+        Act(env, agents[1], env.GetStation(StationType.ServingHatch), ItemType.CookedGreen);
+        bool emptied = agents[1].HeldItem == ItemType.None;
+        float afterDiscard = HoldTicks(env, group, Penalty, Ticks);
+
+        // (g) yaml에 값이 없으면 꺼져 있다. 시간 집계는 그대로 된다.
+        Reset(env, agents);
+        ForceAllOrders(env, RecipeType.RedSoup);
+        bool defaultOff = env.WrongDishHoldPenalty == 0f;
+        agents[0].GiveForTest(ItemType.CookedGreen);
+        float off = TickGroup(group, Ticks);
+        float seconds = group.WrongDishSeconds;
+        Reset(env, agents);
+
+        const float Eps = 1e-4f;
+        bool okA = Mathf.Abs(held - expected) < Eps;
+        bool okB = Mathf.Abs(counter - expected) < Eps;
+        bool okC = Mathf.Abs(pot - expected) < Eps;
+        bool okD = Mathf.Abs(two - 2f * expected) < Eps;
+        bool okE = Mathf.Abs(right) < Eps;
+        bool okF = emptied && Mathf.Abs(afterDiscard) < Eps;
+        bool okG = defaultOff && Mathf.Abs(off) < Eps && Mathf.Abs(seconds - Ticks * Time.fixedDeltaTime) < Eps;
+        bool ok = okA && okB && okC && okD && okE && okF && okG;
+
+        sb.AppendLine("[14] 틀린 요리 보유 벌점   손 " + Mark(okA) + " / 카운터 " + Mark(okB) + " / 확정 냄비 " + Mark(okC)
+                      + " / 두 개 2배 " + Mark(okD) + " / 맞는 요리 0 " + Mark(okE) + " / 버리면 멈춤 " + Mark(okF)
+                      + " / 기본값 꺼짐·시간 집계 " + Mark(okG)
+                      + "   (" + Ticks + "틱 " + expected.ToString("+0.000;-0.000") + " 기대, 손 " + held.ToString("+0.000;-0.000") + ")   "
+                      + Verdict(ok));
+        return ok;
+    }
+
+    static void SetHoldPenalty(KitchenEnv env, float value)
+    {
+        typeof(KitchenEnv).GetField("m_WrongDishHoldPenalty",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .SetValue(env, value);
+    }
+
+    // 벌점을 켜고 KitchenGroup.FixedUpdate(실제 지급 경로)를 n번 돌린 뒤 팀 보상 변화를 돌려준다.
+    static float HoldTicks(KitchenEnv env, KitchenGroup group, float penalty, int n)
+    {
+        SetHoldPenalty(env, penalty);
+        return TickGroup(group, n);
+    }
+
+    static float TickGroup(KitchenGroup group, int n)
+    {
+        var fixedUpdate = typeof(KitchenGroup).GetMethod("FixedUpdate",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        float before = group.TotalGroupReward;
+        for (int i = 0; i < n; i++) fixedUpdate.Invoke(group, null);
+        return group.TotalGroupReward - before;
     }
 
     // 4) 정상 파이프라인의 전달 2회는 그대로 보상받아야 한다.

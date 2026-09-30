@@ -104,6 +104,7 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
    - 실험 설정이면 한 줄이 더 나와야 한다. 안 나오면 설정이 적용되지 않은 것이다.
      - `undercooked_stage.yaml`: `[StageCurriculum] 켜짐. 시작 단계 0 (...)`
      - `undercooked_final_pen01/03.yaml`: `[KitchenEnv] wrong_ingredient_penalty = -0.1` (또는 `-0.3`)
+     - `undercooked_final_hold.yaml`: 위 줄에 더해 `[KitchenEnv] wrong_dish_hold_penalty = -0.02/s`
 
 5. 이어서 학습하려면 `--resume`, 같은 run-id로 처음부터 다시 하려면 `--force`.
    `undercooked_stage.yaml`을 `--resume`할 때는 Unity가 단계 0부터 다시 시작하므로,
@@ -238,6 +239,11 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 | `undercooked_final3` | 같은 설정 + 잘못된 재료 투입 벌점 −0.3, `--initialize-from=undercooked_final2`, 3M. 98%. **최종 모델의 출처** |
 | `undercooked_stage_s1` ~ `s3` | 실험 A. `configs/undercooked_stage.yaml`, 무작위 초기화, `--seed=1~3`, 20M. 성공률 단계 커리큘럼으로 한 번에 최종 난이도까지 |
 | `pen01_s1` ~ `s3`, `pen03_s1` ~ `s3` | 실험 B. `configs/undercooked_final_pen01/03.yaml`, 같은 체크포인트에서 `--seed=1~3`, 3M. 벌점만 다르다 |
+| `undercooked_stage_s4` | 실험 A 추가 시드 (`--seed=4`) |
+| `undercooked_stage_pen01_s1`, `_s3` | 0단계 실패가 벌점 탓인지 (`configs/undercooked_stage_pen01.yaml`). 0단계에서는 벌점이 안 걸려 결과가 같았다 |
+| `undercooked_stage_beta03_s1` | 0단계 탐색 안정화 시도 (`configs/undercooked_stage_beta03.yaml`, beta 0.03) |
+| `undercooked_stage_s2_ft`, `undercooked_stage_s2_hold` | s2에서 3M 이어 학습. 기준선 / 틀린 요리 보유 벌점 (`configs/undercooked_final_pen03.yaml` / `undercooked_final_hold.yaml`) |
+| `eval_<모델>` | `--inference`로 성능만 재는 런. 에피소드 기록은 `archive/tools/inference/episode_log.cs` |
 | `undercooked_<내용>` | ablation / 실험 (`undercooked_nomemory`, `undercooked_noorder` 등) |
 | `smoke` | 배선 확인용 1~2분 런. 확인 후 `results/smoke`를 지운다 |
 

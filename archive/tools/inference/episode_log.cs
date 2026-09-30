@@ -1,7 +1,8 @@
 // Records one row per finished episode in every kitchen while a trainer (e.g. --inference) drives the agents.
 // Run with UnityMCP execute_code after pressing Play. Read the result with
 //   UnityEditor.SessionState.GetString("ucFail", "")
-// Row: served,target,duration,potCommitted,dishesTaken,dishesToB,potWrong,servedWrong,ordersExpired,serveTimes(a/b/c);
+// Row: served,target,duration,potCommitted,dishesTaken,dishesToB,potWrong,servedWrong,ordersExpired,wrongDishSeconds,serveTimes(a/b/c);
+// (wrongDishSeconds is KitchenGroup.WrongDishSeconds, added 2026-09-30. Older episodes.txt files have 10 fields without it.)
 // Counters other than served are the last frame's snapshot before the reset, so a step in the very last frame can be missed.
 var envs = UnityEngine.Object.FindObjectsByType<KitchenEnv>(UnityEngine.FindObjectsSortMode.None);
 var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
@@ -31,7 +32,7 @@ cb = () =>
         }
         if (e.DishesServed > lastServed[e]) { serveTimes[e] += t.ToString("0.0") + "/"; lastServed[e] = e.DishesServed; }
         var ch = (int[])fChain.GetValue(g);
-        last[e] = ch[0] + "," + ch[2] + "," + ch[3] + "," + g.OrderMissThisEpisode(KitchenGroup.OrderMiss.PotCommittedWrong) + "," + g.OrderMissThisEpisode(KitchenGroup.OrderMiss.ServedWrongOrder) + "," + (int)fExp.GetValue(g);
+        last[e] = ch[0] + "," + ch[2] + "," + ch[3] + "," + g.OrderMissThisEpisode(KitchenGroup.OrderMiss.PotCommittedWrong) + "," + g.OrderMissThisEpisode(KitchenGroup.OrderMiss.ServedWrongOrder) + "," + (int)fExp.GetValue(g) + "," + g.WrongDishSeconds.ToString("0.00");
         lastT[e] = t;
     }
 };
