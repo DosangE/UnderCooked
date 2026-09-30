@@ -233,6 +233,15 @@ public class KitchenGroup : MonoBehaviour
         for (int i = 0; i < m_Chain.Length; i++) stats.Add(ChainStatNames[i], m_Chain[i]);
         for (int i = 0; i < m_OrderMiss.Length; i++) stats.Add(OrderMissStatNames[i], m_OrderMiss[i]);
 
+        // 단계 커리큘럼이 켜져 있을 때만. 승급 판정도 여기서 한다 - GoalReached 통계와
+        // 같은 값을 보게 하려고 같은 자리에 둔다.
+        if (env.Stage >= 0)
+        {
+            StageCurriculum.Report(env.Stage, goalReached);
+            stats.Add("Kitchen/Stage", env.Stage);
+            stats.Add("Kitchen/StageSuccessRate", StageCurriculum.WindowSuccessRate);
+        }
+
         // 다음 에피소드를 위해 비우기 전에 값을 남긴다. 리셋 뒤에 읽어도 방금 끝난
         // 에피소드의 수치를 볼 수 있어야 한다 (회귀 검사와 사후 진단 모두 그걸 읽는다).
         LastEpisodeDishesServed = env.DishesServed;

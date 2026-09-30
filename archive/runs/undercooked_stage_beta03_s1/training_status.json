@@ -1,0 +1,86 @@
+{
+    "stage_curriculum": {
+        "lesson_num": 0
+    },
+    "stage_success_threshold": {
+        "lesson_num": 0
+    },
+    "stage_window": {
+        "lesson_num": 0
+    },
+    "stage_max_episodes": {
+        "lesson_num": 0
+    },
+    "stage_start": {
+        "lesson_num": 0
+    },
+    "order_duration": {
+        "lesson_num": 0
+    },
+    "max_ingredients": {
+        "lesson_num": 0
+    },
+    "Chef": {
+        "checkpoints": [
+            {
+                "steps": 2999968,
+                "file_path": "results\\undercooked_stage_beta03_s1\\Chef\\Chef-2999968.onnx",
+                "reward": -0.7593751104432158,
+                "creation_time": 1790754157.7956035,
+                "auxillary_file_paths": [
+                    "results\\undercooked_stage_beta03_s1\\Chef\\Chef-2999968.pt"
+                ]
+            },
+            {
+                "steps": 3499872,
+                "file_path": "results\\undercooked_stage_beta03_s1\\Chef\\Chef-3499872.onnx",
+                "reward": null,
+                "creation_time": 1790754526.6540115,
+                "auxillary_file_paths": [
+                    "results\\undercooked_stage_beta03_s1\\Chef\\Chef-3499872.pt"
+                ]
+            },
+            {
+                "steps": 3999968,
+                "file_path": "results\\undercooked_stage_beta03_s1\\Chef\\Chef-3999968.onnx",
+                "reward": null,
+                "creation_time": 1790754892.5932226,
+                "auxillary_file_paths": [
+                    "results\\undercooked_stage_beta03_s1\\Chef\\Chef-3999968.pt"
+                ]
+            },
+            {
+                "steps": 4499872,
+                "file_path": "results\\undercooked_stage_beta03_s1\\Chef\\Chef-4499872.onnx",
+                "reward": null,
+                "creation_time": 1790755259.259295,
+                "auxillary_file_paths": [
+                    "results\\undercooked_stage_beta03_s1\\Chef\\Chef-4499872.pt"
+                ]
+            },
+            {
+                "steps": 4544224,
+                "file_path": "results\\undercooked_stage_beta03_s1\\Chef\\Chef-4544224.onnx",
+                "reward": null,
+                "creation_time": 1790755355.6339996,
+                "auxillary_file_paths": [
+                    "results\\undercooked_stage_beta03_s1\\Chef\\Chef-4544224.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 4544224,
+            "file_path": "results\\undercooked_stage_beta03_s1\\Chef.onnx",
+            "reward": null,
+            "creation_time": 1790755355.6339996,
+            "auxillary_file_paths": [
+                "results\\undercooked_stage_beta03_s1\\Chef\\Chef-4544224.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}
