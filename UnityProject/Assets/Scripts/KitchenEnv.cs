@@ -130,11 +130,14 @@ public class KitchenEnv : MonoBehaviour
     int m_Stage = -1;
     float m_PotWrongIngredientOverride = float.NaN;
     static bool s_PenaltyOverrideLogged;
+    float m_WrongDishHoldPenalty;
+    static bool s_HoldPenaltyLogged;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics()
     {
         s_PenaltyOverrideLogged = false;
+        s_HoldPenaltyLogged = false;
     }
     float m_EpisodeTimer;
     int m_ExpiredOrders;      // KitchenGroup이 가져가서 패널티로 바꾼다
@@ -223,6 +226,15 @@ public class KitchenEnv : MonoBehaviour
     {
         return float.IsNaN(m_PotWrongIngredientOverride) ? fallback : m_PotWrongIngredientOverride;
     }
+
+    // 주문과 맞지 않는 요리가 주방에 있는 동안 1초마다 팀에 붙는 보상(음수). yaml의
+    // wrong_dish_hold_penalty로만 켜진다. 기본값 0이면 꺼져 있고 최종 모델의 학습 조건과 같다.
+    //
+    // 틀린 요리를 버리면(서빙구에 내면) 즉시 −0.5인데 들고 있으면 0이라, '들고 기다리기'가
+    // 당장 싸다. 실패 분석에서 한 번에 학습한 정책이 바로 그렇게 시간을 썼다
+    // (reports/2026-09-29-experiment-results.md §2-2c). 버리면 벌점이 멈추므로 빨리 버릴수록 덜 잃는다.
+    // 쌓인 벌점을 버릴 때 돌려주지는 않는다 - 돌려주면 20초 들고 있다 버려도 바로 버린 것과 같아진다.
+    public float WrongDishHoldPenalty => m_WrongDishHoldPenalty;
 
     public int DishesServed { get; private set; }
     public bool IsGoalReached => DishesServed >= m_TargetDishes;
@@ -499,6 +511,12 @@ public class KitchenEnv : MonoBehaviour
             s_PenaltyOverrideLogged = true;
             Debug.Log($"[KitchenEnv] wrong_ingredient_penalty = {m_PotWrongIngredientOverride:0.###} (yaml 값 사용)");
         }
+        m_WrongDishHoldPenalty = Mathf.Min(0f, envParams.GetWithDefault("wrong_dish_hold_penalty", 0f));
+        if (m_WrongDishHoldPenalty < 0f && !s_HoldPenaltyLogged)
+        {
+            s_HoldPenaltyLogged = true;
+            Debug.Log($"[KitchenEnv] wrong_dish_hold_penalty = {m_WrongDishHoldPenalty:0.###}/s (yaml 값 사용)");
+        }
 
         int orderSlots;
         int recipePool;
@@ -735,6 +753,33 @@ public class KitchenEnv : MonoBehaviour
         plan.NeedRed = plan.Recipe.RequiredRed() - pot.RedCount;
         plan.Current = KitchenPlan.Step.Gather;
         return plan;
+    }
+
+    // 지금 어떤 대기 주문으로도 낼 수 없는 요리의 수. 손, 카운터, 조리가 확정된 냄비를 다 센다.
+    //
+    // 손에만 붙이면 카운터에 내려놓아 피하는 것을 배운다. 냄비는 확정(IsCommitted)만 보고
+    // 조리 완료(HasCookedDish)는 보지 않는다 - 완료 여부를 보상으로 흘리지 않기 위해서다.
+    // 확정된 냄비는 비울 수 없으므로, 틀리게 확정했다면 떠서 버리는 것이 유일한 출구다.
+    public int WrongDishesInPlay()
+    {
+        int count = 0;
+
+        if (m_Agents != null)
+            foreach (var agent in m_Agents)
+                if (agent != null && IsUnwantedDish(agent.HeldItem)) count++;
+
+        foreach (var counter in m_Counters)
+            if (IsUnwantedDish(counter.CounterItem)) count++;
+
+        var pot = Pot;
+        if (pot != null && pot.IsCommitted && !m_Orders.HasOrderFor(pot.CookedRecipe.Dish())) count++;
+
+        return count;
+    }
+
+    bool IsUnwantedDish(ItemType item)
+    {
+        return item.IsCookedDish() && !m_Orders.HasOrderFor(item);
     }
 
     // 냄비 밖에 나와 있는 재료 수. 손에 든 것과 카운터에 놓인 것만 센다.
