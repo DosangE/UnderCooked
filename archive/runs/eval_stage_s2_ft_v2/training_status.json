@@ -1,0 +1,44 @@
+{
+    "target_dishes": {
+        "lesson_num": 0
+    },
+    "recipe_pool_size": {
+        "lesson_num": 0
+    },
+    "needs_prep": {
+        "lesson_num": 0
+    },
+    "cook_time": {
+        "lesson_num": 0
+    },
+    "order_slots": {
+        "lesson_num": 0
+    },
+    "order_duration": {
+        "lesson_num": 0
+    },
+    "max_ingredients": {
+        "lesson_num": 0
+    },
+    "wrong_ingredient_penalty": {
+        "lesson_num": 0
+    },
+    "Chef": {
+        "checkpoints": [
+            {
+                "steps": 499984,
+                "file_path": "results\\eval_stage_s2_ft_v2\\Chef\\Chef-499984.onnx",
+                "reward": 0.3129323718461777,
+                "creation_time": 1790758874.167021,
+                "auxillary_file_paths": [
+                    "results\\eval_stage_s2_ft_v2\\Chef\\Chef-499984.pt"
+                ]
+            }
+        ]
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}

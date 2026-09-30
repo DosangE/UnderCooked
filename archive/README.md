@@ -24,6 +24,8 @@
 | `undercooked_stage_s2` | `configs/undercooked_stage.yaml`, `--seed=2` | 20M | 무작위 초기화에서 한 번에 최종 난이도. 94.5% (강제 승급 1회) |
 | `undercooked_stage_s3` | `configs/undercooked_stage.yaml`, `--seed=3` | 4.52M (중단) | 0단계에서 서빙 0회. 실패 런 |
 | `undercooked_stage_s4` | `configs/undercooked_stage.yaml`, `--seed=4` | 20M | 한 번에 최종 난이도. 92.0% (강제 승급 1회) |
+| `undercooked_stage_s2_hold` | `configs/undercooked_final_hold.yaml`, `--initialize-from=undercooked_stage_s2 --seed=2` | 3M | 틀린 요리 보유 벌점. 95.1% (기준선 s2_ft 93.9%, 오차 범위 안) |
+| `eval_stage_s2_hold`, `eval_stage_s2_ft_v2` | `eval_final.yaml` (폴더 안), `--inference` | 600k | 추론 94.3% / 95.5%. `episodes.txt`에 틀린 요리 시간 칸 추가 |
 | `undercooked_stage_beta03_s1` | `configs/undercooked_stage_beta03.yaml` (beta 0.03), `--seed=1` | 4.5M | 0단계에서 서빙 0회. 탐색을 늘려도 실패 |
 | `undercooked_stage_pen01_s1`, `_s3` | `configs/undercooked_stage_pen01.yaml` (벌점 −0.1), `--seed=1`, `3` | 4.5M / 2.08M | 벌점 −0.3 런과 비트 단위로 같다. 0단계에서는 벌점이 발생하지 않는다 |
 | `undercooked_stage_s2_ft` | `configs/undercooked_final_pen03.yaml`, `--initialize-from=undercooked_stage_s2`, `--seed=2` | 3M | 93.9%. 이어 학습해도 오르지 않았다 |
@@ -64,7 +66,7 @@ tensorboard --logdir archive/runs
 | `inference/*.cs` | Unity 추론 확인 절차 (`.claude/docs/TRAINING.md`, 모델 할당 → 집계 → 원상복구) |
 | `analyze_tally.py` | 추론 집계 결과를 성공/실패로 나눠 요약 |
 | `inference/episode_log.cs` | 트레이너(`--inference`)가 돌리는 동안 주방별 에피소드 기록. 씬을 바꾸지 않는다 |
-| `analyze_episodes.py` | `episode_log.cs` 기록을 성공/실패, 잘못 채움 횟수별로 요약 |
+| `analyze_episodes.py` | `episode_log.cs` 기록을 성공/실패, 잘못 채움 횟수별로 요약. 여러 파일을 한 번에 받는다 |
 | `figures/export.py` | 이벤트 파일 → CSV. `python export.py out.csv archive/runs` |
 | `figures/plot.py` | CSV → `assets/tb_*.png` (matplotlib, 맑은 고딕) |
 | `figures/cam.cs`, `rec.cs` | Play 중 임시 카메라로 주방 하나의 한 에피소드를 프레임 PNG로 녹화. `<FRAMES_DIR>`를 바꿔 쓴다 |
