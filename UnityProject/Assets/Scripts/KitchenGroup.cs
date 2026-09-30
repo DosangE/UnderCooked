@@ -40,6 +40,8 @@ public class KitchenGroup : MonoBehaviour
     float m_CreditClawedBack;
     // 이번 에피소드에 회수된 전달 보상 (셰프 한 명당 금액의 합).
     float m_TransferClawedBack;
+    // 이번 에피소드에 주문과 맞지 않는 요리가 주방에 있었던 시간 (요리 수 × 초).
+    float m_WrongDishSeconds;
 
     // 서빙까지 가는 체인의 고리별 통과 횟수. 보상과 무관한 순수 관측이다.
     // 서빙이 0일 때 '어느 고리에서 끊기는가'를 보려고 둔다. 전달·회수 지표만으로는
@@ -111,6 +113,15 @@ public class KitchenGroup : MonoBehaviour
         {
             AddTeamReward(rewardOrderExpired * expired);
             m_OrdersExpired += expired;
+        }
+
+        // 주문과 맞지 않는 요리가 주방에 있는 시간. 벌점이 꺼져 있어도 진단용으로 센다.
+        int wrongDishes = env.WrongDishesInPlay();
+        if (wrongDishes > 0)
+        {
+            float seconds = wrongDishes * Time.fixedDeltaTime;
+            m_WrongDishSeconds += seconds;
+            if (env.WrongDishHoldPenalty < 0f) AddTeamReward(env.WrongDishHoldPenalty * seconds);
         }
 
         if (env.IsGoalReached)
@@ -228,6 +239,7 @@ public class KitchenGroup : MonoBehaviour
         stats.Add("Kitchen/OrdersExpired", m_OrdersExpired);
         stats.Add("Kitchen/CreditClawedBack", m_CreditClawedBack);
         stats.Add("Kitchen/TransferClawedBack", m_TransferClawedBack);
+        stats.Add("Kitchen/WrongDishSeconds", m_WrongDishSeconds);
         // 전달 한 번당 서빙이 몇 접시인가. 전달만 많고 서빙이 없으면 어뷰징 신호다.
         stats.Add("Kitchen/ServesPerTransfer", m_Transfers > 0 ? (float)env.DishesServed / m_Transfers : 0f);
         for (int i = 0; i < m_Chain.Length; i++) stats.Add(ChainStatNames[i], m_Chain[i]);
@@ -256,6 +268,9 @@ public class KitchenGroup : MonoBehaviour
     // 진행 중인 에피소드의 누적 회수액.
     public float CreditClawedBack => m_CreditClawedBack;
 
+    // 진행 중인 에피소드에 틀린 요리가 있었던 시간. 회귀 검사가 읽는다.
+    public float WrongDishSeconds => m_WrongDishSeconds;
+
     // 회귀 검사 전용. 시나리오마다 집계를 0에서 시작하게 한다.
     // (검사 시나리오는 대부분 에피소드를 끝내지 않으므로, 비워주지 않으면 앞 시나리오의
     //  회수액이 다음 시나리오 측정에 섞인다)
@@ -267,6 +282,7 @@ public class KitchenGroup : MonoBehaviour
         m_OrdersExpired = 0;
         m_CreditClawedBack = 0f;
         m_TransferClawedBack = 0f;
+        m_WrongDishSeconds = 0f;
         System.Array.Clear(m_Chain, 0, m_Chain.Length);
         System.Array.Clear(m_OrderMiss, 0, m_OrderMiss.Length);
     }

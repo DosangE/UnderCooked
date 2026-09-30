@@ -1,0 +1,79 @@
+# UnderCooked - final difficulty + wrong-dish hold penalty.
+#
+# Failure analysis (reports/2026-09-29-experiment-results.md 2-2c): failures are
+# almost all episodes where the pot was filled with a recipe nobody ordered, and
+# the one-shot policy (undercooked_stage_s2) recovered badly - it kept the wrong
+# dish instead of discarding it (discard = -0.5 now, holding = 0 now).
+# Compare against undercooked_stage_s2_ft (same start, same seed, same 3M, no hold penalty):
+#   mlagents-learn configs/undercooked_final_hold.yaml --run-id=undercooked_stage_s2_hold --initialize-from=undercooked_stage_s2 --seed=2 --torch-device cuda
+#
+# Everything else is identical to undercooked_final_pen03.yaml (header below).
+#
+# UnderCooked - penalty comparison, TREATMENT arm (wrong-ingredient penalty -0.3).
+#
+# ASCII ONLY (see undercooked.yaml header - load_config() uses the OS codepage).
+#
+# Question: final2 (90%) -> final3 (98%) changed the wrong-ingredient penalty
+# from -0.1 to -0.3 AND trained 3M more steps, once, with one seed. This pair
+# separates the two: both arms start from the same checkpoint and train 3M
+# steps; only wrong_ingredient_penalty differs. 3 seeds per arm.
+#
+#   control:   configs/undercooked_final_pen01.yaml   (-0.1, the old value)
+#   treatment: configs/undercooked_final_pen03.yaml   (-0.3, the current value)
+#
+# Run (START = undercooked_final2 if its checkpoint is still in results/,
+# otherwise a finished undercooked_stage_s* run):
+#   mlagents-learn configs/undercooked_final_pen03.yaml --run-id=pen03_s1 --initialize-from=START --seed=1 --torch-device cuda
+#   (s2, s3 the same with --seed=2 / --seed=3)
+#
+# The Unity console must print "[KitchenEnv] wrong_ingredient_penalty = -0.3".
+#
+# Everything else is identical to undercooked_final.yaml.
+
+behaviors:
+  Chef:
+    trainer_type: poca
+
+    hyperparameters:
+      batch_size: 1024        # multiple of sequence_length (64)
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 64
+        memory_size: 128
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+    keep_checkpoints: 5
+    checkpoint_interval: 500000
+    max_steps: 3000000
+    time_horizon: 128
+    summary_freq: 20000
+
+environment_parameters:
+  target_dishes: 3.0
+  recipe_pool_size: 3.0
+  needs_prep: 1.0
+  cook_time: 5.0
+  order_slots: 3.0
+  order_duration: 25.0
+  max_ingredients: 2.0
+  wrong_ingredient_penalty: -0.3
+  # Team reward per second for every cooked dish (hand, counter, committed pot)
+  # that no pending order wants. Stops the moment the dish is discarded; nothing
+  # is refunded, so discarding sooner loses less. Code default 0 = off.
+  # Unity prints "[KitchenEnv] wrong_dish_hold_penalty = -0.02/s".
+  wrong_dish_hold_penalty: -0.02
