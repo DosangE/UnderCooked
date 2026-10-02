@@ -1,12 +1,13 @@
 # UnderCooked 최종 보고서 (2026-09-29, 09-30 보완 실험 반영)
 
 MA-POCA로 2인 협동 요리 정책을 학습한 프로젝트의 최종 정리.
-환경 설계의 세부 내용은 `README.md`, 날짜별 분석은 아래 보고서에 있다. 이 문서는 그 결과를 한곳에 모으고
+환경 설계의 세부 내용은 `docs/DESIGN.md`(요약은 `README.md`), 날짜별 분석은 아래 보고서에 있다. 이 문서는 그 결과를 한곳에 모으고
 보관한 산출물의 위치를 적는다.
 
 | 문서 | 내용 |
 |---|---|
-| `README.md` | 게임 규칙, 관측·행동·보상 설계, 설계 과정에서 고친 것(§4), 결과(§6), 회고(§9) |
+| `README.md` | 요약: 구조, 설계 이유, 학습 경로, 시행착오, 보완 실험, 실행 |
+| `docs/DESIGN.md` | 설계 기록 전체: 게임 규칙, 관측·행동·보상 설계, 설계 과정에서 고친 것(§4), 결과(§6), 회고(§9). 아래의 `§4-16` 같은 절 번호는 이 문서다 |
 | `reports/2026-09-25-preflight.md` | 학습 전 환경 점검 (버전 실측) |
 | `reports/2026-09-25-undercooked_v1-serve-zero.md` | v1 서빙 0회 원인 분석, lesson0 진단 |
 | `reports/2026-09-25-training-results.md` | 런별 경과, 실패 분석(병목 정정), final2·final3 |
@@ -62,7 +63,7 @@ Unity 추론 서빙 분포는 1접시 3 / 2접시 11 / 3접시 464로, 0접시 �
 | 보상 | 팀: 서빙 +3, 목표 +2, 투입 +0.3·손질 +0.2(무산되면 회수), 주문 만료 −0.5. 개인: 전달 +0.15(서빙으로 안 이어지면 회수), 집기 +0.05, 주문에 없는 재료 투입 −0.3, 주문에 없는 요리 서빙 −0.5, 스텝 −0.002 |
 | 고급 개념 | MA-POCA, Action Masking, Memory(LSTM, sequence 64 / memory 128), Curriculum |
 
-상세 표는 README §1~§3.
+상세 표는 `docs/DESIGN.md` §1~§3.
 
 ---
 
@@ -88,7 +89,7 @@ Unity 추론 서빙 분포는 1접시 3 / 2접시 11 / 3접시 464로, 0접시 �
 ![Environment/Group Cumulative Reward](../assets/tb_group_reward.png)
 
 - `Environment/Cumulative Reward`는 **개인 보상만** 담는다. 스텝 비용이 깔려 있어 최대 약 +0.46이다.
-  성과는 팀 보상과 `GoalReached`로 읽는다 (README §4-16).
+  성과는 팀 보상과 `GoalReached`로 읽는다 (`docs/DESIGN.md` §4-16).
 - v2의 누적 4.2M~4.6M(v2 기준 1.2M~1.6M) 급락은 레시피 2종, 손질 전환이 이어진 구간이다. 손질이 켜지자
   냄비를 한 번도 채우지 못했다(`Kitchen/PotCommitted` 0). 약 1.5M 스텝 뒤 스스로 손질 경로를 찾아 회복했다.
 - final 이후 곡선은 최종 난이도 고정이라 서로 직접 비교할 수 있다.
@@ -158,7 +159,7 @@ final 시점의 에피소드 평균(냄비 확정 3.49, 서빙 2.63)만 보고 �
 
 ### 4-5. 학습 전에 막은 것
 
-README §4에 설계 과정에서 고친 19건이 있다. 결과에 직접 영향을 준 것:
+`docs/DESIGN.md` §4에 설계 과정에서 고친 19건이 있다. 결과에 직접 영향을 준 것:
 
 - 카운터에 놓았다 집기 반복, 건네고 나서 버리기 같은 **보상 어뷰징 경로**. 전달 보상은 동료가 집은 순간에만 주고,
   진행·전달 보상은 무산되면 회수하도록 바꿨다. 회귀 검사 항목으로 남겼다 (§4-1, §4-12, §4-19).
@@ -188,7 +189,7 @@ README §4에 설계 과정에서 고친 19건이 있다. 결과에 직접 영�
 
 ### 학습
 
-README §5의 순서를 그대로 따른다. 각 런은 이전 런의 `results/<run-id>/Chef/checkpoint.pt`에서 시작한다.
+`README.md` §8(= `docs/DESIGN.md` §5)의 순서를 그대로 따른다. 각 런은 이전 런의 `results/<run-id>/Chef/checkpoint.pt`에서 시작한다.
 
 ```bash
 mlagents-learn configs/undercooked_lesson0.yaml --run-id=undercooked_lesson0 --torch-device cuda
