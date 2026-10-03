@@ -1,0 +1,61 @@
+# UnderCooked - blue ingredient, fixed final difficulty (6 dishes).
+#
+# ASCII ONLY (see undercooked.yaml header - load_config() uses the OS codepage).
+#
+# Continues undercooked_blue_s1 (stage curriculum, 25M), which reached the
+# last stage but only ~45% success: the 6-dish stage was entered by a forced
+# advance and the linear learning-rate schedule had decayed to ~0 by 25M.
+# A new run with --initialize-from restarts the schedule, the same way the
+# old final model was built (undercooked_final -> final2 -> final3).
+#
+# Run:
+#   mlagents-learn configs/undercooked_blue_final.yaml --run-id=undercooked_blue_final --initialize-from=undercooked_blue_s1 --seed=1 --torch-device cuda
+#
+# Everything under behaviors is identical to undercooked_blue_stage.yaml except max_steps.
+
+behaviors:
+  Chef:
+    trainer_type: poca
+
+    hyperparameters:
+      batch_size: 1024        # multiple of sequence_length (64)
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 64
+        memory_size: 128
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+    keep_checkpoints: 5
+    checkpoint_interval: 500000
+    # The old final model took 3 x 3M at final difficulty (73% -> 90% -> 98%).
+    # Here it is one 9M run.
+    max_steps: 9000000
+    time_horizon: 128
+    summary_freq: 20000
+
+environment_parameters:
+  # Final difficulty with all 6 recipes (= last row of the stage table).
+  target_dishes: 3.0
+  recipe_pool_size: 6.0
+  needs_prep: 1.0
+  cook_time: 5.0
+  order_slots: 3.0
+  order_duration: 25.0
+  max_ingredients: 2.0
+  # wrong_ingredient_penalty is NOT set: the code default (-0.3) is used,
+  # the same as undercooked_blue_s1.
