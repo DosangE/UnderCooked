@@ -25,6 +25,9 @@
 #   5: 3 recipes, cook 5s
 #   6: 2 slots
 #   7: 3 slots                                        (= undercooked_final.yaml)
+# NOTE (2026-10-03): this was the table for these runs. The code now has the
+# blue-ingredient table (9 stages, see undercooked_blue_stage.yaml), so this
+# file no longer reproduces them; use the commit before dev_add-blue.
 # Watch Kitchen/Stage and Kitchen/StageSuccessRate in TensorBoard, and the
 # "[StageCurriculum] ..." lines in the Unity console.
 #

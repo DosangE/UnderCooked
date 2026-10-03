@@ -12,20 +12,21 @@ using System.Text;
 public enum IngredientType
 {
     Green = 0,
-    Red = 1
+    Red = 1,
+    Blue = 2
 }
 
 public static class IngredientTypeExtensions
 {
-    public const int Count = 2;
+    public const int Count = 3;
 
     // 재료마다 생재료 / 손질된 재료 / 그 재료를 내는 재료함. 인덱스 = IngredientType.
-    static readonly ItemType[] s_Raw = { ItemType.RawGreen, ItemType.RawRed };
-    static readonly ItemType[] s_Prepped = { ItemType.PrepGreen, ItemType.PrepRed };
-    static readonly StationType[] s_Box = { StationType.GreenBox, StationType.RedBox };
+    static readonly ItemType[] s_Raw = { ItemType.RawGreen, ItemType.RawRed, ItemType.RawBlue };
+    static readonly ItemType[] s_Prepped = { ItemType.PrepGreen, ItemType.PrepRed, ItemType.PrepBlue };
+    static readonly StationType[] s_Box = { StationType.GreenBox, StationType.RedBox, StationType.BlueBox };
 
     // 사람용 표시 이름. 관측/보상에는 쓰이지 않는다.
-    static readonly string[] s_Label = { "초록", "빨강" };
+    static readonly string[] s_Label = { "초록", "빨강", "파랑" };
 
     public static ItemType Raw(this IngredientType ingredient) => s_Raw[(int)ingredient];
     public static ItemType Prepped(this IngredientType ingredient) => s_Prepped[(int)ingredient];

@@ -13,7 +13,7 @@ public class OrderBoard
 {
     public const int MaxSlots = 3;
 
-    // 관측 한 슬롯당 차원: 요리 one-hot(3) + 남은 시간 정규화(1) + 유효 플래그(1)
+    // 관측 한 슬롯당 차원: 요리 one-hot(레시피 수 6) + 남은 시간 정규화(1) + 유효 플래그(1)
     public const int ObservationPerSlot = RecipeTypeExtensions.Count + 2;
     public const int ObservationSize = MaxSlots * ObservationPerSlot;
 

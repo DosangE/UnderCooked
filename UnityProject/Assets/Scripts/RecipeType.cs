@@ -17,16 +17,23 @@ using System.Collections.Generic;
 //
 // 값은 관측 one-hot 인덱스로 쓰인다. 순서를 바꾸면 관측이 깨진다.
 // 커리큘럼(recipe_pool_size)은 이 순서대로 앞에서부터 풀어준다.
+//   1~3: 초록/빨강만 (예전 3종 그대로)
+//   4:   파랑이 처음 등장한다. 파랑 하나만 새로 익히도록 BlueSoup(파랑x2)을 먼저 푼다
+//   5~6: 파랑과 기존 재료의 조합
+// 재료 3종 x 2개 조합 = 6가지가 전부 레시피라서 냄비가 차면 반드시 어떤 요리가 된다.
 public enum RecipeType
 {
-    GreenSoup = 0,   // 초록 x2
-    MixSoup = 1,     // 초록 + 빨강
-    RedSoup = 2      // 빨강 x2
+    GreenSoup = 0,       // 초록 x2
+    MixSoup = 1,         // 초록 + 빨강
+    RedSoup = 2,         // 빨강 x2
+    BlueSoup = 3,        // 파랑 x2
+    GreenBlueSoup = 4,   // 초록 + 파랑
+    RedBlueSoup = 5      // 빨강 + 파랑
 }
 
 public static class RecipeTypeExtensions
 {
-    public const int Count = 3;
+    public const int Count = 6;
 
     // 모든 레시피가 재료 2개다. 냄비 용량이자 조리 시작 조건이다.
     public const int Capacity = 2;
@@ -35,13 +42,21 @@ public static class RecipeTypeExtensions
     // 재료 개수 조합이 곧 레시피이므로, 냄비에 Capacity개가 차면 정확히 한 행과 맞아야 한다.
     static readonly int[][] s_Required =
     {
-        new[] { 2, 0 },   // GreenSoup
-        new[] { 1, 1 },   // MixSoup
-        new[] { 0, 2 },   // RedSoup
+        //       초록 빨강 파랑
+        new[] { 2, 0, 0 },   // GreenSoup
+        new[] { 1, 1, 0 },   // MixSoup
+        new[] { 0, 2, 0 },   // RedSoup
+        new[] { 0, 0, 2 },   // BlueSoup
+        new[] { 1, 0, 1 },   // GreenBlueSoup
+        new[] { 0, 1, 1 },   // RedBlueSoup
     };
 
     // 이 레시피가 완성되면 나오는 아이템.
-    static readonly ItemType[] s_Dish = { ItemType.CookedGreen, ItemType.CookedMix, ItemType.CookedRed };
+    static readonly ItemType[] s_Dish =
+    {
+        ItemType.CookedGreen, ItemType.CookedMix, ItemType.CookedRed,
+        ItemType.CookedBlue, ItemType.CookedGreenBlue, ItemType.CookedRedBlue
+    };
 
     public static int Required(this RecipeType recipe, IngredientType ingredient)
     {

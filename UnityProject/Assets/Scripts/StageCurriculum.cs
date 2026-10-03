@@ -39,6 +39,14 @@ public static class StageCurriculum
     // 순서는 v2의 전환 순서(레시피 2종 -> 손질 -> 레시피 3종 -> 조리 5초 -> 슬롯)를 따른다.
     // 3단계는 v2가 무너진 손질 전환을 둘로 쪼갠 것이다. 손질 없는 판을 섞어 두면
     // 이미 배운 '생재료를 바로 냄비에' 경로가 한순간에 전부 막히지 않는다.
+    //
+    // 파랑을 넣으면서 바꾼 것 (reports/2026-09-29-experiment-results.md 실험 A):
+    //   - 예전 5단계(레시피 3, 슬롯 1)를 뺐다. 성공한 두 런 모두 거기서 강제 승급됐고,
+    //     슬롯 2개가 되자 오히려 좋아졌다. 주문이 하나뿐이면 첫 재료를 틀렸을 때 받아줄
+    //     다른 주문이 없어서, 레시피가 많을수록 최종 난이도보다 어려운 칸이 된다.
+    //     그래서 레시피를 늘리는 단계는 전부 슬롯 2개 이상에서 한다.
+    //   - 파랑은 최종 3종을 익힌 뒤에 들인다. 먼저 BlueSoup(파랑x2)만 더해 새 재료함 하나를
+    //     익히고(7), 그다음 파랑 조합 두 가지를 더한다(8).
     public static readonly Stage[] Stages =
     {
         new Stage { TargetDishes = 1, RecipePool = 1, PrepChance = 0f,   CookTime = 2f, OrderSlots = 1 }, // 0 = 기존 lesson0
@@ -46,9 +54,10 @@ public static class StageCurriculum
         new Stage { TargetDishes = 3, RecipePool = 2, PrepChance = 0f,   CookTime = 2f, OrderSlots = 1 }, // 2 주문 읽기 시작
         new Stage { TargetDishes = 3, RecipePool = 2, PrepChance = 0.5f, CookTime = 2f, OrderSlots = 1 }, // 3 손질 절반
         new Stage { TargetDishes = 3, RecipePool = 2, PrepChance = 1f,   CookTime = 2f, OrderSlots = 1 }, // 4
-        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 1 }, // 5
-        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 2 }, // 6
-        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 3 }, // 7 = 최종 난이도
+        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 2 }, // 5 (예전 6)
+        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 3 }, // 6 = 예전 최종 난이도
+        new Stage { TargetDishes = 3, RecipePool = 4, PrepChance = 1f,   CookTime = 5f, OrderSlots = 3 }, // 7 파랑 등장 (BlueSoup)
+        new Stage { TargetDishes = 3, RecipePool = 6, PrepChance = 1f,   CookTime = 5f, OrderSlots = 3 }, // 8 = 최종 난이도 (6종)
     };
 
     public static int LastStage => Stages.Length - 1;

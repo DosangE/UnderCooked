@@ -16,6 +16,7 @@ public class KitchenEnv : MonoBehaviour
     const char CharCounter = 'C';
     const char CharGreenBox = 'G';
     const char CharRedBox = 'R';
+    const char CharBlueBox = 'U';   // 'B'는 Chef B 스폰이 쓰고 있어서 blUe의 U
     const char CharPrepA = 'a';
     const char CharPrepB = 'b';
     const char CharPot = 'P';
@@ -24,7 +25,7 @@ public class KitchenEnv : MonoBehaviour
 
     // 맵 레이아웃. 배열 0번이 맵의 '위'(북쪽, row 최대)다. 파싱할 때 뒤집는다.
     //   # = 벽        . = 바닥       A/B = 셰프 스폰      C = 카운터 전달칸
-    //   G = 초록 재료함   R = 빨강 재료함   (둘 다 경계 위 = 양쪽 구역에서 집을 수 있다)
+    //   G = 초록 재료함   U = 파랑 재료함   R = 빨강 재료함   (모두 경계 위 = 양쪽 구역에서 집을 수 있다)
     //   a = A 구역 손질대   b = B 구역 손질대   (둘 다 색을 가리지 않는다)
     //   P = 냄비(A 구역)   D = 그릇함(B 구역)   S = 서빙구(B 구역)
     //
@@ -43,7 +44,7 @@ public class KitchenEnv : MonoBehaviour
         "#.......#", // row 7
         "#.......#", // row 6  <- Chef A 구역 (3행 x 7열)
         "#..A....P", // row 5     냄비는 A 구역 동쪽
-        "#CCG#RCC#", // row 4  <- 경계: 카운터 4칸 + 재료함 2개(공용)
+        "#CCGURCC#", // row 4  <- 경계: 카운터 4칸 + 재료함 3개(공용). 파랑은 예전 가운데 벽 자리
         "D..B....S", // row 3     그릇함 / 서빙구는 B 구역
         "#.......#", // row 2  <- Chef B 구역 (3행 x 7열)
         "#.......#", // row 1
@@ -79,7 +80,7 @@ public class KitchenEnv : MonoBehaviour
     [Tooltip("동시에 대기하는 주문 수. EnvironmentParameters의 order_slots가 없을 때 쓰는 값")]
     [SerializeField] int defaultOrderSlots = OrderBoard.MaxSlots;
     [Tooltip("주문에 나올 수 있는 레시피 수. RecipeType 순서대로 앞에서부터 풀린다. " +
-             "1이면 GreenSoup만, 2면 +MixSoup, 3이면 +RedSoup")]
+             "1이면 GreenSoup만, 2면 +MixSoup, 3이면 +RedSoup, 4면 +BlueSoup(파랑 등장), 6이면 전부")]
     [SerializeField] int defaultRecipePoolSize = RecipeTypeExtensions.Count;
     [Tooltip("주문 하나의 제한 시간(초). 넘기면 만료되고 팀 패널티가 붙는다")]
     [SerializeField] float defaultOrderDuration = 20f;
@@ -487,6 +488,7 @@ public class KitchenEnv : MonoBehaviour
         {
             case CharGreenBox:     type = StationType.GreenBox;     return true;
             case CharRedBox:       type = StationType.RedBox;       return true;
+            case CharBlueBox:      type = StationType.BlueBox;      return true;
             case CharPrepA:        type = StationType.PrepA;        return true;
             case CharPrepB:        type = StationType.PrepB;        return true;
             case CharPot:          type = StationType.Pot;          return true;

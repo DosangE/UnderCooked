@@ -43,6 +43,7 @@ public static class KitchenSelfTest
         allOk &= StageCurriculumAdvancesOnSuccess(sb, env, group, agents);
         allOk &= WrongIngredientPenaltyFromYaml(sb, env, agents);
         allOk &= WrongDishHoldPenalty(sb, env, group, agents);
+        allOk &= BlueIngredientWorks(sb, env, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -162,6 +163,74 @@ public static class KitchenSelfTest
         return ok;
     }
 
+    // 15) 파랑 재료와 레시피 표.
+    //     (a) 표: 모든 레시피가 재료 Capacity개, 재료 2개의 모든 조합이 정확히 한 레시피, 요리 <-> 레시피 왕복
+    //     (b) 파랑 재료함 -> (손질) -> 냄비, 초록을 더하면 GreenBlueSoup으로 확정
+    //     (c) 레시피 풀에 파랑 레시피가 없으면(3종 이하) 파랑 재료함은 막힌다
+    static bool BlueIngredientWorks(StringBuilder sb, KitchenEnv env, ChefAgent[] agents)
+    {
+        // (a)
+        bool table = true;
+        var dishes = new System.Collections.Generic.HashSet<ItemType>();
+        for (int r = 0; r < RecipeTypeExtensions.Count; r++)
+        {
+            var recipe = (RecipeType)r;
+            int sum = 0;
+            for (int i = 0; i < IngredientTypeExtensions.Count; i++) sum += recipe.Required((IngredientType)i);
+            table &= sum == RecipeTypeExtensions.Capacity;
+            table &= dishes.Add(recipe.Dish());
+            table &= recipe.Dish().TryGetRecipe(out var back) && back == recipe;
+        }
+        int combos = 0;
+        for (int a = 0; a < IngredientTypeExtensions.Count; a++)
+        {
+            for (int b = a; b < IngredientTypeExtensions.Count; b++)
+            {
+                var counts = new int[IngredientTypeExtensions.Count];
+                counts[a]++;
+                counts[b]++;
+                var recipe = RecipeTypeExtensions.FromCounts(counts);
+                for (int i = 0; i < IngredientTypeExtensions.Count; i++)
+                    table &= recipe.Required((IngredientType)i) == counts[i];
+                combos++;
+            }
+        }
+        table &= combos == RecipeTypeExtensions.Count;
+
+        // (b)
+        Reset(env, agents);
+        env.Orders.Configure(OrderBoard.MaxSlots, RecipeTypeExtensions.Count, 999f);
+        ForceAllOrders(env, RecipeType.GreenBlueSoup);
+        var blueBox = env.GetStation(StationType.BlueBox);
+        var prep = env.GetPrepFor(0);
+        var pot = env.Pot;
+
+        Act(env, agents[0], blueBox);
+        bool pickedBlue = agents[0].HeldItem == ItemType.RawBlue;
+        Act(env, agents[0], prep, keepHeld: true);
+        Act(env, agents[0], pot, keepHeld: true);
+        bool blueInPot = pot.Count(IngredientType.Blue) == 1 && pot.TotalCount == 1;
+        Act(env, agents[0], env.GetStation(StationType.GreenBox));
+        Act(env, agents[0], prep, keepHeld: true);
+        Act(env, agents[0], pot, keepHeld: true);
+        bool cooked = pickedBlue && blueInPot && pot.IsCommitted && pot.CookedRecipe == RecipeType.GreenBlueSoup;
+
+        // (c)
+        Reset(env, agents);
+        env.Orders.Configure(OrderBoard.MaxSlots, 3, 999f);
+        bool blockedAt3 = !env.CanInteractAt(blueBox.Cell, ItemType.None);
+        env.Orders.Configure(OrderBoard.MaxSlots, 4, 999f);
+        bool openAt4 = env.CanInteractAt(blueBox.Cell, ItemType.None);
+        bool gate = blockedAt3 && openAt4;
+
+        bool ok = table && cooked && gate;
+        sb.AppendLine("[15] 파랑 재료   레시피 표 " + Mark(table) + " (조합 " + combos + ")"
+                      + " / 파랑+초록 -> GreenBlueSoup " + Mark(cooked)
+                      + " / 3종이면 파랑 재료함 막힘, 4종이면 열림 " + Mark(gate) + "   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
     // 10) 처음부터 주문에 없는 레시피로 냄비를 채우면 '확정 불일치'로 세야 한다.
     //     [3]은 채운 뒤에 주문이 사라지는 경우다. 둘을 가르는 것이 이 지표의 목적이다.
     static bool WrongRecipeCommitIsCounted(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
@@ -239,12 +308,12 @@ public static class KitchenSelfTest
             ForceTimeout(env, group);
             endPath = stage0 && StageCurriculum.Current == 1 && env.Stage == 1 && env.TargetDishes == 3;
 
-            // (f) 마지막 단계는 기존 최종 난이도(configs/undercooked_final.yaml)와 같아야 한다
+            // (f) 마지막 단계는 최종 난이도(configs/undercooked_final.yaml의 조건에 레시피 전부)와 같아야 한다
             StageCurriculum.EnableForTest(0.8f, 500, 0, last);
             Reset(env, agents);
             table = env.Stage == last && env.TargetDishes == 3 && env.NeedsPrep
                     && Mathf.Approximately(env.CookTime, 5f)
-                    && env.Orders.ActiveSlots == 3 && env.Orders.PoolSize == 3;
+                    && env.Orders.ActiveSlots == 3 && env.Orders.PoolSize == RecipeTypeExtensions.Count;
 
             // (g) 손질 절반 단계(3)는 에피소드마다 손질이 섞여 나온다
             StageCurriculum.EnableForTest(0.8f, 500, 0, 3);
