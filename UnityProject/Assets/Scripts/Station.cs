@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 // 재료함 / 손질대 / 냄비 / 그릇함 / 서빙구 / 카운터 전달칸 공통 컴포넌트.
@@ -52,10 +54,12 @@ public class Station : MonoBehaviour
     }
 
     // --- 냄비 상태 ---
-    // 색깔별 개수다. 레시피가 '초록x2' 같은 조합이므로 bool로는 표현할 수 없다.
-    public int GreenCount { get; private set; }
-    public int RedCount { get; private set; }
-    public int TotalCount => GreenCount + RedCount;
+    // 재료별 개수다(인덱스 = IngredientType). 레시피가 '초록x2' 같은 조합이므로 bool로는 표현할 수 없다.
+    readonly int[] m_Counts = new int[IngredientTypeExtensions.Count];
+
+    public IReadOnlyList<int> Counts => m_Counts;
+    public int Count(IngredientType ingredient) => m_Counts[(int)ingredient];
+    public int TotalCount { get; private set; }
 
     public bool IsCooking { get; private set; }
     public bool HasCookedDish { get; private set; }
@@ -137,8 +141,7 @@ public class Station : MonoBehaviour
         CounterItemTransferCredit = 0f;
         PendingProgressCredit = 0f;
         PendingTransferCredit = 0f;
-        GreenCount = 0;
-        RedCount = 0;
+        ClearPot();
         IsCooking = false;
         HasCookedDish = false;
         IsCommitted = false;
@@ -157,8 +160,14 @@ public class Station : MonoBehaviour
         m_CookTimer = 0f;
         IsCooking = false;
         HasCookedDish = true;
-        // GreenCount/RedCount는 일부러 그대로 둔다. 여기서 0으로 만들면
+        // 재료별 개수(m_Counts)는 일부러 그대로 둔다. 여기서 0으로 만들면
         // 관측(냄비 내용물)이 조리 완료 순간에 바뀌어서 완료 여부가 새어나간다.
+    }
+
+    void ClearPot()
+    {
+        Array.Clear(m_Counts, 0, m_Counts.Length);
+        TotalCount = 0;
     }
 
     // 냄비가 지금 이 재료를 받을 수 있는가.
@@ -168,8 +177,8 @@ public class Station : MonoBehaviour
         if (TotalCount >= RecipeTypeExtensions.Capacity) return false;
 
         // 손질이 필요한 단계에서는 생재료를 거부한다. 손질대를 거치라는 뜻.
-        if (m_NeedsPrep && (heldItem == ItemType.RawGreen || heldItem == ItemType.RawRed)) return false;
-        if (!m_NeedsPrep && (heldItem == ItemType.PrepGreen || heldItem == ItemType.PrepRed)) return false;
+        if (m_NeedsPrep && heldItem.IsRawIngredient()) return false;
+        if (!m_NeedsPrep && heldItem.IsPreppedIngredient()) return false;
 
         return heldItem.IsIngredient();
     }
@@ -188,20 +197,21 @@ public class Station : MonoBehaviour
     // Action Masking이 이 값을 그대로 쓴다 -> false면 Interact 행동이 마스킹된다.
     public bool CanInteract(ItemType heldItem)
     {
+        // 재료함. 손이 비었을 때만 꺼낼 수 있다.
+        // '필드 동시 재료 수' 제한과 이번 에피소드에 안 쓰는 재료함은 KitchenEnv가 따로 막는다.
+        if (type.TryGetBoxIngredient(out _)) return heldItem == ItemType.None;
+
         switch (type)
         {
-            case StationType.GreenBox:
-            case StationType.RedBox:
             case StationType.PlateStack:
                 // 손이 비었을 때만 꺼낼 수 있다.
-                // 재료함의 '필드 동시 재료 수' 제한은 KitchenEnv가 따로 건다.
                 return heldItem == ItemType.None;
 
             case StationType.PrepA:
             case StationType.PrepB:
                 // 손질대는 색을 가리지 않는다. 구역마다 하나씩 있고 아무 생재료나 받는다.
                 // 색을 가리면 재료의 색이 담당 구역을 정해버려서 주문에 따라 한쪽이 논다.
-                return m_NeedsPrep && (heldItem == ItemType.RawGreen || heldItem == ItemType.RawRed);
+                return m_NeedsPrep && heldItem.IsRawIngredient();
 
             case StationType.Pot:
                 if (heldItem == ItemType.None) return CanDumpPot();
@@ -235,16 +245,14 @@ public class Station : MonoBehaviour
         newHeldItem = heldItem;
         if (!CanInteract(heldItem)) return InteractResult.Nothing;
 
+        if (type.TryGetBoxIngredient(out var boxIngredient))
+        {
+            newHeldItem = boxIngredient.Raw();
+            return InteractResult.PickedFromSource;
+        }
+
         switch (type)
         {
-            case StationType.GreenBox:
-                newHeldItem = ItemType.RawGreen;
-                return InteractResult.PickedFromSource;
-
-            case StationType.RedBox:
-                newHeldItem = ItemType.RawRed;
-                return InteractResult.PickedFromSource;
-
             case StationType.PlateStack:
                 newHeldItem = ItemType.EmptyPlate;
                 return InteractResult.PickedFromSource;
@@ -252,7 +260,7 @@ public class Station : MonoBehaviour
             case StationType.PrepA:
             case StationType.PrepB:
                 // 들고 온 재료의 색을 그대로 유지한다. 손질대가 색을 바꾸지는 않는다.
-                newHeldItem = heldItem.IsGreen() ? ItemType.PrepGreen : ItemType.PrepRed;
+                newHeldItem = heldItem.Ingredient().Prepped();
                 return InteractResult.Prepped;
 
             case StationType.Pot:
@@ -295,23 +303,22 @@ public class Station : MonoBehaviour
         // 1) 빈손 -> 내용물 버리기
         if (heldItem == ItemType.None)
         {
-            GreenCount = 0;
-            RedCount = 0;
+            ClearPot();
             return InteractResult.PotDumped;
         }
 
-        // 2) 재료 투입
+        // 2) 재료 투입 (PotAccepts를 통과했으므로 재료다)
         if (heldItem != ItemType.EmptyPlate)
         {
-            if (heldItem.IsGreen()) GreenCount++;
-            else RedCount++;
+            m_Counts[(int)heldItem.Ingredient()]++;
+            TotalCount++;
 
             newHeldItem = ItemType.None;
 
             if (TotalCount >= RecipeTypeExtensions.Capacity)
             {
                 // 재료가 다 찼다. 이 시점에 만들 요리가 확정된다.
-                m_CookedRecipe = RecipeTypeExtensions.FromCounts(GreenCount, RedCount);
+                m_CookedRecipe = RecipeTypeExtensions.FromCounts(m_Counts);
                 IsCommitted = true;
                 IsCooking = true;
                 m_CookTimer = 0f;
@@ -325,8 +332,7 @@ public class Station : MonoBehaviour
 
         // 완성됐으면 담아서 들고 나간다. 냄비는 다음 배치를 위해 비워진다.
         newHeldItem = m_CookedRecipe.Dish();
-        GreenCount = 0;
-        RedCount = 0;
+        ClearPot();
         IsCommitted = false;
         HasCookedDish = false;
         // PendingProgressCredit은 여기서 지우지 않는다.

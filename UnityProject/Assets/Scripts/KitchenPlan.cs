@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 // '지금 이 주방이 무슨 요리를 만드는 중인가'를 한 곳에서 계산한 결과.
 //
 // 사람이 플레이할 때 쓰는 안내 전용이다. 관측/보상/행동에는 전혀 쓰이지 않는다.
@@ -21,16 +23,14 @@ public struct KitchenPlan
     public int OrderSlot;
     public RecipeType Recipe;
 
-    // 목표 요리까지 냄비에 '앞으로 더' 넣어야 할 개수.
-    public int NeedGreen;
-    public int NeedRed;
+    // 재료를 모으는 중(Gather)일 때의 냄비 내용물. 그 밖의 단계에서는 null이다.
+    // 냄비의 배열을 그대로 가리키므로, 계획은 만든 그 프레임 안에서만 쓴다(매 프레임 새로 만든다).
+    public IReadOnlyList<int> PotCounts;
 
-    public int NeedTotal => NeedGreen + NeedRed;
-
-    // 이 색 재료가 지금 필요한가.
-    public bool NeedsColor(bool green)
+    // 목표 요리까지 냄비에 이 재료를 '앞으로 더' 넣어야 할 개수. 모으는 중이 아니면 0.
+    public int Need(IngredientType ingredient)
     {
-        return green ? NeedGreen > 0 : NeedRed > 0;
+        return Current == Step.Gather && PotCounts != null ? Recipe.Missing(ingredient, PotCounts) : 0;
     }
 
     // 냄비에 들어 있는 것으로는 어떤 주문도 만들 수 없는 상태. 비워야 한다.

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // 사람이 플레이할 때 화면에 네 가지를 띄운다.
@@ -144,7 +145,7 @@ public class OrderHud : MonoBehaviour
 
         string contents = pot.TotalCount == 0
             ? "(비어 있음)"
-            : $"초록 {pot.GreenCount} / 빨강 {pot.RedCount}";
+            : IngredientTypeExtensions.Describe(pot.Counts);
 
         switch (plan.Current)
         {
@@ -167,7 +168,7 @@ public class OrderHud : MonoBehaviour
                 break;
             default:
                 Label(m_Line, ColorDim,
-                    $"{contents} - {RecipeLabel(plan.Recipe)} 까지 초록 {plan.NeedGreen} / 빨강 {plan.NeedRed} 더");
+                    $"{contents} - {RecipeLabel(plan.Recipe)} 까지 {DescribeNeed(plan)} 더");
                 Bar((float)pot.TotalCount / RecipeTypeExtensions.Capacity, ColorDim);
                 break;
         }
@@ -237,29 +238,34 @@ public class OrderHud : MonoBehaviour
         }
     }
 
+    // "GreenSoup(초록2)", "MixSoup(초록1+빨강1)" 꼴. 재료 구성은 레시피 표에서 가져온다.
     static string RecipeLabel(RecipeType recipe)
     {
-        switch (recipe)
+        var parts = new List<string>();
+        for (int i = 0; i < IngredientTypeExtensions.Count; i++)
         {
-            case RecipeType.GreenSoup: return "GreenSoup(초록2)";
-            case RecipeType.MixSoup:   return "MixSoup(초록1+빨강1)";
-            default:                   return "RedSoup(빨강2)";
+            var ingredient = (IngredientType)i;
+            int count = recipe.Required(ingredient);
+            if (count > 0) parts.Add($"{ingredient.Label()}{count}");
         }
+        return $"{recipe}({string.Join("+", parts)})";
+    }
+
+    // 목표 요리까지 더 넣어야 할 재료를 "초록 1 / 빨강 0" 꼴로.
+    static string DescribeNeed(KitchenPlan plan)
+    {
+        var need = new int[IngredientTypeExtensions.Count];
+        for (int i = 0; i < need.Length; i++) need[i] = plan.Need((IngredientType)i);
+        return IngredientTypeExtensions.Describe(need);
     }
 
     static string ItemLabel(ItemType item)
     {
-        switch (item)
-        {
-            case ItemType.None:        return "빈손";
-            case ItemType.RawGreen:    return "생초록";
-            case ItemType.RawRed:      return "생빨강";
-            case ItemType.PrepGreen:   return "손질초록";
-            case ItemType.PrepRed:     return "손질빨강";
-            case ItemType.EmptyPlate:  return "빈그릇";
-            case ItemType.CookedGreen: return "GreenSoup";
-            case ItemType.CookedMix:   return "MixSoup";
-            default:                   return "RedSoup";
-        }
+        if (item == ItemType.None) return "빈손";
+        if (item == ItemType.EmptyPlate) return "빈그릇";
+        if (item.TryGetRecipe(out var recipe)) return recipe.ToString();
+        if (item.IsRawIngredient()) return "생" + item.Ingredient().Label();
+        if (item.IsPreppedIngredient()) return "손질" + item.Ingredient().Label();
+        return item.ToString();
     }
 }
