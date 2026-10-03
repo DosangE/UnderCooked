@@ -557,7 +557,11 @@ public class KitchenEnv : MonoBehaviour
         // 손질대는 구역마다 하나씩이고 색과 무관하므로, 손질 단계에서는 둘 다 필요하다.
         SetStationVisible(StationType.PrepA, m_NeedsPrep);
         SetStationVisible(StationType.PrepB, m_NeedsPrep);
-        SetStationVisible(StationType.RedBox, m_Orders.UsesRed);
+        for (int i = 0; i < IngredientTypeExtensions.Count; i++)
+        {
+            var ingredient = (IngredientType)i;
+            SetStationVisible(ingredient.Box(), m_Orders.UsesIngredient(ingredient));
+        }
 
         DishesServed = 0;
         m_EpisodeTimer = 0f;
@@ -739,7 +743,7 @@ public class KitchenEnv : MonoBehaviour
         }
 
         // 2) 아직 재료를 받는 중 -> 지금 내용물로 만들 수 있는 주문 중 가장 급한 것을 목표로.
-        plan.OrderSlot = m_Orders.FindMostUrgentReachable(pot.GreenCount, pot.RedCount);
+        plan.OrderSlot = m_Orders.FindMostUrgentReachable(pot.Counts);
         if (plan.OrderSlot < 0)
         {
             // 냄비에 든 것으로는 어떤 주문도 못 만든다. 비워야 한다.
@@ -749,8 +753,7 @@ public class KitchenEnv : MonoBehaviour
 
         plan.HasOrder = true;
         plan.Recipe = m_Orders.GetSlot(plan.OrderSlot).Recipe;
-        plan.NeedGreen = plan.Recipe.RequiredGreen() - pot.GreenCount;
-        plan.NeedRed = plan.Recipe.RequiredRed() - pot.RedCount;
+        plan.PotCounts = pot.Counts;
         plan.Current = KitchenPlan.Step.Gather;
         return plan;
     }
@@ -830,9 +833,9 @@ public class KitchenEnv : MonoBehaviour
     //   상한을 걸어도 막다른 상태는 생기지 않는다 - 그릇은 서빙구에 버려서 되돌릴 수 있다.
     bool SourceAllowed(Station station)
     {
-        if (station.Type == StationType.RedBox && !m_Orders.UsesRed) return false;
         if (station.Type == StationType.PlateStack) return PlatesInPlay() < maxPlates;
-        if (station.Type != StationType.GreenBox && station.Type != StationType.RedBox) return true;
+        if (!station.Type.TryGetBoxIngredient(out var ingredient)) return true;
+        if (!m_Orders.UsesIngredient(ingredient)) return false;
         return IngredientsInPlay() < m_MaxIngredients;
     }
 
@@ -861,7 +864,7 @@ public class KitchenEnv : MonoBehaviour
                 if (item == ItemType.EmptyPlate) return true;
                 if (!item.IsIngredient()) return false;
                 // 냄비가 지금 받는 형태여야 쓸모가 있다. Station.PotAccepts와 같은 규칙.
-                bool raw = item == ItemType.RawGreen || item == ItemType.RawRed;
+                bool raw = item.IsRawIngredient();
                 return m_NeedsPrep ? !raw : raw;
 
             case StationType.ServingHatch: return item.IsCookedDish();
@@ -914,14 +917,14 @@ public class KitchenEnv : MonoBehaviour
         //   무조건 주면 위의 반복이 다시 열린다.
         if (item == ItemType.EmptyPlate) return Pot != null && Pot.IsCommitted;
         if (item.IsCookedDish()) return m_Orders.HasOrderFor(item);
-        if (item.IsIngredient()) return m_Orders.WantsColor(item.IsGreen(), PlanningGreen, PlanningRed);
+        if (item.IsIngredient()) return m_Orders.WantsIngredient(item.Ingredient(), PlanningCounts);
         return false;
     }
 
     // '다음에 냄비가 어떤 상태에서 출발하는가'. 조리가 확정된 냄비는 어차피 비워진 뒤
-    // 새 배치가 시작되므로 0,0으로 본다. 재료를 미리 손질해 두는 행동을 벌하지 않기 위해서다.
-    int PlanningGreen => Pot != null && !Pot.IsCommitted ? Pot.GreenCount : 0;
-    int PlanningRed => Pot != null && !Pot.IsCommitted ? Pot.RedCount : 0;
+    // 새 배치가 시작되므로 빈 냄비로 본다. 재료를 미리 손질해 두는 행동을 벌하지 않기 위해서다.
+    static readonly int[] s_EmptyPot = new int[IngredientTypeExtensions.Count];
+    IReadOnlyList<int> PlanningCounts => Pot != null && !Pot.IsCommitted ? Pot.Counts : s_EmptyPot;
 
     // ─────────────────────────── 상호작용 ───────────────────────────
 
@@ -970,7 +973,7 @@ public class KitchenEnv : MonoBehaviour
                 // 조리가 확정된 경우(재료가 다 찬 경우)는 만들어질 요리 자체를 주문과 대조한다.
                 bool ok = station.IsCommitted
                     ? m_Orders.HasOrderFor(station.CookedRecipe.Dish())
-                    : m_Orders.IsReachable(station.GreenCount, station.RedCount);
+                    : m_Orders.IsReachable(station.Counts);
                 if (!ok) outcome.Result = InteractResult.PlacedInPotWrong;
                 break;
 
@@ -1097,7 +1100,7 @@ public class KitchenEnv : MonoBehaviour
             case InteractResult.PlacedInPot:
                 LogHumanEvent(pot != null && pot.IsCommitted
                     ? $"{who}: 냄비에 넣었다 -> 재료 다 찼다! {pot.CookedRecipe} 끓기 시작"
-                    : $"{who}: 냄비에 넣었다 (초록 {pot?.GreenCount} / 빨강 {pot?.RedCount})", LogKind.Good);
+                    : $"{who}: 냄비에 넣었다 ({(pot != null ? IngredientTypeExtensions.Describe(pot.Counts) : "")})", LogKind.Good);
                 break;
 
             case InteractResult.PlacedInPotWrong:

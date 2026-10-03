@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 // 주문될 수 있는 요리 종류.
 //
 // 레시피 축을 '재료 2개 조합'으로 잡았다. 새 재료함이나 새 손질대 없이
@@ -11,7 +13,7 @@
 //
 // 색으로 나눴던 예전 설계는 RedSoup에서 B가 이동량의 81%를 지고 A는 냄비 앞에서
 // 받기만 했다(4.3:1). 누가 무엇을 맡을지는 맵이 아니라 둘이 런타임에 정해야 한다.
-// 측정값과 경위는 README 4-10에 있다.
+// 측정값과 경위는 docs/DESIGN.md 4-10에 있다.
 //
 // 값은 관측 one-hot 인덱스로 쓰인다. 순서를 바꾸면 관측이 깨진다.
 // 커리큘럼(recipe_pool_size)은 이 순서대로 앞에서부터 풀어준다.
@@ -29,45 +31,69 @@ public static class RecipeTypeExtensions
     // 모든 레시피가 재료 2개다. 냄비 용량이자 조리 시작 조건이다.
     public const int Capacity = 2;
 
-    public static int RequiredGreen(this RecipeType recipe)
+    // 레시피마다 재료별 필요 개수. [레시피][재료], 행의 합은 항상 Capacity다.
+    // 재료 개수 조합이 곧 레시피이므로, 냄비에 Capacity개가 차면 정확히 한 행과 맞아야 한다.
+    static readonly int[][] s_Required =
     {
-        switch (recipe)
-        {
-            case RecipeType.GreenSoup: return 2;
-            case RecipeType.MixSoup:   return 1;
-            default:                   return 0;   // RedSoup
-        }
-    }
-
-    public static int RequiredRed(this RecipeType recipe)
-    {
-        return Capacity - recipe.RequiredGreen();
-    }
+        new[] { 2, 0 },   // GreenSoup
+        new[] { 1, 1 },   // MixSoup
+        new[] { 0, 2 },   // RedSoup
+    };
 
     // 이 레시피가 완성되면 나오는 아이템.
+    static readonly ItemType[] s_Dish = { ItemType.CookedGreen, ItemType.CookedMix, ItemType.CookedRed };
+
+    public static int Required(this RecipeType recipe, IngredientType ingredient)
+    {
+        return s_Required[(int)recipe][(int)ingredient];
+    }
+
     public static ItemType Dish(this RecipeType recipe)
     {
-        switch (recipe)
+        return s_Dish[(int)recipe];
+    }
+
+    // 이 완성 요리가 어느 레시피의 것인가.
+    public static bool TryGetRecipe(this ItemType dish, out RecipeType recipe)
+    {
+        for (int i = 0; i < Count; i++)
         {
-            case RecipeType.GreenSoup: return ItemType.CookedGreen;
-            case RecipeType.MixSoup:   return ItemType.CookedMix;
-            default:                   return ItemType.CookedRed;
+            if (s_Dish[i] != dish) continue;
+            recipe = (RecipeType)i;
+            return true;
         }
+        recipe = default;
+        return false;
     }
 
-    // 냄비 내용물(초록 g개, 빨강 r개)이 어떤 레시피가 되는가.
-    // 합이 Capacity일 때만 의미가 있다.
-    public static RecipeType FromCounts(int green, int red)
+    // 냄비 내용물(재료별 개수)이 어떤 레시피가 되는가.
+    // 합이 Capacity일 때만 의미가 있다. 그때는 s_Required의 행 하나와 정확히 맞는다.
+    public static RecipeType FromCounts(IReadOnlyList<int> counts)
     {
-        if (green >= 2) return RecipeType.GreenSoup;
-        if (red >= 2) return RecipeType.RedSoup;
-        return RecipeType.MixSoup;
+        for (int r = 0; r < Count; r++)
+        {
+            bool match = true;
+            for (int i = 0; i < IngredientTypeExtensions.Count && match; i++)
+                match = counts[i] == s_Required[r][i];
+            if (match) return (RecipeType)r;
+        }
+
+        UnityEngine.Debug.LogError($"[RecipeType] 재료 조합 ({IngredientTypeExtensions.Describe(counts)})에 맞는 레시피가 없다");
+        return default;
     }
 
-    // 냄비에 지금 (green, red)가 들어 있을 때, 아직 이 레시피가 될 수 있는가.
+    // 냄비에 지금 이 개수만큼 들어 있을 때, 아직 이 레시피가 될 수 있는가.
     // '재료 투입이 잘한 짓인지'를 판정하는 기준이다 -> 초과해서 넣은 순간 false.
-    public static bool StillReachable(this RecipeType recipe, int green, int red)
+    public static bool StillReachable(this RecipeType recipe, IReadOnlyList<int> counts)
     {
-        return green <= recipe.RequiredGreen() && red <= recipe.RequiredRed();
+        for (int i = 0; i < IngredientTypeExtensions.Count; i++)
+            if (counts[i] > s_Required[(int)recipe][i]) return false;
+        return true;
+    }
+
+    // 이 레시피를 만들려면 냄비에 이 재료를 '앞으로 더' 몇 개 넣어야 하는가.
+    public static int Missing(this RecipeType recipe, IngredientType ingredient, IReadOnlyList<int> counts)
+    {
+        return recipe.Required(ingredient) - counts[(int)ingredient];
     }
 }

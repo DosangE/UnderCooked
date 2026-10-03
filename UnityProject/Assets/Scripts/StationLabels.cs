@@ -81,11 +81,11 @@ public class StationLabels : MonoBehaviour
 
     static string LabelFor(StationType type)
     {
+        if (type.TryGetBoxIngredient(out var ingredient)) return $"{ingredient.Label()} 재료함";
+
         switch (type)
         {
-            case StationType.GreenBox:     return "초록 재료함";
-            case StationType.RedBox:       return "빨강 재료함";
-            case StationType.PrepA:        return "손질대 (A)";
+            case StationType.PrepA:       return "손질대 (A)";
             case StationType.PrepB:        return "손질대 (B)";
             case StationType.Pot:          return "냄비";
             case StationType.PlateStack:   return "그릇함";

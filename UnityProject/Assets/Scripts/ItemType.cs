@@ -22,26 +22,15 @@ public static class ItemTypeExtensions
     public const int Count = 9;
 
     // 재료함에서 나와 아직 냄비에 들어가지 않은 것. 필드 동시 재료 수 제한에 쓴다.
+    // 어느 재료인지, 생인지 손질됐는지는 IngredientTypeExtensions가 안다.
     public static bool IsIngredient(this ItemType item)
     {
-        return item == ItemType.RawGreen || item == ItemType.RawRed
-            || item == ItemType.PrepGreen || item == ItemType.PrepRed;
-    }
-
-    // 손질 여부와 무관하게 어느 색 계열인지. 냄비가 색깔별 개수를 세는 데 쓴다.
-    public static bool IsGreen(this ItemType item)
-    {
-        return item == ItemType.RawGreen || item == ItemType.PrepGreen;
-    }
-
-    public static bool IsRed(this ItemType item)
-    {
-        return item == ItemType.RawRed || item == ItemType.PrepRed;
+        return item.TryGetIngredient(out _);
     }
 
     // 완성된 요리인가. 서빙구가 주문과 대조할 대상인지 가리는 데 쓴다.
     public static bool IsCookedDish(this ItemType item)
     {
-        return item == ItemType.CookedGreen || item == ItemType.CookedMix || item == ItemType.CookedRed;
+        return item.TryGetRecipe(out _);
     }
 }

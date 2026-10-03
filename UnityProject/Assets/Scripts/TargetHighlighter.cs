@@ -97,21 +97,20 @@ public class TargetHighlighter : MonoBehaviour
     // 재료를 들었다. 지금 배치에 들어갈 것인지, 다음 주문용인지, 버릴 것인지를 가른다.
     ChefGuidance GuideIngredient(ChefAgent agent, ItemType held)
     {
-        bool green = held.IsGreen();
+        var ingredient = held.Ingredient();
 
         // 지금 끓이는 배치에 바로 들어가는가.
-        bool forThisBatch = Plan.Current == KitchenPlan.Step.Gather && Plan.NeedsColor(green);
+        bool forThisBatch = Plan.Need(ingredient) > 0;
 
         // 아니라면 대기 중인 다른 주문을 위해 미리 준비해 둘 값어치가 있는가.
         bool forLaterOrder = !forThisBatch && m_Env.IsWantedNow(held);
 
         if (!forThisBatch && !forLaterOrder)
             return DropOff(agent, StationType.ServingHatch,
-                $"{ColorName(green)} 재료는 어떤 대기 주문에도 필요 없다 -> 버려라", true);
+                $"{ingredient.Label()} 재료는 어떤 대기 주문에도 필요 없다 -> 버려라", true);
 
         // 손질은 어느 경우든 먼저 해두는 게 이득이다. 손질대는 자기 구역 것을 쓴다.
-        bool raw = held == ItemType.RawGreen || held == ItemType.RawRed;
-        if (m_Env.NeedsPrep && raw)
+        if (m_Env.NeedsPrep && held.IsRawIngredient())
         {
             var prep = m_Env.GetPrepFor(agent.AgentIndex);
             return new ChefGuidance
@@ -167,12 +166,11 @@ public class TargetHighlighter : MonoBehaviour
         if (Plan.Current == KitchenPlan.Step.Cooking || Plan.Current == KitchenPlan.Step.Plate)
             return Fetch(agent, StationType.PlateStack, "빈 그릇을 가져와라");
 
-        // 4) 재료를 모으는 중이면 필요한 색의 재료함으로.
+        // 4) 재료를 모으는 중이면 필요한 재료의 재료함으로.
         if (Plan.Current == KitchenPlan.Step.Gather)
         {
-            bool green = ChooseColorFor(agent);
-            return Fetch(agent, green ? StationType.GreenBox : StationType.RedBox,
-                $"{ColorName(green)} 재료함에서 집어라");
+            var ingredient = ChooseIngredientFor(agent);
+            return Fetch(agent, ingredient.Box(), $"{ingredient.Label()} 재료함에서 집어라");
         }
 
         // 5) 할 일이 없으면 카운터에 쌓인 쓸모없는 물건을 치운다.
@@ -197,16 +195,27 @@ public class TargetHighlighter : MonoBehaviour
         return new ChefGuidance { Text = "대기" };
     }
 
-    // 두 색이 다 필요할 때(MixSoup) 누가 어느 쪽을 맡을지.
+    // 여러 재료가 필요할 때(MixSoup) 누가 어느 쪽을 맡을지.
     //
     // 손질대가 색을 안 가리게 되면서 맵이 담당을 정해주지 않는다. 둘이 같은 재료함으로
-    // 몰리지 않게 사람용 안내에서는 셰프 번호로 갈라준다.
+    // 몰리지 않게 사람용 안내에서는 셰프 번호로 갈라준다: 필요한 재료를 IngredientType
+    // 순서로 늘어놓고 셰프 번호째 것을 맡긴다(필요한 게 하나뿐이면 둘 다 그것).
     // (정책은 이 안내를 보지 않는다. 누가 무엇을 맡을지는 스스로 나눠야 한다)
-    bool ChooseColorFor(ChefAgent agent)
+    IngredientType ChooseIngredientFor(ChefAgent agent)
     {
-        if (Plan.NeedGreen <= 0) return false;
-        if (Plan.NeedRed <= 0) return true;
-        return agent.AgentIndex == 0;
+        int needed = 0;
+        for (int i = 0; i < IngredientTypeExtensions.Count; i++)
+            if (Plan.Need((IngredientType)i) > 0) needed++;
+
+        if (needed == 0) return default;
+
+        int pick = agent.AgentIndex % needed;
+        for (int i = 0; i < IngredientTypeExtensions.Count; i++)
+        {
+            if (Plan.Need((IngredientType)i) <= 0) continue;
+            if (pick-- == 0) return (IngredientType)i;
+        }
+        return default;
     }
 
     // ─────────────────────────── 목적지 -> 실제 하이라이트 ───────────────────────────
@@ -268,10 +277,5 @@ public class TargetHighlighter : MonoBehaviour
         }
 
         return best;
-    }
-
-    static string ColorName(bool green)
-    {
-        return green ? "초록" : "빨강";
     }
 }
