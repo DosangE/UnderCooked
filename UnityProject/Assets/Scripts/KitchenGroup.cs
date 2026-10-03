@@ -68,6 +68,19 @@ public class KitchenGroup : MonoBehaviour
     };
     readonly int[] m_OrderMiss = new int[OrderMissStatNames.Length];
 
+    // 레시피별로 냄비를 몇 번 확정했는가 (맞든 틀리든). 보상과 무관한 순수 관측이다.
+    // 파랑을 넣은 첫 학습은 GreenSoup/MixSoup만 만들고 파랑을 한 번도 쓰지 않았는데,
+    // 성공률·잘못 채움 지표로는 그게 안 보였다 (results/diag_blue). 무엇을 만드는지를 직접 센다.
+    static readonly string[] MadeStatNames = BuildMadeStatNames();
+    readonly int[] m_Made = new int[RecipeTypeExtensions.Count];
+
+    static string[] BuildMadeStatNames()
+    {
+        var names = new string[RecipeTypeExtensions.Count];
+        for (int i = 0; i < names.Length; i++) names[i] = "Kitchen/Made/" + (RecipeType)i;
+        return names;
+    }
+
     void Awake()
     {
         if (env == null) env = GetComponent<KitchenEnv>();
@@ -244,6 +257,7 @@ public class KitchenGroup : MonoBehaviour
         stats.Add("Kitchen/ServesPerTransfer", m_Transfers > 0 ? (float)env.DishesServed / m_Transfers : 0f);
         for (int i = 0; i < m_Chain.Length; i++) stats.Add(ChainStatNames[i], m_Chain[i]);
         for (int i = 0; i < m_OrderMiss.Length; i++) stats.Add(OrderMissStatNames[i], m_OrderMiss[i]);
+        for (int i = 0; i < m_Made.Length; i++) stats.Add(MadeStatNames[i], m_Made[i]);
 
         // 단계 커리큘럼이 켜져 있을 때만. 승급 판정도 여기서 한다 - GoalReached 통계와
         // 같은 값을 보게 하려고 같은 자리에 둔다.
@@ -285,6 +299,7 @@ public class KitchenGroup : MonoBehaviour
         m_WrongDishSeconds = 0f;
         System.Array.Clear(m_Chain, 0, m_Chain.Length);
         System.Array.Clear(m_OrderMiss, 0, m_OrderMiss.Length);
+        System.Array.Clear(m_Made, 0, m_Made.Length);
     }
 
     // 방금 끝난 에피소드의 수치. RecordStats가 리셋하기 직전에 채운다.
@@ -308,6 +323,15 @@ public class KitchenGroup : MonoBehaviour
     {
         m_Chain[(int)step]++;
     }
+
+    // ChefAgent가 냄비를 확정시켰을 때 그 레시피를 알려준다 (진단용 집계).
+    public void NoteMade(RecipeType recipe)
+    {
+        m_Made[(int)recipe]++;
+    }
+
+    // 진행 중인 에피소드에 이 레시피로 냄비를 확정한 횟수. 회귀 검사가 읽는다.
+    public int MadeThisEpisode(RecipeType recipe) => m_Made[(int)recipe];
 
     // 진행 중인 에피소드의 주문 불일치 횟수. 회귀 검사가 읽는다.
     public int OrderMissThisEpisode(OrderMiss miss) => m_OrderMiss[(int)miss];

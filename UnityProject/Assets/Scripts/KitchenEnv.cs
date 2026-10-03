@@ -522,10 +522,11 @@ public class KitchenEnv : MonoBehaviour
 
         int orderSlots;
         int recipePool;
+        int recipeStart;
         StageCurriculum.Configure(envParams);
         if (StageCurriculum.Enabled)
         {
-            // 단계 커리큘럼이 켜져 있으면 난이도 손잡이 5개를 단계 표에서 가져온다.
+            // 단계 커리큘럼이 켜져 있으면 난이도 손잡이들을 단계 표에서 가져온다.
             // yaml의 개별 파라미터(target_dishes 등)는 이때 읽지 않는다.
             m_Stage = StageCurriculum.Current;
             var stage = StageCurriculum.Stages[m_Stage];
@@ -534,6 +535,7 @@ public class KitchenEnv : MonoBehaviour
             m_CookTime = stage.CookTime;
             orderSlots = stage.OrderSlots;
             recipePool = stage.RecipePool;
+            recipeStart = stage.RecipeStart;
         }
         else
         {
@@ -543,10 +545,12 @@ public class KitchenEnv : MonoBehaviour
             m_CookTime = Mathf.Max(0f, envParams.GetWithDefault("cook_time", defaultCookTime));
             orderSlots = Mathf.RoundToInt(envParams.GetWithDefault("order_slots", defaultOrderSlots));
             recipePool = Mathf.RoundToInt(envParams.GetWithDefault("recipe_pool_size", defaultRecipePoolSize));
+            // 앞쪽 레시피를 주문에서 뺀다 (OrderBoard.m_PoolStart 참조). 없으면 0 = 예전과 같다.
+            recipeStart = Mathf.RoundToInt(envParams.GetWithDefault("recipe_pool_start", 0f));
         }
 
         m_Orders.Configure(orderSlots, recipePool,
-            envParams.GetWithDefault("order_duration", defaultOrderDuration));
+            envParams.GetWithDefault("order_duration", defaultOrderDuration), recipeStart);
         m_Orders.ResetBoard();
 
         foreach (var station in GetComponentsInChildren<Station>(true))

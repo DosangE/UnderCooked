@@ -44,6 +44,7 @@ public static class KitchenSelfTest
         allOk &= WrongIngredientPenaltyFromYaml(sb, env, agents);
         allOk &= WrongDishHoldPenalty(sb, env, group, agents);
         allOk &= BlueIngredientWorks(sb, env, agents);
+        allOk &= ShortcutDishesLeaveBlueStages(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -231,6 +232,70 @@ public static class KitchenSelfTest
         return ok;
     }
 
+    // 16) 파랑 단계에서는 이미 익힌 지름길 요리(GreenSoup/MixSoup)가 주문에 나오면 안 된다.
+    //     나오면 그것만 만들어도 관문을 넘어서 파랑을 안 배운다 (results/diag_blue).
+    //     (a) 7단계 주문은 전부 BlueSoup  (b) 8단계 주문은 2~5번만, 넷 다 나온다
+    //     (c) 8단계에서 초록 재료함은 열려 있다 (GreenBlueSoup에 필요)
+    //     (d) recipe_pool_start가 없는 기존 경로는 0번부터 나온다
+    //     (e) 냄비 확정이 레시피별 통계(Kitchen/Made/*)에 잡힌다
+    static bool ShortcutDishesLeaveBlueStages(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        const int Rolls = 100;
+        bool blueOnly = true, noShortcut = true, greenOpen = false, legacy = false, made = false;
+        var seen = new System.Collections.Generic.HashSet<RecipeType>();
+
+        try
+        {
+            StageCurriculum.EnableForTest(0.8f, 500, 0, 7);
+            for (int i = 0; i < Rolls; i++)
+            {
+                env.ResetEnv();
+                for (int s = 0; s < env.Orders.ActiveSlots; s++)
+                    blueOnly &= env.Orders.GetSlot(s).Recipe == RecipeType.BlueSoup;
+            }
+
+            StageCurriculum.EnableForTest(0.8f, 500, 0, 8);
+            for (int i = 0; i < Rolls; i++)
+            {
+                env.ResetEnv();
+                for (int s = 0; s < env.Orders.ActiveSlots; s++)
+                {
+                    var r = env.Orders.GetSlot(s).Recipe;
+                    noShortcut &= r != RecipeType.GreenSoup && r != RecipeType.MixSoup;
+                    seen.Add(r);
+                }
+            }
+            greenOpen = env.CanInteractAt(env.GetStation(StationType.GreenBox).Cell, ItemType.None);
+        }
+        finally
+        {
+            StageCurriculum.DisableForTest();
+            Reset(env, agents);
+        }
+        noShortcut &= seen.Count == 4;
+        legacy = env.Orders.PoolStart == 0;
+
+        // (e) 초록 두 개로 확정 -> GreenSoup 1회
+        ForceAllOrders(env, RecipeType.GreenSoup);
+        var box = env.GetStation(StationType.GreenBox);
+        var prep = env.GetPrepFor(0);
+        for (int i = 0; i < RecipeTypeExtensions.Capacity; i++)
+        {
+            Act(env, agents[0], box);
+            Act(env, agents[0], prep, keepHeld: true);
+            Act(env, agents[0], env.Pot, keepHeld: true);
+        }
+        made = group.MadeThisEpisode(RecipeType.GreenSoup) == 1 && group.MadeThisEpisode(RecipeType.BlueSoup) == 0;
+
+        bool ok = blueOnly && noShortcut && greenOpen && legacy && made;
+        sb.AppendLine("[16] 파랑 단계의 주문 범위   7단계 BlueSoup만 " + Mark(blueOnly)
+                      + " / 8단계 지름길 없음·4종 " + Mark(noShortcut) + " (" + seen.Count + "종)"
+                      + " / 8단계 초록 재료함 열림 " + Mark(greenOpen) + " / 기본 경로 0번부터 " + Mark(legacy)
+                      + " / 레시피별 확정 통계 " + Mark(made) + "   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
     // 10) 처음부터 주문에 없는 레시피로 냄비를 채우면 '확정 불일치'로 세야 한다.
     //     [3]은 채운 뒤에 주문이 사라지는 경우다. 둘을 가르는 것이 이 지표의 목적이다.
     static bool WrongRecipeCommitIsCounted(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
@@ -313,7 +378,8 @@ public static class KitchenSelfTest
             Reset(env, agents);
             table = env.Stage == last && env.TargetDishes == 3 && env.NeedsPrep
                     && Mathf.Approximately(env.CookTime, 5f)
-                    && env.Orders.ActiveSlots == 3 && env.Orders.PoolSize == RecipeTypeExtensions.Count;
+                    && env.Orders.ActiveSlots == 3 && env.Orders.PoolSize == RecipeTypeExtensions.Count
+                    && env.Orders.PoolStart == 0;
 
             // (g) 손질 절반 단계(3)는 에피소드마다 손질이 섞여 나온다
             StageCurriculum.EnableForTest(0.8f, 500, 0, 3);

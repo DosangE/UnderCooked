@@ -512,6 +512,7 @@ public class ChefAgent : Agent
                 if (pot != null && pot.IsCommitted)
                 {
                     m_Group.NoteChainStep(KitchenGroup.ChainStep.PotCommitted);
+                    m_Group.NoteMade(pot.CookedRecipe);
                     // 채운 순간의 판정은 KitchenEnv.TryInteract가 '만들어질 요리를 원하는 대기 주문이
                     // 있는가'로 내린다. 그래서 확정 시점의 Wrong은 곧 주문에 없는 레시피다.
                     if (result == InteractResult.PlacedInPotWrong)

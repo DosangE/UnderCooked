@@ -18,8 +18,12 @@
 #                                         was removed: both successful runs
 #                                         were force-advanced there)
 #       6: 3 slots                       (= old final difficulty)
-#       7: 4 recipes (blue appears, BlueSoup only)
-#       8: 6 recipes                     (= new final difficulty)
+#       7: orders BlueSoup only          (blue appears; nothing else sells)
+#       8: orders recipes 2-5 (RedSoup, BlueSoup, GreenBlueSoup, RedBlueSoup)
+#       9: all 6 recipes                 (= new final difficulty)
+#     Stages 7-8 leave out GreenSoup/MixSoup on purpose. The first version
+#     (7: first 4 recipes, 8: all 6) was passed by making only those two
+#     dishes; blue was never used (results/diag_blue). See StageCurriculum.cs.
 #
 # Note: undercooked_stage.yaml now also runs this new table.
 #
