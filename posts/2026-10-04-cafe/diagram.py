@@ -19,7 +19,7 @@ fig.patch.set_facecolor("white"); ax.set_xlim(0, 17); ax.set_ylim(0, 7.2); ax.ax
 def band(y0, y1, fc, label, sub):
     ax.add_patch(FancyBboxPatch((0.15, y0), 16.7, y1 - y0, boxstyle="round,pad=0,rounding_size=0.12", fc=fc, ec="none"))
     ax.text(0.4, y1 - 0.28, label, fontsize=13, fontweight="bold", color=INK, va="top")
-    ax.text(0.4, y1 - 0.68, sub, fontsize=10, color=INK2, va="top")
+    ax.text(0.4, y1 - 0.68, sub, fontsize=10, color=INK2, va="top", linespacing=1.6)
 
 def box(x, y, title, body, ec, w=2.9, h=1.05):
     ax.add_patch(FancyBboxPatch((x - w / 2, y - h / 2), w, h, boxstyle="round,pad=0.02,rounding_size=0.12", fc="white", ec=ec, lw=1.6))
@@ -34,7 +34,7 @@ def arrow(p, q, label=None, lx=0, ly=0, rad=0):
                 bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="none"))
 
 band(4.75, 7.05, A_BG, "Chef A 구역 (북쪽)", "냄비는 여기에만 있다")
-band(2.95, 4.55, C_BG, "경계", "카운터 4칸 · 재료함 3개. 셰프는 넘어갈 수 없다")
+band(2.95, 4.55, C_BG, "경계", "카운터 4칸 · 재료함 3개\n셰프는 넘어갈 수 없다")
 band(0.15, 2.75, B_BG, "Chef B 구역 (남쪽)", "그릇함과 서빙구는 여기에만 있다")
 
 # A lane
