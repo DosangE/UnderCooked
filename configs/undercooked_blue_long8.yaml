@@ -1,0 +1,63 @@
+# UnderCooked - blue ingredient, 6 dishes, 90 s rounds with an 8-dish goal.
+#
+# ASCII ONLY (see undercooked.yaml header - load_config() uses the OS codepage).
+#
+# Correction to undercooked_blue_long.yaml (stopped at 2.24M). The team serves one dish
+# every ~9 s, not ~15 s: the 45 s rounds only looked slow because they end as soon as
+# the goal is reached (red_mix: 3 dishes in ~26 s; blue_long: 5 dishes in ~46 s).
+# In both, the round ends at about the order lifetime (25 s / 45 s), so a skipped
+# order almost never expires inside the round and skipping RedSoup stays free
+# (blue_long: 0.36 expiries per round, RedSoup ~5% of dishes).
+#
+# Here reaching the goal takes ~70 s (8 x 9 s), so an order skipped for 30 s expires
+# inside the round (-1.0). 3 slots / 30 s ask for one dish per 10 s, under the ~9 s
+# serve rate, so every order can be served and skipping one is a real loss.
+#
+# Run:
+#   mlagents-learn configs/undercooked_blue_long8.yaml --run-id=undercooked_blue_long8 --initialize-from=undercooked_blue_long --seed=1 --torch-device cuda
+#
+# Everything under behaviors is identical to undercooked_blue_long.yaml.
+
+behaviors:
+  Chef:
+    trainer_type: poca
+
+    hyperparameters:
+      batch_size: 1024        # multiple of sequence_length (64)
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 64
+        memory_size: 128
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+    keep_checkpoints: 5
+    checkpoint_interval: 500000
+    max_steps: 9000000
+    time_horizon: 128
+    summary_freq: 20000
+
+environment_parameters:
+  target_dishes: 8.0
+  recipe_pool_size: 6.0
+  needs_prep: 1.0
+  cook_time: 5.0
+  order_slots: 3.0
+  order_duration: 30.0
+  max_ingredients: 2.0
+  episode_duration: 90.0
+  order_expired_penalty: -1.0
