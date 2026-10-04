@@ -220,7 +220,7 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 
 측정 결과 여유가 있다.
 
-- `tools/measure_reach.py` — 완벽히 협력할 때 접시 하나의 **이동 병목 1.4~1.6초**
+- `tools/measure_reach.py` — 완벽히 협력할 때 접시 하나의 **이동 병목 1.4\~1.6초**
   (현재 배치, 세 레시피 전부)
 - 냄비가 하나라 조리는 직렬이다 → 3접시 = 조리 15초 + 이동 약 5초 ≈ **20초**
 - 에피소드 45초. **2배 이상 여유**다.
@@ -253,7 +253,7 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 | `undercooked_blue_urgent`, `_urgent3` | 급한 주문 서빙 보너스 1.5 / 3.0. 45초 조건 추론 99.6% / 99.4%, RedSoup 선택 10.8% / 16.6%. **urgent3가 6종 최종 모델** |
 | `eval_undercooked_blue_<런>[_45/_90]` | 6종 진단 추론 600k + 냄비 채움 기록(`archive/tools/inference/pot_fill_log.cs`). 설정 `configs/undercooked_blue_eval45.yaml` / `_eval90.yaml` |
 | `undercooked_<내용>` | ablation / 실험 (`undercooked_nomemory`, `undercooked_noorder` 등) |
-| `smoke` | 배선 확인용 1~2분 런. 확인 후 `results/smoke`를 지운다 |
+| `smoke` | 배선 확인용 1\~2분 런. 확인 후 `results/smoke`를 지운다 |
 
 **추론 런은 스스로 멈추지 않는다.** Play를 끈 뒤 `mlagents-learn.exe`만 죽이면 그 자식 python 워커가 남아
 포트 5004를 계속 잡는다(다음 런이 `Failed to bind to address [::]:5004`로 죽는다). 프로세스 트리째 끈다:
@@ -275,9 +275,9 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
   32명, 그룹 16개, 관측 103, 이산 행동 [5, 2], 종료 64건, Kitchen 지표 6종.
 - 런타임 16개 주방에서 목표 1 / 손질 꺼짐 / 조리 2초 / 에피소드 45초 /
   외부 재료 상한 2를 확인했다. 주문 파라미터 3종은 전송 값과 ResetEnv 경로를 확인했다.
-- 무작위 검사에서 행동 요청 수는 에피소드당 450~451회였다. ML-Agents의
+- 무작위 검사에서 행동 요청 수는 에피소드당 450\~451회였다. ML-Agents의
   `agent_processor.py`는 최초 요청을 episode_steps에 세지 않으므로 대응하는
-  Episode Length 집계는 449~450이다. 매 에피소드가 정확히 450이라는 보장은 아니다.
+  Episode Length 집계는 449\~450이다. 매 에피소드가 정확히 450이라는 보장은 아니다.
 - `measure: reward`는 개인 보상 버퍼를 참조하며, POCA는 동료 개인 보상도
   최적화 신호에 포함한다는 것을 설치된 패키지 소스로 재확인했다.
 
