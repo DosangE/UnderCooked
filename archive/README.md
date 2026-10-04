@@ -33,6 +33,20 @@
 | `pen01_s1` ~ `s3` | `configs/undercooked_final_pen01.yaml`, `--initialize-from=undercooked_final2`, `--seed=1~3` | 3M | 95.7–97.6% |
 | `pen03_s1` ~ `s3` | `configs/undercooked_final_pen03.yaml`, 같은 출발점, `--seed=1~3` | 3M | 94.7–97.3% |
 
+파랑 재료·요리 6종 (`reports/2026-10-04-blue-ingredient.md`, 관측 145. 위 런들의 모델과 호환되지 않는다):
+
+| 폴더 | 설정 파일 | 스텝 | 결과 |
+|---|---|---|---|
+| `undercooked_blue_s1` | `configs/undercooked_blue_stage.yaml` (커밋 95cff34의 단계표), `--seed=1` | 25M | 6종 단계 45%. GreenSoup/MixSoup만 만들고 파랑은 0회 (`stage_log.txt`) |
+| `undercooked_blue_final` | `configs/undercooked_blue_final.yaml`, `--initialize-from=undercooked_blue_s1 --seed=1` | 9M | 45%. 이어 학습해도 오르지 않았다 |
+| `eval_blue_final` | `eval_blue.yaml` (폴더 안, 6종 고정 600k), `--inference` | 600k | 진단. 냄비 채움 기록 `fills.csv`, 요약 `summary.txt` |
+| `undercooked_blue_fix` | `configs/undercooked_blue_fix.yaml` (7단계부터), `--initialize-from=undercooked_blue_final --seed=1` | 12M | 파랑을 배웠지만 빨강을 버렸다. 6종 26% (`stage_log.txt`) |
+| `eval_undercooked_blue_fix` | `eval_blue.yaml`, `--inference` | 600k | 진단. 26.1%, 잘못 채움 53% |
+| `undercooked_blue_fix9` | `configs/undercooked_blue_fix9.yaml` (9단계 고정), `--initialize-from=undercooked_blue_fix --seed=1` | 14M | **6종 93.3%** |
+| `eval_undercooked_blue_fix9` | `eval_blue.yaml`, `--inference` | 600k | **추론 92.4%, 잘못 채움 9%** |
+
+냄비 채움 기록 도구: `tools/inference/pot_fill_log.cs` (Play 중 실행), 요약 `tools/analyze_pot_fills.py`.
+
 런 폴더마다 들어 있는 것:
 
 | 파일 | 내용 |
