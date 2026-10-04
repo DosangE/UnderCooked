@@ -1,0 +1,692 @@
+{
+    "name": "root",
+    "gauges": {
+        "Chef.Policy.Entropy.mean": {
+            "value": 0.46217620372772217,
+            "min": 0.4522407650947571,
+            "max": 0.9157415628433228,
+            "count": 150
+        },
+        "Chef.Policy.Entropy.sum": {
+            "value": 9199.1552734375,
+            "min": 8834.990234375,
+            "max": 20005.21484375,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.target_dishes.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.target_dishes.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.recipe_pool_start.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.recipe_pool_start.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.recipe_pool_size.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.recipe_pool_size.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.needs_prep.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.needs_prep.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.cook_time.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.cook_time.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.order_slots.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.order_slots.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.order_duration.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.order_duration.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.max_ingredients.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.LessonNumber.max_ingredients.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Step.mean": {
+            "value": 2999880.0,
+            "min": 19936.0,
+            "max": 2999880.0,
+            "count": 150
+        },
+        "Chef.Step.sum": {
+            "value": 2999880.0,
+            "min": 19936.0,
+            "max": 2999880.0,
+            "count": 150
+        },
+        "Chef.Policy.ExtrinsicBaselineEstimate.mean": {
+            "value": 5.007041931152344,
+            "min": -4.236804485321045,
+            "max": 5.069261074066162,
+            "count": 150
+        },
+        "Chef.Policy.ExtrinsicBaselineEstimate.sum": {
+            "value": 866.21826171875,
+            "min": -792.282470703125,
+            "max": 868.3325805664062,
+            "count": 150
+        },
+        "Chef.Policy.ExtrinsicValueEstimate.mean": {
+            "value": 5.006006240844727,
+            "min": -4.263404369354248,
+            "max": 5.067990303039551,
+            "count": 150
+        },
+        "Chef.Policy.ExtrinsicValueEstimate.sum": {
+            "value": 866.0390625,
+            "min": -797.256591796875,
+            "max": 868.00927734375,
+            "count": 150
+        },
+        "Chef.Environment.EpisodeLength.mean": {
+            "value": 233.5909090909091,
+            "min": 231.86046511627907,
+            "max": 450.0,
+            "count": 150
+        },
+        "Chef.Environment.EpisodeLength.sum": {
+            "value": 20556.0,
+            "min": 14172.0,
+            "max": 28736.0,
+            "count": 150
+        },
+        "Chef.Kitchen.DishesServed.mean": {
+            "value": 3.0,
+            "min": 0.875,
+            "max": 3.0,
+            "count": 150
+        },
+        "Chef.Kitchen.DishesServed.sum": {
+            "value": 132.0,
+            "min": 14.0,
+            "max": 141.0,
+            "count": 150
+        },
+        "Chef.Kitchen.GoalReached.mean": {
+            "value": 1.0,
+            "min": 0.0,
+            "max": 1.0,
+            "count": 150
+        },
+        "Chef.Kitchen.GoalReached.sum": {
+            "value": 44.0,
+            "min": 0.0,
+            "max": 47.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Transfers.mean": {
+            "value": 12.0,
+            "min": 5.0,
+            "max": 12.13888888888889,
+            "count": 150
+        },
+        "Chef.Kitchen.Transfers.sum": {
+            "value": 528.0,
+            "min": 80.0,
+            "max": 564.0,
+            "count": 150
+        },
+        "Chef.Kitchen.OrdersExpired.mean": {
+            "value": 0.022727272727272728,
+            "min": 0.0,
+            "max": 3.0,
+            "count": 150
+        },
+        "Chef.Kitchen.OrdersExpired.sum": {
+            "value": 1.0,
+            "min": 0.0,
+            "max": 91.0,
+            "count": 150
+        },
+        "Chef.Kitchen.CreditClawedBack.mean": {
+            "value": 0.20000000298023224,
+            "min": 0.031428571684019906,
+            "max": 0.8500000052154064,
+            "count": 150
+        },
+        "Chef.Kitchen.CreditClawedBack.sum": {
+            "value": 8.800000131130219,
+            "min": 1.1000000089406967,
+            "max": 25.40000019967556,
+            "count": 150
+        },
+        "Chef.Kitchen.TransferClawedBack.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.3375000115483999,
+            "count": 150
+        },
+        "Chef.Kitchen.TransferClawedBack.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 8.850000351667404,
+            "count": 150
+        },
+        "Chef.Kitchen.WrongDishSeconds.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.WrongDishSeconds.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.ServesPerTransfer.mean": {
+            "value": 0.25,
+            "min": 0.159523812122643,
+            "max": 0.25218531613548595,
+            "count": 150
+        },
+        "Chef.Kitchen.ServesPerTransfer.sum": {
+            "value": 11.0,
+            "min": 2.552380993962288,
+            "max": 11.75,
+            "count": 150
+        },
+        "Chef.Kitchen.PotCommitted.mean": {
+            "value": 3.0,
+            "min": 1.125,
+            "max": 3.0,
+            "count": 150
+        },
+        "Chef.Kitchen.PotCommitted.sum": {
+            "value": 132.0,
+            "min": 18.0,
+            "max": 141.0,
+            "count": 150
+        },
+        "Chef.Kitchen.PlatesToChefA.mean": {
+            "value": 3.0,
+            "min": 1.125,
+            "max": 3.5806451612903225,
+            "count": 150
+        },
+        "Chef.Kitchen.PlatesToChefA.sum": {
+            "value": 132.0,
+            "min": 18.0,
+            "max": 142.0,
+            "count": 150
+        },
+        "Chef.Kitchen.DishesTaken.mean": {
+            "value": 3.0,
+            "min": 0.875,
+            "max": 3.0,
+            "count": 150
+        },
+        "Chef.Kitchen.DishesTaken.sum": {
+            "value": 132.0,
+            "min": 14.0,
+            "max": 141.0,
+            "count": 150
+        },
+        "Chef.Kitchen.DishesToChefB.mean": {
+            "value": 3.0,
+            "min": 0.875,
+            "max": 3.03125,
+            "count": 150
+        },
+        "Chef.Kitchen.DishesToChefB.sum": {
+            "value": 132.0,
+            "min": 14.0,
+            "max": 141.0,
+            "count": 150
+        },
+        "Chef.Kitchen.PotCommittedWrong.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.PotCommittedWrong.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.ServedWrongOrder.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.ServedWrongOrder.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.GreenSoup.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.GreenSoup.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.MixSoup.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.MixSoup.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.RedSoup.mean": {
+            "value": 3.0,
+            "min": 1.125,
+            "max": 3.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.RedSoup.sum": {
+            "value": 132.0,
+            "min": 18.0,
+            "max": 141.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.BlueSoup.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.BlueSoup.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.GreenBlueSoup.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.GreenBlueSoup.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.RedBlueSoup.mean": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Kitchen.Made.RedBlueSoup.sum": {
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "count": 150
+        },
+        "Chef.Environment.CumulativeReward.mean": {
+            "value": 1.5292808010839345,
+            "min": -0.3040626042056829,
+            "max": 1.5398291614724369,
+            "count": 150
+        },
+        "Chef.Environment.CumulativeReward.sum": {
+            "value": 136.10599129647017,
+            "min": -15.090007945429534,
+            "max": 141.495991230011,
+            "count": 150
+        },
+        "Chef.Policy.ExtrinsicReward.mean": {
+            "value": 17.038449753536266,
+            "min": 1.3918752763420343,
+            "max": 17.07965881068532,
+            "count": 150
+        },
+        "Chef.Policy.ExtrinsicReward.sum": {
+            "value": 1516.4220280647278,
+            "min": 44.5400088429451,
+            "max": 1597.6840324401855,
+            "count": 150
+        },
+        "Chef.Environment.GroupCumulativeReward.mean": {
+            "value": 13.988764173529121,
+            "min": 2.000000026077032,
+            "max": 14.00000018165225,
+            "count": 150
+        },
+        "Chef.Environment.GroupCumulativeReward.sum": {
+            "value": 1245.0000114440918,
+            "min": 64.00000083446503,
+            "max": 1316.0000104904175,
+            "count": 150
+        },
+        "Chef.IsTraining.mean": {
+            "value": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "count": 150
+        },
+        "Chef.IsTraining.sum": {
+            "value": 1.0,
+            "min": 1.0,
+            "max": 1.0,
+            "count": 150
+        },
+        "Chef.Losses.PolicyLoss.mean": {
+            "value": 0.1130443523870781,
+            "min": 0.0584158708108589,
+            "max": 0.17271458020744224,
+            "count": 149
+        },
+        "Chef.Losses.PolicyLoss.sum": {
+            "value": 0.1130443523870781,
+            "min": 0.0584158708108589,
+            "max": 0.3057594894528544,
+            "count": 149
+        },
+        "Chef.Losses.ValueLoss.mean": {
+            "value": 0.0016201987523042287,
+            "min": 0.0013359239645069465,
+            "max": 0.7499727015693982,
+            "count": 149
+        },
+        "Chef.Losses.ValueLoss.sum": {
+            "value": 0.0016201987523042287,
+            "min": 0.0013359239645069465,
+            "max": 1.4453506916761398,
+            "count": 149
+        },
+        "Chef.Losses.BaselineLoss.mean": {
+            "value": 0.0016416592930909245,
+            "min": 0.0013888650011116019,
+            "max": 1.3949189253151415,
+            "count": 149
+        },
+        "Chef.Losses.BaselineLoss.sum": {
+            "value": 0.0016416592930909245,
+            "min": 0.0013888650011116019,
+            "max": 2.789837850630283,
+            "count": 149
+        },
+        "Chef.Policy.LearningRate.mean": {
+            "value": 1.812899395733325e-06,
+            "min": 1.812899395733325e-06,
+            "max": 0.0002977376007541333,
+            "count": 149
+        },
+        "Chef.Policy.LearningRate.sum": {
+            "value": 1.812899395733325e-06,
+            "min": 1.812899395733325e-06,
+            "max": 0.000570126009958,
+            "count": 149
+        },
+        "Chef.Policy.Epsilon.mean": {
+            "value": 0.10060426666666664,
+            "min": 0.10060426666666664,
+            "max": 0.19924586666666672,
+            "count": 149
+        },
+        "Chef.Policy.Epsilon.sum": {
+            "value": 0.10060426666666664,
+            "min": 0.10060426666666664,
+            "max": 0.39004199999999994,
+            "count": 149
+        },
+        "Chef.Policy.Beta.mean": {
+            "value": 7.036623999999973e-05,
+            "min": 7.036623999999973e-05,
+            "max": 0.00992466208,
+            "count": 149
+        },
+        "Chef.Policy.Beta.sum": {
+            "value": 7.036623999999973e-05,
+            "min": 7.036623999999973e-05,
+            "max": 0.0190051958,
+            "count": 149
+        }
+    },
+    "metadata": {
+        "timer_format_version": "0.1.0",
+        "start_time_seconds": "1791083128",
+        "python_version": "3.10.12 | packaged by conda-forge | (main, Jun 23 2023, 22:34:57) [MSC v.1936 64 bit (AMD64)]",
+        "command_line_arguments": "C:\\Users\\User\\miniconda3\\envs\\mlagents\\Scripts\\mlagents-learn configs/undercooked_blue_red.yaml --run-id=undercooked_blue_red --initialize-from=undercooked_blue_fix9 --seed=1 --torch-device cuda --force",
+        "mlagents_version": "1.2.0.dev0",
+        "mlagents_envs_version": "1.2.0.dev0",
+        "communication_protocol_version": "1.5.0",
+        "pytorch_version": "2.2.2+cu121",
+        "numpy_version": "1.23.5",
+        "end_time_seconds": "1791085425"
+    },
+    "total": 2296.3788024000823,
+    "count": 1,
+    "self": 0.010333099868148565,
+    "children": {
+        "run_training.setup": {
+            "total": 0.12266020011156797,
+            "count": 1,
+            "self": 0.12266020011156797
+        },
+        "TrainerController.start_learning": {
+            "total": 2296.2458091001026,
+            "count": 1,
+            "self": 2.6072215910535306,
+            "children": {
+                "TrainerController._reset_env": {
+                    "total": 13.51801440003328,
+                    "count": 1,
+                    "self": 13.51801440003328
+                },
+                "TrainerController.advance": {
+                    "total": 2279.983970208792,
+                    "count": 99482,
+                    "self": 4.546793770045042,
+                    "children": {
+                        "env_step": {
+                            "total": 947.586695502745,
+                            "count": 99482,
+                            "self": 590.9126797402278,
+                            "children": {
+                                "SubprocessEnvManager._take_step": {
+                                    "total": 355.5230116492603,
+                                    "count": 99482,
+                                    "self": 8.05255060386844,
+                                    "children": {
+                                        "TorchPolicy.evaluate": {
+                                            "total": 347.47046104539186,
+                                            "count": 93816,
+                                            "self": 347.47046104539186
+                                        }
+                                    }
+                                },
+                                "workers": {
+                                    "total": 1.1510041132569313,
+                                    "count": 99482,
+                                    "self": 0.0,
+                                    "children": {
+                                        "worker_root": {
+                                            "total": 2281.4632942236494,
+                                            "count": 99482,
+                                            "is_parallel": true,
+                                            "self": 1885.464023301145,
+                                            "children": {
+                                                "steps_from_proto": {
+                                                    "total": 0.0007978000212460756,
+                                                    "count": 1,
+                                                    "is_parallel": true,
+                                                    "self": 0.0002816000487655401,
+                                                    "children": {
+                                                        "_process_rank_one_or_two_observation": {
+                                                            "total": 0.0005161999724805355,
+                                                            "count": 2,
+                                                            "is_parallel": true,
+                                                            "self": 0.0005161999724805355
+                                                        }
+                                                    }
+                                                },
+                                                "UnityEnvironment.step": {
+                                                    "total": 395.9984731224831,
+                                                    "count": 99482,
+                                                    "is_parallel": true,
+                                                    "self": 22.18900678725913,
+                                                    "children": {
+                                                        "UnityEnvironment._generate_step_input": {
+                                                            "total": 28.52239563781768,
+                                                            "count": 99482,
+                                                            "is_parallel": true,
+                                                            "self": 28.52239563781768
+                                                        },
+                                                        "communicator.exchange": {
+                                                            "total": 278.01776252430864,
+                                                            "count": 99482,
+                                                            "is_parallel": true,
+                                                            "self": 278.01776252430864
+                                                        },
+                                                        "steps_from_proto": {
+                                                            "total": 67.26930817309767,
+                                                            "count": 99482,
+                                                            "is_parallel": true,
+                                                            "self": 22.728469302412122,
+                                                            "children": {
+                                                                "_process_rank_one_or_two_observation": {
+                                                                    "total": 44.54083887068555,
+                                                                    "count": 198964,
+                                                                    "is_parallel": true,
+                                                                    "self": 44.54083887068555
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "trainer_advance": {
+                            "total": 1327.850480936002,
+                            "count": 99482,
+                            "self": 4.335688868537545,
+                            "children": {
+                                "process_trajectory": {
+                                    "total": 963.5463868656661,
+                                    "count": 99482,
+                                    "self": 962.7325030658394,
+                                    "children": {
+                                        "RLTrainer._checkpoint": {
+                                            "total": 0.8138837998267263,
+                                            "count": 6,
+                                            "self": 0.8138837998267263
+                                        }
+                                    }
+                                },
+                                "_update_policy": {
+                                    "total": 359.9684052017983,
+                                    "count": 156,
+                                    "self": 32.41579979006201,
+                                    "children": {
+                                        "TorchPOCAOptimizer.update": {
+                                            "total": 327.5526054117363,
+                                            "count": 9396,
+                                            "self": 327.5526054117363
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "trainer_threads": {
+                    "total": 8.00006091594696e-07,
+                    "count": 1,
+                    "self": 8.00006091594696e-07
+                },
+                "TrainerController._save_models": {
+                    "total": 0.1366021002177149,
+                    "count": 1,
+                    "self": 0.010760600212961435,
+                    "children": {
+                        "RLTrainer._checkpoint": {
+                            "total": 0.12584150000475347,
+                            "count": 1,
+                            "self": 0.12584150000475347
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

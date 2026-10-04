@@ -1,0 +1,32 @@
+commits with known order 3462 / all commits 3471 | dumps 0
+wrong commits 89 (3%)
+
+[1] first ingredient: {'G': 2147, 'B': 807, 'R': 508}
+    ingredient demand in orders at that moment: {'G': '26%', 'R': '39%', 'B': '35%'}
+    first ingredient fits NO order: 14 (0%) -> {'B': 11, 'G': 3}
+
+[2] why wrong:
+    b first ok, wrong 2nd ingredient: 75 (84%)
+    a first ingredient fit no order: 14 (16%)
+    (b) first, put 2nd, needed 2nd:
+       ('B', 'G', 'B') 12
+       ('R', 'B', 'R') 11
+       ('B', 'G', 'R/B') 8
+       ('B', 'G', 'R') 8
+       ('G', 'B', 'R') 8
+       ('B', 'B', 'R') 5
+       ('B', 'B', 'G') 3
+       ('B', 'B', 'G/R') 3
+
+[3] source of 2nd ingredient  wrong: {'B': 65, 'A': 24}  right: {'B': 2643, 'A': 730}
+    source of 1st ingredient  all: {'?': 3, 'A': 666, 'B': 2793}
+
+[4] recipe: present in orders at first-fill / made correctly / wrong-made
+    G2: ordered  981  made-right  951  made-wrong    5
+    GR: ordered 1366  made-right  810  made-wrong    9
+    R2: ordered 1774  made-right  116  made-wrong    2
+    B2: ordered 1504  made-right  529  made-wrong   12
+    GB: ordered 1397  made-right  782  made-wrong   41
+    RB: ordered 1645  made-right  185  made-wrong   20
+
+[5] dumps first ingredient: {}

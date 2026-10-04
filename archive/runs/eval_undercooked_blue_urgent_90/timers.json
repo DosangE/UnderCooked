@@ -1,0 +1,37 @@
+{
+    "name": "root",
+    "metadata": {
+        "timer_format_version": "0.1.0",
+        "start_time_seconds": "1791108317",
+        "python_version": "3.10.12 | packaged by conda-forge | (main, Jun 23 2023, 22:34:57) [MSC v.1936 64 bit (AMD64)]",
+        "command_line_arguments": "C:\\Users\\User\\miniconda3\\envs\\mlagents\\Scripts\\mlagents-learn results/overnight/diag_urgent.yaml --run-id=eval_undercooked_blue_urgent_90 --initialize-from=undercooked_blue_urgent --inference --seed=1 --torch-device cuda --force",
+        "mlagents_version": "1.2.0.dev0",
+        "mlagents_envs_version": "1.2.0.dev0",
+        "communication_protocol_version": "1.5.0",
+        "pytorch_version": "2.2.2+cu121",
+        "numpy_version": "1.23.5",
+        "end_time_seconds": "1791108320"
+    },
+    "total": 2.830654999939725,
+    "count": 1,
+    "self": 0.010608799988403916,
+    "children": {
+        "run_training.setup": {
+            "total": 0.13787669991143048,
+            "count": 1,
+            "self": 0.13787669991143048
+        },
+        "TrainerController.start_learning": {
+            "total": 2.6821695000398904,
+            "count": 1,
+            "self": 0.00012260000221431255,
+            "children": {
+                "TrainerController._reset_env": {
+                    "total": 2.682046900037676,
+                    "count": 1,
+                    "self": 2.682046900037676
+                }
+            }
+        }
+    }
+}
