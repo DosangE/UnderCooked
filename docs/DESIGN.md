@@ -3,6 +3,10 @@
 > 이 문서는 2026-10-02까지의 README 전문이다. 요약판 README는 [`../README.md`](../README.md).
 > **코드 주석과 `reports/`에 나오는 `README §4-12`, `README 4-17` 같은 참조는 이 문서의 같은 절을 가리킨다.**
 > 절 번호를 바꾸지 않는다.
+>
+> **2026-10-04 이후 코드는 재료 3종(초록·빨강·파랑), 요리 6종이다.** 이 문서의 본문은 재료 2종 버전의 기록이다.
+> 바뀐 사실은 해당 절에 `재료 3종 확장` 메모로 덧붙였다(§1 맵, §2 관측·보상, §6 진단 지표, §7 파일 구조).
+> 확장 과정 전체는 [`../reports/2026-10-04-blue-ingredient.md`](../reports/2026-10-04-blue-ingredient.md), 요약은 README §9.
 
 Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 두 셰프가 카운터를 사이에 두고 재료와 그릇을 주고받아, **주문표에 적힌 요리를**
@@ -10,14 +14,16 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 
 ![최종 정책 데모](../assets/demo.gif)
 
-최종 모델(`models/undercooked.onnx`)이 최종 난이도로 한 에피소드를 플레이하는 모습이다
+재료 2종 최종 모델(`undercooked_final3`)이 최종 난이도로 한 에피소드를 플레이하는 모습이다
 (손질 켜짐, 레시피 3종, 조리 5초, 주문 슬롯 3, 주문 25초, 목표 3접시).
 냄비는 북쪽 셰프 A 구역에, 그릇함과 서빙구는 남쪽 셰프 B 구역에만 있어서 빈 그릇과 완성 요리가
 반드시 가운데 카운터를 건너야 한다. 두 셰프는 MA-POCA 팀 정책으로 누가 무엇을 나를지와
 주문판에 맞는 요리 고르기를 스스로 배웠다. 위쪽 띠는 녹화할 때 기록한 서빙 수와 대기 주문이다.
 
 > 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 98% (`undercooked_final3`),
-> Unity 추론 97.1% (에피소드 478개). 결과는 §6, 최종 모델은 `models/undercooked.onnx`.
+> Unity 추론 97.1% (에피소드 478개). 결과는 §6, 모델은 `archive/runs/undercooked_final3/Chef.onnx`.
+> **재료 3종·요리 6종 확장 후** 최종 모델 `models/undercooked.onnx`는 `undercooked_blue_urgent3`다 (관측 145, Unity 추론 99.5%, 1105판).
+> 확장 경위는 `reports/2026-10-04-blue-ingredient.md`, 시연은 `assets/demo_blue.gif`.
 > 최종 보고서는 `reports/2026-09-29-final-report.md`, 학습 결과 파일은 `archive/`.
 > 보완 실험 결과는 `reports/2026-09-29-experiment-results.md`, 전체 과정·시행착오·학습 시간은 `reports/2026-09-30-full-log.md`.
 
@@ -32,6 +38,13 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 | GreenSoup | 초록 ×2 | `CookedGreen` |
 | MixSoup | 초록 + 빨강 | `CookedMix` |
 | RedSoup | 빨강 ×2 | `CookedRed` |
+
+> **재료 3종 확장** — 파랑을 더해 요리 6종이다: BlueSoup(파랑 ×2, `CookedBlue`), GreenBlueSoup(초록 + 파랑,
+> `CookedGreenBlue`), RedBlueSoup(빨강 + 파랑, `CookedRedBlue`). 재료 3종에서 2개를 고르는 조합 6가지가 전부 요리라
+> 냄비가 차면 반드시 어떤 요리가 된다. 재료는 `IngredientType`과 재료별 개수 배열로 일반화했다.
+> 새 yaml 파라미터(모두 기본값이면 예전 동작): `recipe_pool_start`(주문을 `[start, pool)`에서 뽑기),
+> `episode_duration`(라운드 길이, 씬 기본 45초는 그대로), `order_expired_penalty`(만료 벌점), `urgent_serve_bonus`
+> (서빙한 주문이 주문판에서 가장 급했을 때 팀 보너스).
 
 ```
 재료 줍기 → (손질대) → 냄비에 2개 → 자동 조리(N초) → 그릇에 담기 → 서빙구에 제출
@@ -72,6 +85,9 @@ G  초록 재료함(경계·공용)   R  빨강 재료함(경계·공용)
 pa A 구역 손질대  pb B 구역 손질대  (둘 다 색을 가리지 않는다)
 POT 냄비(A)  D 그릇함(B)  S 서빙구(B)
 ```
+
+> **재료 3종 확장** — row4 col4(위 그림의 `#`)에 파랑 재료함 `U`를 넣었다: `#CCGURCC#`. 다른 칸은 그대로다.
+> 레시피 풀에 파랑 요리가 없으면(`recipe_pool_size` ≤ 3) 파랑 재료함은 숨겨지고 막힌다.
 
 **협동은 맵 구조로 강제된다.** row4(경계)가 두 구역을 물리적으로 분리해서
 걸어서 넘어갈 수 없다. 재료함과 손질대는 양쪽이 각자 쓸 수 있지만,
@@ -120,6 +136,11 @@ RedSoup에서 A가 하는 일이 "냄비 앞에 서서 세 번 받아 넣기"뿐
 | 손질 필요 플래그 | 1 |
 | **주문 슬롯 3 × (요리 one-hot 3 + 남은시간 1 + 유효 1)** | **15** |
 | **합계** | **103** |
+
+> **재료 3종 확장 — 145차원.** 손에 든 것 one-hot이 9 → 14종(파랑 생/손질, 완성 요리 3종 추가),
+> 냄비 재료별 개수 2 → 3, 카운터 4 × (14 + 2), 스테이션 7 → 8곳(파랑 재료함), 주문 슬롯 3 × (요리 6 + 2).
+> 2 + 4 + 14 + 2 + 14 + 3 + 64 + 16 + 1 + 1 + 24 = 145. 구조는 같고 one-hot 크기만 늘었다.
+> 103차원 모델(재료 2종, `archive/runs/undercooked_final3/Chef.onnx`)은 이 코드에서 돌지 않는다.
 
 **조리가 끝났는지는 관측에 넣지 않는다.** 재료를 언제 다 넣었는지 기억해서
 스스로 추정해야 한다 — Memory(RNN)를 쓰는 근거다. (§3 참조)
@@ -174,6 +195,11 @@ Interact가 영영 불가능해진다.)
 | (선택, 기본 꺼짐) 주문에 없는 요리가 손·카운터·확정 냄비에 있는 동안 | yaml `wrong_dish_hold_penalty` × 초 × 개수 |
 
 마지막 줄은 실험용이다 (`reports/2026-09-30-wrong-dish-hold.md`). 최종 모델은 이것 없이 학습했다.
+
+> **재료 3종 확장** — 팀 보상 두 줄이 yaml로 조정된다. 주문 만료는 `order_expired_penalty`(기본 −0.5),
+> **가장 급한 주문을 채운 서빙**은 `urgent_serve_bonus`(기본 0 = 꺼짐)다. 후자는 서빙한 주문의 남은 시간이
+> 주문판 전체에서 가장 짧을 때만 준다(순위만 보므로 일부러 기다려도 이득이 없다, 회귀 검사 [17]).
+> 6종 모델이 초록 없는 요리 주문을 버리는 편향을 줄이려고 넣었다 (`reports/2026-10-04-blue-ingredient.md` §4).
 
 **개인** (`AddReward`)
 
@@ -880,7 +906,7 @@ TensorBoard 이벤트 파일에서 그대로 읽었다. 흐린 선은 원값, �
 | `undercooked_v2` | 기본 커리큘럼, `--initialize-from=undercooked_lesson0`, 8M | 최종 난이도 성공률 약 54% |
 | `undercooked_final` | 최종 난이도 고정 (`configs/undercooked_final.yaml`), `--initialize-from=undercooked_v2`, 3M | 최종 난이도 성공률 약 74% |
 | `undercooked_final2` | 같은 설정, `--initialize-from=undercooked_final`, 3M | 최종 난이도 성공률 약 90% |
-| `undercooked_final3` | 같은 설정 + 잘못된 재료 투입 벌점 −0.1 → −0.3, `--initialize-from=undercooked_final2`, 3M | **최종 난이도 성공률 약 98%** → `models/undercooked.onnx` |
+| `undercooked_final3` | 같은 설정 + 잘못된 재료 투입 벌점 −0.1 → −0.3, `--initialize-from=undercooked_final2`, 3M | **최종 난이도 성공률 약 98%** (재료 2종 최종 모델) |
 
 v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 lesson0 기준 약 2M)보다 먼저
 난이도가 올라갔다(1.2M 레시피 2종, 1.6M 손질). 분석은
@@ -1025,6 +1051,17 @@ v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 less
 | `Kitchen/PotCommittedWrong` | 냄비가 다 찬 순간 그 레시피를 원하는 주문이 없었다. 처음부터 잘못 만든 것 (회귀 검사 [10]) |
 | `Kitchen/ServedWrongOrder` | 주문과 다른 요리를 제출했다. 위 값을 빼면 채울 땐 맞았는데 그 사이 주문이 만료·소진된 경우 (회귀 검사 [3]) |
 
+> **재료 3종 확장에서 추가한 지표**
+>
+> | 지표 | 읽는 법 |
+> |---|---|
+> | `Kitchen/Made/<요리>` | 요리별 냄비 확정 횟수 (주문에 맞았는지와 무관). 어떤 요리를 안 만드는지 바로 보인다 |
+> | `Kitchen/UrgentServes` | 서빙한 주문이 그 순간 주문판에서 가장 급했던 횟수. `urgent_serve_bonus`가 꺼져 있어도 센다 |
+> | `Kitchen/Stage`, `Kitchen/StageSuccessRate` | 단계 커리큘럼(`stage_curriculum`)을 켰을 때만 |
+>
+> 성공률이 높아도 요리별로 치우칠 수 있다. 판단은 냄비 채움 진단(`archive/tools/inference/pot_fill_log.cs`,
+> 요약 `archive/tools/analyze_pot_fills.py`)의 "주문판에 있었을 때 그 요리를 고른 비율"로 한다.
+
 - [ ] **주문 관측 ablation** — 주문을 가리면 정책이 한 요리만 만드는지. **하지 않음.** 과제 필수 항목이 아니다
 - [x] 최종 정책 데모 GIF — 맨 위 `assets/demo.gif`
 
@@ -1039,8 +1076,9 @@ UnderCooked/
 │   ├── Scenes/UnderCooked.unity        16개 TrainingArea (에이전트 32)
 │   ├── Prefabs/TrainingArea.prefab     환경 1세트
 │   └── Scripts/
-│       ├── ItemType.cs                 enum: 손에 들 수 있는 것 (완성 요리 3종 포함)
-│       ├── RecipeType.cs               enum: 요리 3종 + 필요 재료/완성품 변환
+│       ├── IngredientType.cs           enum: 재료 3종(초록/빨강/파랑) + 재료함·생/손질 아이템 변환
+│       ├── ItemType.cs                 enum: 손에 들 수 있는 것 14종 (완성 요리 6종 포함)
+│       ├── RecipeType.cs               enum: 요리 6종 + 재료별 필요 개수/완성품 변환
 │       ├── StationType.cs              enum: 스테이션 종류
 │       ├── InteractResult.cs           enum: 상호작용 결과
 │       ├── InteractOutcome.cs          struct: 결과 + 새 아이템 + 전달 상대
@@ -1069,14 +1107,18 @@ UnderCooked/
 │   ├── undercooked_lesson0.yaml        lesson0 고정
 │   ├── undercooked_final.yaml          최종 난이도 고정
 │   ├── undercooked_stage.yaml          실험 A: 성공률 단계 커리큘럼, 처음부터 한 번에
-│   └── undercooked_final_pen01/03.yaml 실험 B: 벌점 −0.1 / −0.3 대조
-├── models/undercooked.onnx             최종 모델 (undercooked_final3)
+│   ├── undercooked_final_pen01/03.yaml 실험 B: 벌점 −0.1 / −0.3 대조
+│   └── undercooked_blue_*.yaml         재료 3종 확장 (각 파일 머리말에 실행 명령과 이유)
+├── models/undercooked.onnx             최종 모델: 재료 3종·요리 6종 (undercooked_blue_urgent3, 관측 145)
 ├── reports/                            학습 결과·분석 보고서 (최종: 2026-09-29-final-report.md)
 ├── archive/runs/                       런 6개의 TensorBoard 이벤트·설정·모델·로그
 ├── archive/tools/                      지표 요약, 추론 확인, 그래프·GIF 생성 스크립트
 └── assets/
-    ├── demo.gif                        최종 정책 데모
-    └── tb_*.png                        학습 곡선 (§6)
+    ├── demo.gif                        재료 2종 최종 정책 데모
+    ├── demo_blue.gif                   재료 3종·요리 6종 최종 정책 데모
+    ├── tb_*.png                        재료 2종 학습 곡선 (§6)
+    ├── tb_blue_goal_reached.png        재료 3종 학습 곡선 (런 11개)
+    └── blue_pick_rate.png              재료 3종 요리별 선택 비율
 ```
 
 ## 8. 환경 버전

@@ -16,6 +16,7 @@ public class KitchenEnv : MonoBehaviour
     const char CharCounter = 'C';
     const char CharGreenBox = 'G';
     const char CharRedBox = 'R';
+    const char CharBlueBox = 'U';   // 'B'는 Chef B 스폰이 쓰고 있어서 blUe의 U
     const char CharPrepA = 'a';
     const char CharPrepB = 'b';
     const char CharPot = 'P';
@@ -24,7 +25,7 @@ public class KitchenEnv : MonoBehaviour
 
     // 맵 레이아웃. 배열 0번이 맵의 '위'(북쪽, row 최대)다. 파싱할 때 뒤집는다.
     //   # = 벽        . = 바닥       A/B = 셰프 스폰      C = 카운터 전달칸
-    //   G = 초록 재료함   R = 빨강 재료함   (둘 다 경계 위 = 양쪽 구역에서 집을 수 있다)
+    //   G = 초록 재료함   U = 파랑 재료함   R = 빨강 재료함   (모두 경계 위 = 양쪽 구역에서 집을 수 있다)
     //   a = A 구역 손질대   b = B 구역 손질대   (둘 다 색을 가리지 않는다)
     //   P = 냄비(A 구역)   D = 그릇함(B 구역)   S = 서빙구(B 구역)
     //
@@ -43,7 +44,7 @@ public class KitchenEnv : MonoBehaviour
         "#.......#", // row 7
         "#.......#", // row 6  <- Chef A 구역 (3행 x 7열)
         "#..A....P", // row 5     냄비는 A 구역 동쪽
-        "#CCG#RCC#", // row 4  <- 경계: 카운터 4칸 + 재료함 2개(공용)
+        "#CCGURCC#", // row 4  <- 경계: 카운터 4칸 + 재료함 3개(공용). 파랑은 예전 가운데 벽 자리
         "D..B....S", // row 3     그릇함 / 서빙구는 B 구역
         "#.......#", // row 2  <- Chef B 구역 (3행 x 7열)
         "#.......#", // row 1
@@ -79,7 +80,7 @@ public class KitchenEnv : MonoBehaviour
     [Tooltip("동시에 대기하는 주문 수. EnvironmentParameters의 order_slots가 없을 때 쓰는 값")]
     [SerializeField] int defaultOrderSlots = OrderBoard.MaxSlots;
     [Tooltip("주문에 나올 수 있는 레시피 수. RecipeType 순서대로 앞에서부터 풀린다. " +
-             "1이면 GreenSoup만, 2면 +MixSoup, 3이면 +RedSoup")]
+             "1이면 GreenSoup만, 2면 +MixSoup, 3이면 +RedSoup, 4면 +BlueSoup(파랑 등장), 6이면 전부")]
     [SerializeField] int defaultRecipePoolSize = RecipeTypeExtensions.Count;
     [Tooltip("주문 하나의 제한 시간(초). 넘기면 만료되고 팀 패널티가 붙는다")]
     [SerializeField] float defaultOrderDuration = 20f;
@@ -132,15 +133,25 @@ public class KitchenEnv : MonoBehaviour
     static bool s_PenaltyOverrideLogged;
     float m_WrongDishHoldPenalty;
     static bool s_HoldPenaltyLogged;
+    float m_EpisodeDurationOverride = float.NaN;
+    static bool s_EpisodeDurationLogged;
+    float m_OrderExpiredPenaltyOverride = float.NaN;
+    static bool s_ExpiredPenaltyLogged;
+    float m_UrgentServeBonus;
+    static bool s_UrgentBonusLogged;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics()
     {
         s_PenaltyOverrideLogged = false;
         s_HoldPenaltyLogged = false;
+        s_EpisodeDurationLogged = false;
+        s_ExpiredPenaltyLogged = false;
+        s_UrgentBonusLogged = false;
     }
     float m_EpisodeTimer;
     int m_ExpiredOrders;      // KitchenGroup이 가져가서 패널티로 바꾼다
+    int m_UrgentServes;       // 주문판에서 가장 급한 주문을 채운 서빙 수. KitchenGroup이 가져가서 보너스로 바꾼다
     bool m_Initialized;
 
     // ── 사람 플레이 전용 ─────────────────────────────────────
@@ -195,7 +206,10 @@ public class KitchenEnv : MonoBehaviour
 
     // 사람용 화면 표시에서 조리 진행률을 계산하는 데 쓴다. 관측에는 쓰지 않는다.
     public float CookTime => m_CookTime;
-    public float EpisodeDuration => episodeDuration;
+    // 이번 에피소드의 길이. yaml의 episode_duration이 있으면 그 값, 없으면 씬 값이다.
+    public float EpisodeDuration => float.IsNaN(m_EpisodeDurationOverride) ? episodeDuration : m_EpisodeDurationOverride;
+    // 씬에 직렬화된 기본 길이. StartupValidator는 이쪽을 문서 기준(45초)과 비교한다.
+    public float DefaultEpisodeDuration => episodeDuration;
     public float EpisodeElapsed => m_EpisodeTimer;
 
     // 같은 오브젝트에 붙은 다른 컴포넌트의 Start()가 KitchenEnv.Start()보다 먼저 돌 수 있다.
@@ -239,8 +253,30 @@ public class KitchenEnv : MonoBehaviour
     public int DishesServed { get; private set; }
     public bool IsGoalReached => DishesServed >= m_TargetDishes;
 
-    public bool IsTimeUp => m_EpisodeTimer >= episodeDuration;
-    public float TimeRemainingNormalized => Mathf.Clamp01(1f - m_EpisodeTimer / episodeDuration);
+    // 주문 만료 벌점. yaml의 order_expired_penalty가 있으면 그 값, 없으면 KitchenGroup의
+    // 직렬화 값(fallback)을 쓴다.
+    //
+    // 슬롯 3개 / 주문 25초면 처리 속도(약 15초에 1접시)보다 주문이 많아 매 판 일부를 버려야 한다.
+    // 그러면 '어느 주문을 버릴지'가 공짜 선택이 되어 RedSoup이 늘 버려졌다
+    // (diag_undercooked_blue_red_mix: RedSoup이 주문판에 있을 때 고른 비율 6.5%).
+    // 에피소드·주문 시간을 늘려 전부 처리할 수 있게 하고, 버리는 주문에 이 벌점을 매긴다.
+    public float OrderExpiredPenaltyOr(float fallback)
+    {
+        return float.IsNaN(m_OrderExpiredPenaltyOverride) ? fallback : m_OrderExpiredPenaltyOverride;
+    }
+
+    // 주문판 전체에서 가장 급한 주문을 채운 서빙에 붙는 팀 보너스. yaml의 urgent_serve_bonus로만
+    // 켜진다(기본 0 = 꺼짐, 기존 학습 조건과 같다).
+    //
+    // 만료 벌점은 무엇을 만들지 고른 뒤 10~30초 늦게 와서 gamma로 거의 지워진다.
+    // 90초/목표 8 조건에서 만료를 판당 약 2.9건(-3.0씩) 받으면서도 RedSoup·RedBlueSoup의
+    // 절반을 계속 버렸다 (long8_g995 관찰: 만료의 91%가 초록 없는 요리).
+    // 서빙 순간에 '가장 오래 기다린 주문을 채웠다'를 바로 보상한다. 남은 시간의 순위만 보므로
+    // 일부러 기다려도 이득이 없다(모든 주문의 시간이 같이 줄어든다).
+    public float UrgentServeBonus => m_UrgentServeBonus;
+
+    public bool IsTimeUp => m_EpisodeTimer >= EpisodeDuration;
+    public float TimeRemainingNormalized => Mathf.Clamp01(1f - m_EpisodeTimer / EpisodeDuration);
 
     public IReadOnlyList<Station> Counters => m_Counters;
     public Station Pot => GetStation(StationType.Pot);
@@ -332,6 +368,14 @@ public class KitchenEnv : MonoBehaviour
     {
         int count = m_ExpiredOrders;
         m_ExpiredOrders = 0;
+        return count;
+    }
+
+    // 위와 같은 방식. 가장 급한 주문을 채운 서빙 수.
+    public int TakeUrgentServeCount()
+    {
+        int count = m_UrgentServes;
+        m_UrgentServes = 0;
         return count;
     }
 
@@ -487,6 +531,7 @@ public class KitchenEnv : MonoBehaviour
         {
             case CharGreenBox:     type = StationType.GreenBox;     return true;
             case CharRedBox:       type = StationType.RedBox;       return true;
+            case CharBlueBox:      type = StationType.BlueBox;      return true;
             case CharPrepA:        type = StationType.PrepA;        return true;
             case CharPrepB:        type = StationType.PrepB;        return true;
             case CharPot:          type = StationType.Pot;          return true;
@@ -517,13 +562,33 @@ public class KitchenEnv : MonoBehaviour
             s_HoldPenaltyLogged = true;
             Debug.Log($"[KitchenEnv] wrong_dish_hold_penalty = {m_WrongDishHoldPenalty:0.###}/s (yaml 값 사용)");
         }
+        float duration = envParams.GetWithDefault("episode_duration", float.NaN);
+        m_EpisodeDurationOverride = float.IsNaN(duration) ? float.NaN : Mathf.Max(1f, duration);
+        if (!float.IsNaN(m_EpisodeDurationOverride) && !s_EpisodeDurationLogged)
+        {
+            s_EpisodeDurationLogged = true;
+            Debug.Log($"[KitchenEnv] episode_duration = {m_EpisodeDurationOverride:0.#}s (yaml 값 사용, 씬 값 {episodeDuration:0.#}s)");
+        }
+        m_OrderExpiredPenaltyOverride = envParams.GetWithDefault("order_expired_penalty", float.NaN);
+        if (!float.IsNaN(m_OrderExpiredPenaltyOverride) && !s_ExpiredPenaltyLogged)
+        {
+            s_ExpiredPenaltyLogged = true;
+            Debug.Log($"[KitchenEnv] order_expired_penalty = {m_OrderExpiredPenaltyOverride:0.###} (yaml 값 사용)");
+        }
+        m_UrgentServeBonus = Mathf.Max(0f, envParams.GetWithDefault("urgent_serve_bonus", 0f));
+        if (m_UrgentServeBonus > 0f && !s_UrgentBonusLogged)
+        {
+            s_UrgentBonusLogged = true;
+            Debug.Log($"[KitchenEnv] urgent_serve_bonus = {m_UrgentServeBonus:0.###} (yaml 값 사용)");
+        }
 
         int orderSlots;
         int recipePool;
+        int recipeStart;
         StageCurriculum.Configure(envParams);
         if (StageCurriculum.Enabled)
         {
-            // 단계 커리큘럼이 켜져 있으면 난이도 손잡이 5개를 단계 표에서 가져온다.
+            // 단계 커리큘럼이 켜져 있으면 난이도 손잡이들을 단계 표에서 가져온다.
             // yaml의 개별 파라미터(target_dishes 등)는 이때 읽지 않는다.
             m_Stage = StageCurriculum.Current;
             var stage = StageCurriculum.Stages[m_Stage];
@@ -532,6 +597,7 @@ public class KitchenEnv : MonoBehaviour
             m_CookTime = stage.CookTime;
             orderSlots = stage.OrderSlots;
             recipePool = stage.RecipePool;
+            recipeStart = stage.RecipeStart;
         }
         else
         {
@@ -541,10 +607,12 @@ public class KitchenEnv : MonoBehaviour
             m_CookTime = Mathf.Max(0f, envParams.GetWithDefault("cook_time", defaultCookTime));
             orderSlots = Mathf.RoundToInt(envParams.GetWithDefault("order_slots", defaultOrderSlots));
             recipePool = Mathf.RoundToInt(envParams.GetWithDefault("recipe_pool_size", defaultRecipePoolSize));
+            // 앞쪽 레시피를 주문에서 뺀다 (OrderBoard.m_PoolStart 참조). 없으면 0 = 예전과 같다.
+            recipeStart = Mathf.RoundToInt(envParams.GetWithDefault("recipe_pool_start", 0f));
         }
 
         m_Orders.Configure(orderSlots, recipePool,
-            envParams.GetWithDefault("order_duration", defaultOrderDuration));
+            envParams.GetWithDefault("order_duration", defaultOrderDuration), recipeStart);
         m_Orders.ResetBoard();
 
         foreach (var station in GetComponentsInChildren<Station>(true))
@@ -566,6 +634,7 @@ public class KitchenEnv : MonoBehaviour
         DishesServed = 0;
         m_EpisodeTimer = 0f;
         m_ExpiredOrders = 0;
+        m_UrgentServes = 0;
     }
 
     void SetStationVisible(StationType type, bool visible)
@@ -979,7 +1048,11 @@ public class KitchenEnv : MonoBehaviour
 
             case InteractResult.Served:
                 // 그 요리를 주문한 손님이 있어야 점수다. 없으면 완성품이어도 버린 것이다.
-                if (m_Orders.TryConsume(heldItem)) DishesServed++;
+                if (m_Orders.TryConsume(heldItem, out bool mostUrgent))
+                {
+                    DishesServed++;
+                    if (mostUrgent) m_UrgentServes++;
+                }
                 else outcome.Result = InteractResult.ServedWrongOrder;
                 break;
         }

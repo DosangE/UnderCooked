@@ -1,17 +1,16 @@
 var cam = UnityEngine.GameObject.Find("_DemoCam").GetComponent<UnityEngine.Camera>();
 KitchenEnv env = null;
 foreach (var e in UnityEngine.Object.FindObjectsByType<KitchenEnv>(UnityEngine.FindObjectsSortMode.None)) if (e.name == "TrainingArea_09") env = e;
-var timerField = typeof(KitchenEnv).GetField("m_EpisodeTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 UnityEngine.Time.timeScale = 1f;
 string dir = @"<FRAMES_DIR>/";
-float last = (float)timerField.GetValue(env);
+float last = env.EpisodeElapsed;
 int state = 0; int idx = 0; float nextShot = 0f; float startT = 0f;
 var tex = new UnityEngine.Texture2D(cam.targetTexture.width, cam.targetTexture.height, UnityEngine.TextureFormat.RGB24, false);
 UnityEditor.SessionState.SetString("ucRec", "waiting");
 UnityEditor.EditorApplication.CallbackFunction cb = null;
 cb = () => {
   if (!UnityEditor.EditorApplication.isPlaying) { UnityEditor.EditorApplication.update -= cb; return; }
-  float t = (float)timerField.GetValue(env);
+  float t = env.EpisodeElapsed;
   bool reset = t < last - 0.5f; last = t;
   if (state == 0) { if (reset) { state = 1; startT = UnityEngine.Time.time; nextShot = startT; } else return; }
   else if (reset || UnityEngine.Time.time - startT > 90f) {
@@ -21,6 +20,7 @@ cb = () => {
   }
   if (UnityEngine.Time.time < nextShot) return;
   nextShot += 0.1f;
+  cam.Render();  // without this the texture can be black when the Game view is not drawing
   var prev = UnityEngine.RenderTexture.active; UnityEngine.RenderTexture.active = cam.targetTexture;
   tex.ReadPixels(new UnityEngine.Rect(0, 0, tex.width, tex.height), 0, 0); tex.Apply();
   UnityEngine.RenderTexture.active = prev;

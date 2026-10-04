@@ -1,0 +1,65 @@
+# UnderCooked - blue ingredient, 6 dishes, 90 s / 8 dishes, urgent-serve bonus 3.0 (was 1.5).
+#
+# ASCII ONLY (see undercooked.yaml header - load_config() uses the OS codepage).
+#
+# undercooked_blue_long8_g995 (stopped at ~2.5M): even with expiry -3.0 and gamma 0.995,
+# RedSoup stayed at 4-6% of dishes. Watching the live order boards for 3 minutes,
+# 91% of expiries were dishes without green (RedSoup 49% expired, RedBlueSoup 51%,
+# BlueSoup 23%; GreenSoup 0%, MixSoup 5%, GreenBlueSoup 7%).
+# The expiry signal comes too late. urgent_serve_bonus pays right at the serve when
+# the order filled was the most urgent one on the whole board (rank only, so waiting
+# on purpose gains nothing). KitchenEnv.UrgentServeBonus, regression check [17].
+#
+# Run:
+#   mlagents-learn configs/undercooked_blue_urgent3.yaml --run-id=undercooked_blue_urgent3 --initialize-from=undercooked_blue_urgent --seed=1 --torch-device cuda
+#
+# Everything else is identical to undercooked_blue_urgent.yaml.
+#
+# undercooked_blue_urgent (bonus 1.5) raised RedSoup picks 6.5% -> 10.8% (45 s eval) but
+# stalled at 8-10% of dishes after 5M, partly because the linear schedule had already
+# shrunk the learning rate. This run restarts the schedule with the bonus equal to a serve.
+
+behaviors:
+  Chef:
+    trainer_type: poca
+
+    hyperparameters:
+      batch_size: 1024        # multiple of sequence_length (64)
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 64
+        memory_size: 128
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.995
+        strength: 1.0
+
+    keep_checkpoints: 5
+    checkpoint_interval: 500000
+    max_steps: 9000000
+    time_horizon: 128
+    summary_freq: 20000
+
+environment_parameters:
+  target_dishes: 8.0
+  recipe_pool_size: 6.0
+  needs_prep: 1.0
+  cook_time: 5.0
+  order_slots: 3.0
+  order_duration: 30.0
+  max_ingredients: 2.0
+  episode_duration: 90.0
+  order_expired_penalty: -3.0
+  urgent_serve_bonus: 3.0

@@ -1,0 +1,41 @@
+{
+    "target_dishes": {
+        "lesson_num": 0
+    },
+    "recipe_pool_size": {
+        "lesson_num": 0
+    },
+    "needs_prep": {
+        "lesson_num": 0
+    },
+    "cook_time": {
+        "lesson_num": 0
+    },
+    "order_slots": {
+        "lesson_num": 0
+    },
+    "order_duration": {
+        "lesson_num": 0
+    },
+    "max_ingredients": {
+        "lesson_num": 0
+    },
+    "Chef": {
+        "checkpoints": [
+            {
+                "steps": 499978,
+                "file_path": "results\\eval_undercooked_blue_fix\\Chef\\Chef-499978.onnx",
+                "reward": -0.9388388734525325,
+                "creation_time": 1791060123.8733194,
+                "auxillary_file_paths": [
+                    "results\\eval_undercooked_blue_fix\\Chef\\Chef-499978.pt"
+                ]
+            }
+        ]
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "1.2.0.dev0",
+        "torch_version": "2.2.2+cu121"
+    }
+}
