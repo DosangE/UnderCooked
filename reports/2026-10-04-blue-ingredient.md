@@ -16,7 +16,10 @@
 | **`undercooked_blue_urgent3`** (최종) | 90초 / 목표 8 | **98.9%** | 5% | **21.1%** |
 
 "RedSoup 선택"은 냄비에 첫 재료를 넣는 순간 주문판에 RedSoup이 있었던 경우 중 실제로 RedSoup을 만든 비율이다(§5).
-**최종 6종 모델은 `archive/runs/undercooked_blue_urgent3/Chef.onnx`** (관측 145).
+**최종 6종 모델은 `archive/runs/undercooked_blue_urgent3/Chef.onnx`** (관측 145). 제출 모델 `models/undercooked.onnx`도 이 모델로 바꿨다.
+판 단위로 다시 세면 45초 / 목표 3에서 **1105판 중 99.5%**다. 재료 2종 모델을 같은 방식으로 센 값은 1100판 97.5%다(§5-1).
+
+![6종 최종 모델 시연](../assets/demo_blue.gif)
 
 크게 두 문제를 풀었다.
 
@@ -34,7 +37,7 @@
 - 요리 3종: GreenSoup(초록 2), MixSoup(초록+빨강), RedSoup(빨강 2).
 - 최종 난이도: 손질 필요, 조리 5초, 주문 슬롯 3, 주문 25초, 45초 안에 3접시.
 - 학습 경로: `undercooked_v1` → `lesson0` → `v2`(8M 커리큘럼) → `final` → `final2` → `final3`(잘못된 재료 벌점 −0.3). 최종 98%.
-- 제출 모델 `models/undercooked.onnx`는 관측 103차원이다. 이 확장 이후 코드(관측 145)에서는 돌지 않는다.
+- 당시 제출 모델(지금은 `archive/runs/undercooked_final3/Chef.onnx`)은 관측 103차원이다. 이 확장 이후 코드(관측 145)에서는 돌지 않는다.
 
 ## 1. 무엇을 바꿨나
 
@@ -211,6 +214,34 @@ urgent의 막바지 정체에는 linear 학습률이 이미 작아진 영향도 
 기록: `archive/runs/eval_undercooked_blue_{fix9,red_mix,urgent_45,urgent_90,urgent3_45,urgent3_90}/summary.txt`.
 진단 설정은 `configs/undercooked_blue_eval45.yaml`, `_eval90.yaml`이다.
 
+![요리별 선택 비율](../assets/blue_pick_rate.png)
+
+### 5-1. 판 단위 재집계 (최종 모델)
+
+재료 2종 모델을 잰 방식 그대로 urgent3의 판을 하나씩 셌다.
+`configs/undercooked_blue_eval45.yaml`, `--inference --seed=1`, 600k 스텝. Play 직후 `archive/tools/inference/episode_log_public.cs`를 붙이고 `archive/tools/analyze_episodes.py`로 요약했다.
+
+| 모델 | 판 | 목표 달성 | 잘못 채움이 있었던 판 | 그 판의 목표 달성 | 성공한 판 길이 (중앙값) |
+|---|---|---|---|---|---|
+| final3 (재료 2종, `eval_final3`) | 1100 | 97.5% ±0.9 | 16.7% | 88.6% | 25.2초 |
+| **urgent3 (재료 3종)** | **1105** | **99.5% ±0.4** | 11.0% | 96.7% | 23.9초 |
+
+- 실패 6판: 2접시 5판, 0접시 1판. 모두 45초를 다 쓰고 끝났고 주문 3개가 만료됐다. 0접시 판은 틀린 요리를 한 번 서빙했다.
+- 재료 2종 모델은 잘못 채움이 2~3번 겹친 판(40판)에서 무너졌다(목표 달성 65%). urgent3는 2번 겹친 판이 12판이고 모두 성공했다.
+- 예전 문서의 "97.1%, 478판"은 같은 모델을 더 짧게 잰 값이다. 같은 600k 스텝 기준으로는 97.5%다.
+- `episode_log.cs`는 리플렉션으로 비공개 필드를 읽는데, unity-mcp의 `Unity_RunCommand`가 리플렉션을 막는다.
+  그래서 공개 API(`LastEpisodeChain`, `OrderMissThisEpisode`, `WrongDishSeconds`)만 쓰는 버전을 만들었다.
+  만료 주문 수는 주문판에서 남은 시간이 0.6초 미만이던 칸이 새로 채워진 횟수로 센다.
+
+기록: `archive/runs/eval_undercooked_blue_urgent3_episodes/` (`episodes.txt`, `summary.txt`).
+
+### 5-2. 학습 곡선
+
+![재료 3종 학습 곡선](../assets/tb_blue_goal_reached.png)
+
+런 11개를 이어 붙였다(약 100M 스텝). 구간마다 난이도·라운드 길이·목표가 달라서 값은 같은 구간 안에서만 비교한다.
+그림 스크립트는 `archive/tools/figures/plot_blue.py`.
+
 ## 6. 배운 것
 
 1. **성공률 관문은 지름길에 속는다.** 슬롯이 여러 개면 이미 아는 요리로 성공률을 채운다.
@@ -230,7 +261,7 @@ urgent의 막바지 정체에는 linear 학습률이 이미 작아진 영향도 
 - 최종 모델은 런 여러 개를 이어 붙인 것이다. 고친 단계표로 무작위 초기화부터 한 번에 되는지는 확인하지 않았다.
 - 모두 시드 1, 런 하나씩이다.
 - 지름길 단계(7·8)는 둘 다 강제 승급으로 끝났다. 6000판 상한이 없었다면 더 오래 걸렸다.
-- 관측이 145차원이라 제출 모델(`models/undercooked.onnx`, 103차원)과 바꿔 끼울 수 없다. 이 브랜치 코드에서는 예전 모델이 돌지 않는다.
+- 관측이 145차원이라 재료 2종 모델(103차원)과 바꿔 끼울 수 없다. 제출 모델은 urgent3로 바꿨고, 재료 2종 모델은 이 코드에서 돌지 않는다.
 - 초록 없는 요리 편향은 줄었지만 남아 있다. 초록 있는 요리는 47~90%로 고르고, 초록 없는 요리는 13~36%로 고른다.
   RedSoup을 늘리는 대신 RedBlueSoup·MixSoup이 조금 줄었다.
 - urgent 계열은 90초 / 목표 8 조건으로 학습했다. 45초 조건 평가에서도 99.4%였지만, 그 조건으로 이어 학습한 모델과 비교하지는 않았다.

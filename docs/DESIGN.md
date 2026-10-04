@@ -14,14 +14,16 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 
 ![최종 정책 데모](../assets/demo.gif)
 
-최종 모델(`models/undercooked.onnx`)이 최종 난이도로 한 에피소드를 플레이하는 모습이다
+재료 2종 최종 모델(`undercooked_final3`)이 최종 난이도로 한 에피소드를 플레이하는 모습이다
 (손질 켜짐, 레시피 3종, 조리 5초, 주문 슬롯 3, 주문 25초, 목표 3접시).
 냄비는 북쪽 셰프 A 구역에, 그릇함과 서빙구는 남쪽 셰프 B 구역에만 있어서 빈 그릇과 완성 요리가
 반드시 가운데 카운터를 건너야 한다. 두 셰프는 MA-POCA 팀 정책으로 누가 무엇을 나를지와
 주문판에 맞는 요리 고르기를 스스로 배웠다. 위쪽 띠는 녹화할 때 기록한 서빙 수와 대기 주문이다.
 
 > 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 98% (`undercooked_final3`),
-> Unity 추론 97.1% (에피소드 478개). 결과는 §6, 최종 모델은 `models/undercooked.onnx`.
+> Unity 추론 97.1% (에피소드 478개). 결과는 §6, 모델은 `archive/runs/undercooked_final3/Chef.onnx`.
+> **재료 3종·요리 6종 확장 후** 최종 모델 `models/undercooked.onnx`는 `undercooked_blue_urgent3`다 (관측 145, Unity 추론 99.5%, 1105판).
+> 확장 경위는 `reports/2026-10-04-blue-ingredient.md`, 시연은 `assets/demo_blue.gif`.
 > 최종 보고서는 `reports/2026-09-29-final-report.md`, 학습 결과 파일은 `archive/`.
 > 보완 실험 결과는 `reports/2026-09-29-experiment-results.md`, 전체 과정·시행착오·학습 시간은 `reports/2026-09-30-full-log.md`.
 
@@ -138,7 +140,7 @@ RedSoup에서 A가 하는 일이 "냄비 앞에 서서 세 번 받아 넣기"뿐
 > **재료 3종 확장 — 145차원.** 손에 든 것 one-hot이 9 → 14종(파랑 생/손질, 완성 요리 3종 추가),
 > 냄비 재료별 개수 2 → 3, 카운터 4 × (14 + 2), 스테이션 7 → 8곳(파랑 재료함), 주문 슬롯 3 × (요리 6 + 2).
 > 2 + 4 + 14 + 2 + 14 + 3 + 64 + 16 + 1 + 1 + 24 = 145. 구조는 같고 one-hot 크기만 늘었다.
-> 103차원 모델(`models/undercooked.onnx`)은 이 코드에서 돌지 않는다.
+> 103차원 모델(재료 2종, `archive/runs/undercooked_final3/Chef.onnx`)은 이 코드에서 돌지 않는다.
 
 **조리가 끝났는지는 관측에 넣지 않는다.** 재료를 언제 다 넣었는지 기억해서
 스스로 추정해야 한다 — Memory(RNN)를 쓰는 근거다. (§3 참조)
@@ -904,7 +906,7 @@ TensorBoard 이벤트 파일에서 그대로 읽었다. 흐린 선은 원값, �
 | `undercooked_v2` | 기본 커리큘럼, `--initialize-from=undercooked_lesson0`, 8M | 최종 난이도 성공률 약 54% |
 | `undercooked_final` | 최종 난이도 고정 (`configs/undercooked_final.yaml`), `--initialize-from=undercooked_v2`, 3M | 최종 난이도 성공률 약 74% |
 | `undercooked_final2` | 같은 설정, `--initialize-from=undercooked_final`, 3M | 최종 난이도 성공률 약 90% |
-| `undercooked_final3` | 같은 설정 + 잘못된 재료 투입 벌점 −0.1 → −0.3, `--initialize-from=undercooked_final2`, 3M | **최종 난이도 성공률 약 98%** → `models/undercooked.onnx` |
+| `undercooked_final3` | 같은 설정 + 잘못된 재료 투입 벌점 −0.1 → −0.3, `--initialize-from=undercooked_final2`, 3M | **최종 난이도 성공률 약 98%** (재료 2종 최종 모델) |
 
 v1이 실패한 원인은 progress 커리큘럼이었다. 첫 서빙(고정 lesson0 기준 약 2M)보다 먼저
 난이도가 올라갔다(1.2M 레시피 2종, 1.6M 손질). 분석은
@@ -1107,13 +1109,16 @@ UnderCooked/
 │   ├── undercooked_stage.yaml          실험 A: 성공률 단계 커리큘럼, 처음부터 한 번에
 │   ├── undercooked_final_pen01/03.yaml 실험 B: 벌점 −0.1 / −0.3 대조
 │   └── undercooked_blue_*.yaml         재료 3종 확장 (각 파일 머리말에 실행 명령과 이유)
-├── models/undercooked.onnx             재료 2종 최종 모델 (undercooked_final3, 관측 103 — 지금 코드에서는 안 돈다)
+├── models/undercooked.onnx             최종 모델: 재료 3종·요리 6종 (undercooked_blue_urgent3, 관측 145)
 ├── reports/                            학습 결과·분석 보고서 (최종: 2026-09-29-final-report.md)
 ├── archive/runs/                       런 6개의 TensorBoard 이벤트·설정·모델·로그
 ├── archive/tools/                      지표 요약, 추론 확인, 그래프·GIF 생성 스크립트
 └── assets/
-    ├── demo.gif                        최종 정책 데모
-    └── tb_*.png                        학습 곡선 (§6)
+    ├── demo.gif                        재료 2종 최종 정책 데모
+    ├── demo_blue.gif                   재료 3종·요리 6종 최종 정책 데모
+    ├── tb_*.png                        재료 2종 학습 곡선 (§6)
+    ├── tb_blue_goal_reached.png        재료 3종 학습 곡선 (런 11개)
+    └── blue_pick_rate.png              재료 3종 요리별 선택 비율
 ```
 
 ## 8. 환경 버전

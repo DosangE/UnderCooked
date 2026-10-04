@@ -4,13 +4,13 @@
 
 **두 셰프가 주문판을 읽고 수프를 만들어 서빙한다. 냄비와 서빙구가 서로 다른 구역에 있어서, 혼자서는 한 접시도 낼 수 없다.**
 
-![](assets/demo.gif)
+![](assets/demo_blue.gif)
 
 Overcooked에서 사람이 잘하는 팀은 두 가지를 한다. 주문판을 보고 **무엇을 만들지** 정하고, 동료와 **누가 무엇을 나를지** 나눈다.
 이 저장소는 Overcooked를 극단적으로 단순화한 주방을 만들고, 두 셰프가 이 두 가지를 스스로 배우게 한다.
-재료 2종·요리 3종 최종 모델은 가장 어려운 난이도에서 **3접시 목표 달성률 97.8%**(Unity 추론 97.1%, 478판)다.
-이후 파랑 재료를 넣어 **재료 3종·요리 6종**으로 넓혔고, 같은 난이도에서 **Unity 추론 99.4%**다.
-다만 초록이 안 들어간 요리를 덜 고르는 편향이 남아 있다 (§9).
+처음에는 재료 2종·요리 3종으로 만들었고, 가장 어려운 난이도에서 **3접시 목표 달성률 97.8%**(Unity 추론 97.1%, 478판)였다.
+이후 파랑 재료를 넣어 **재료 3종·요리 6종**으로 넓혔다. 이 최종 모델(`models/undercooked.onnx`)은 같은 난이도에서 **Unity 추론 99.5%(1105판)**다.
+다만 초록이 안 들어간 요리를 덜 고르는 편향이 남아 있다 (§9). 위 GIF는 6종 모델의 한 판(23.4초, 3접시)이다.
 
 ```
 주문판 (최대 3개, 각 25초)
@@ -124,7 +124,7 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 | `undercooked_v2` | 기본 커리큘럼, lesson0에서 이어서 | 8M / 1시간 39분 | 최종 난이도 54% |
 | `undercooked_final` | 최종 난이도 고정, v2에서 | 3M / 39분 | 74% |
 | `undercooked_final2` | 같은 설정, final에서 | 3M / 40분 | 90.5% |
-| `undercooked_final3` | 같은 설정, final2에서 | 3M / 40분 | **97.8%** → `models/undercooked.onnx` |
+| `undercooked_final3` | 같은 설정, final2에서 | 3M / 40분 | **97.8%** (재료 2종 최종 모델) |
 
 최종 모델의 체인은 **20M 스텝, 약 4시간 16분**(v1 제외)이다. 실패한 v1까지 넣으면 21.44M 스텝, 약 4시간 35분. 스텝은 에이전트 32명 합계이고, RTX 2080 SUPER에서 1M 스텝당 약 13분이다.
 
@@ -211,7 +211,7 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 | 남은 시간 · 손질 필요 플래그 | 1 + 1 | 1 + 1 |
 | **주문 슬롯 3 × (요리 one-hot + 남은 시간 1 + 유효 1)** | **3 × 8** | **3 × 5** |
 
-재료가 늘어난 만큼 one-hot 크기만 커졌고 구조는 같다. 그래서 103차원 모델(`models/undercooked.onnx`)은 지금 코드에서 돌지 않는다.
+재료가 늘어난 만큼 one-hot 크기만 커졌고 구조는 같다. 그래서 재료 2종 모델(관측 103, `archive/runs/undercooked_final3/Chef.onnx`)은 지금 코드에서 돌지 않는다.
 
 슬롯 인덱스는 섞지 않는다. 같은 주문이 매 스텝 같은 자리에 있어야 "2번 슬롯이 급하다"를 배울 수 있다.
 
@@ -323,8 +323,8 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 씬은 `UnityProject/Assets/Scenes/UnderCooked.unity`. **`mlagents-learn`을 먼저 띄우고 Play한다** — 반대로 하면 사람 플레이로 판정되어 주방 하나로만 학습된다. Play 직후 콘솔에 `학습 모드 (트레이너 연결됨, 주방 16개)`가 찍혀야 한다.
 실행 전 체크리스트(회귀 검사 등)는 [`.claude/docs/TRAINING.md`](.claude/docs/TRAINING.md).
 
-**모델로 보기** — 셰프의 Behavior Parameters > Model에 6종 최종 모델(`archive/runs/undercooked_blue_urgent3/Chef.onnx`)을 넣고, `KitchenEnv`의 `defaultTargetDishes`를 3, `defaultOrderDuration`을 25로 바꾼 뒤 트레이너 없이 Play. 트레이너가 없으면 yaml 대신 이 기본값(2접시 / 20초, 요리 6종)이 쓰인다.
-재료 2종 모델 `models/undercooked.onnx`(관측 103)는 이 코드에서 돌지 않는다. 그 모델은 `main` 브랜치의 재료 2종 버전에서 본다.
+**모델로 보기** — 셰프의 Behavior Parameters > Model에 최종 모델 `models/undercooked.onnx`(6종, `undercooked_blue_urgent3`)를 넣고, `KitchenEnv`의 `defaultTargetDishes`를 3, `defaultOrderDuration`을 25로 바꾼 뒤 트레이너 없이 Play. 트레이너가 없으면 yaml 대신 이 기본값(2접시 / 20초, 요리 6종)이 쓰인다.
+재료 2종 모델(관측 103, `archive/runs/undercooked_final3/Chef.onnx`)은 이 코드에서 돌지 않는다. 그 모델은 재료 2종 버전 코드(`main`의 `90b2dcb`)에서 본다.
 
 **직접 플레이** — Behavior Type을 `Heuristic Only`로 바꾸고 Play. 주방 하나만 남고 주문판, 스테이션 깜빡임(🟩 집기 / 🟦 놓기 / 🟥 버리기), 행동 로그가 켜진다.
 
@@ -350,6 +350,15 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 | **`undercooked_blue_urgent3`** (보너스 3.0, 최종) | **99.4%** | 4% | **16.6%** |
 
 "RedSoup 선택"은 냄비에 첫 재료를 넣는 순간 주문판에 RedSoup이 있었던 경우 중 실제로 RedSoup을 만든 비율이다.
+
+최종 모델을 판 단위로 다시 세면 **1105판 중 99.5%**다(3접시 1099 / 2접시 5 / 0접시 1, 성공한 판 평균 25.4초).
+재료 2종 모델을 같은 방식(600k 스텝)으로 센 값은 1100판 97.5%다. 기록은 `archive/runs/eval_undercooked_blue_urgent3_episodes/`.
+
+| 학습 곡선 — 목표 달성률 (런 11개 이어 붙임) | 요리별 선택 비율 |
+|:--:|:--:|
+| ![](assets/tb_blue_goal_reached.png) | ![](assets/blue_pick_rate.png) |
+
+곡선은 구간마다 난이도·라운드 길이·목표가 달라서 같은 구간 안에서만 비교한다.
 
 **1. 새 재료를 안 배웠다 — 성공률 관문이 지름길에 속았다.**
 - 주문 슬롯이 3개라서 이미 아는 GreenSoup·MixSoup만 만들어도 45~72%가 나왔다. 파랑은 한 번도 안 썼다.
@@ -379,7 +388,7 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 
 - **되는 것**
   - 재료 2종: 최종 난이도 97.8%(추론 97.1%). 처음부터 한 번에 학습하는 단계 커리큘럼으로도 최종 난이도에 도달했다(시드 4개 중 2개, 94.5% / 92.0%).
-  - 재료 3종·요리 6종: 추론 99.4%, 잘못 채움 4% (§9). 최종 모델은 `archive/runs/undercooked_blue_urgent3/Chef.onnx`.
+  - 재료 3종·요리 6종: 추론 99.5%(1105판), 잘못 채움 4% (§9). 최종 모델 `models/undercooked.onnx`(`undercooked_blue_urgent3`).
 - **안 되는 것** — 요리 선택의 편향.
   - 재료 2종 모델은 판의 약 17~22%에서 한 번 이상 주문에 없는 레시피로 냄비를 채웠다. 벌점 크기나 틀린 요리 보유 벌점으로는 이 비율이 줄지 않았다.
   - 6종 모델은 잘못 채움은 줄었지만, 초록 없는 요리를 덜 고른다.

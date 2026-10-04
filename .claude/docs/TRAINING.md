@@ -246,7 +246,7 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 | `undercooked_stage_pen01_s1`, `_s3` | 0단계 실패가 벌점 탓인지 (`configs/undercooked_stage_pen01.yaml`). 0단계에서는 벌점이 안 걸려 결과가 같았다 |
 | `undercooked_stage_beta03_s1` | 0단계 탐색 안정화 시도 (`configs/undercooked_stage_beta03.yaml`, beta 0.03) |
 | `undercooked_stage_s2_ft`, `undercooked_stage_s2_hold` | s2에서 3M 이어 학습. 기준선 / 틀린 요리 보유 벌점 (`configs/undercooked_final_pen03.yaml` / `undercooked_final_hold.yaml`) |
-| `eval_<모델>` | `--inference`로 성능만 재는 런. 에피소드 기록은 `archive/tools/inference/episode_log.cs` |
+| `eval_<모델>` | `--inference`로 성능만 재는 런. 에피소드 기록은 `archive/tools/inference/episode_log.cs` (unity-mcp `Unity_RunCommand`로 붙일 때는 리플렉션이 막혀 `episode_log_public.cs`) |
 | `undercooked_blue_s1`, `_final`, `_fix`, `_fix9` | 재료 3종·요리 6종. 무작위 초기화 → 지름길 차단 단계표 → 6종 고정. fix9 92.4% |
 | `undercooked_blue_red`, `_red_mix` | RedSoup만 3M → 6종 9M. red_mix 99.4% |
 | `undercooked_blue_long`, `_long8`, `_long8_g995` | 90초 라운드·만료 벌점 실험. 효과 없어 중단 |
