@@ -8,7 +8,9 @@
 
 Overcooked에서 사람이 잘하는 팀은 두 가지를 한다. 주문판을 보고 **무엇을 만들지** 정하고, 동료와 **누가 무엇을 나를지** 나눈다.
 이 저장소는 Overcooked를 극단적으로 단순화한 주방을 만들고, 두 셰프가 이 두 가지를 스스로 배우게 한다.
-최종 모델은 가장 어려운 난이도에서 **3접시 목표 달성률 97.8%**(Unity 추론 97.1%, 478판)다.
+재료 2종·요리 3종 최종 모델은 가장 어려운 난이도에서 **3접시 목표 달성률 97.8%**(Unity 추론 97.1%, 478판)다.
+이후 파랑 재료를 넣어 **재료 3종·요리 6종**으로 넓혔고, 같은 난이도에서 **Unity 추론 99.6%**다.
+다만 초록이 안 들어간 요리를 덜 고르는 편향이 남아 있다 (§9).
 
 ```
 주문판 (최대 3개, 각 25초)
@@ -34,7 +36,7 @@ Overcooked에서 사람이 잘하는 팀은 두 가지를 한다. 주문판을 �
 
 ---
 
-## 시연
+## 시연 (재료 2종 모델)
 
 | 최종 정책 (`undercooked_final3`, 최종 난이도) | 학습 곡선 — 목표 달성률 (런 5개 이어 붙임) |
 |:--:|:--:|
@@ -47,11 +49,17 @@ GIF는 한 에피소드(24.2초, 3접시)다. 위쪽 띠는 녹화할 때 기록
 
 ## 1. 게임 규칙
 
-| 요리 | 냄비 내용물 |
-|---|---|
-| GreenSoup | 초록 ×2 |
-| MixSoup | 초록 + 빨강 |
-| RedSoup | 빨강 ×2 |
+| 요리 | 냄비 내용물 | |
+|---|---|---|
+| GreenSoup | 초록 ×2 | 재료 2종 버전부터 |
+| MixSoup | 초록 + 빨강 | 〃 |
+| RedSoup | 빨강 ×2 | 〃 |
+| BlueSoup | 파랑 ×2 | 재료 3종 확장 (§9) |
+| GreenBlueSoup | 초록 + 파랑 | 〃 |
+| RedBlueSoup | 빨강 + 파랑 | 〃 |
+
+재료 3종에서 2개를 고르는 조합 6가지가 전부 요리다. 그래서 냄비가 차면 반드시 어떤 요리가 된다.
+커리큘럼의 `recipe_pool_size`가 3 이하면 파랑 재료함은 숨겨지고 막혀서, 재료 2종 버전과 똑같이 동작한다.
 
 ```
 재료 줍기 → (손질대) → 냄비에 2개 → 자동 조리(5초) → 그릇에 담기 → 서빙구에 제출
@@ -67,14 +75,15 @@ GIF는 한 에피소드(24.2초, 3접시)다. 위쪽 띠는 녹화할 때 기록
  row7     #     .     .     .     .     .     .     .     #    ┐
  row6     #     .     .     .     .     .     .     .     #    │ Chef A 구역
  row5     #     .     .     A     .     .     .     .   [POT]  ┘ (냄비)
- row4     #    [C]   [C]   [G]    #    [R]   [C]   [C]    #     ← 경계 (카운터 4칸)
+ row4     #    [C]   [C]   [G]   [U]   [R]   [C]   [C]    #     ← 경계 (카운터 4칸)
  row3    [D]    .     .     B     .     .     .     .    [S]   ┐
  row2     #     .     .     .     .     .     .     .     #    │ Chef B 구역
  row1     #     .     .     .     .     .     .     .     #    ┘ (그릇함 D / 서빙구 S)
  row0     #     #     #     #    [pb]   #     #     #     #     ← B 구역 손질대
 ```
 
-재료함(G, R)은 경계에 있어서 양쪽이 쓰고, 손질대도 구역마다 하나씩 있다. **누가 어느 재료를 맡을지는 맵이 정해주지 않는다.**
+재료함(G 초록, U 파랑, R 빨강)은 경계에 있어서 양쪽이 쓰고, 손질대도 구역마다 하나씩 있다. **누가 어느 재료를 맡을지는 맵이 정해주지 않는다.**
+파랑 재료함(U)은 재료 2종 버전에서 벽이던 경계 가운데 칸에 넣었다.
 
 ---
 
@@ -90,6 +99,7 @@ GIF는 한 에피소드(24.2초, 3접시)다. 위쪽 띠는 녹화할 때 기록
 | RedSoup | 6 : 26 — **4.3:1** | 10 : 16 — 1.6:1 |
 
 RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었다. 구역으로 나누면 분담을 둘이 런타임에 정해야 한다 — MA-POCA가 풀라고 있는 문제다.
+(이 측정은 재료 2종 맵 기준이다. 파랑도 같은 원칙으로 경계에 두었다.)
 
 ### 2-2. 주문은 보여주고, 조리 완료는 숨긴다
 
@@ -105,7 +115,7 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 
 ---
 
-## 3. 학습 경로 — 왜 런 5개를 이어 붙였나
+## 3. 학습 경로 (재료 2종) — 왜 런 5개를 이어 붙였나
 
 | 런 | 설정 | 스텝 / 시간 | 결과 |
 |---|---|---|---|
@@ -135,7 +145,7 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 | 손질 → 투입 → 비우기 반복 | **+14 ~ +18** | **0회** |
 | 정직하게 1접시 | +6.2 | 1회 |
 
-학습이 실제로 최적화하는 값(개인 + 팀 보상)에서 파밍이 정직한 플레이를 이긴다. 그대로 학습했다면 **보상 곡선은 오르는데 서빙은 0인** 정책이 나왔을 것이다. 공통 원인은 전부 "되돌려야 하는 보상이 회수 체계 바깥에 있었다"였고, 찾을 때마다 회귀 검사 항목으로 남겼다(지금 14개).
+학습이 실제로 최적화하는 값(개인 + 팀 보상)에서 파밍이 정직한 플레이를 이긴다. 그대로 학습했다면 **보상 곡선은 오르는데 서빙은 0인** 정책이 나왔을 것이다. 공통 원인은 전부 "되돌려야 하는 보상이 회수 체계 바깥에 있었다"였고, 찾을 때마다 회귀 검사 항목으로 남겼다(재료 2종 버전 14개, 지금 17개).
 
 **커리큘럼 임계값이 존재하지 않는 보상을 보고 있었다.** 접시 수 관문은 3.0 / 6.0이었는데, ML-Agents가 비교하는 `Environment/Cumulative Reward`에는 **팀 보상이 들어 있지 않다.** 개인 보상만으로는 최대 약 +0.3이라 구조적으로 통과 불가능했다. 개인 보상 단위(−0.3 / +0.1)로 다시 잡았다.
 
@@ -148,7 +158,7 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 
 ---
 
-## 5. 보완 실험
+## 5. 보완 실험 (재료 2종)
 
 ### 5-1. 벌점 −0.1 vs −0.3 (final2에서 3M, 시드 3개씩)
 
@@ -189,17 +199,19 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 **에이전트** — 셰프 2명 1팀(`SimpleMultiAgentGroup`, Behavior Name `Chef`, Team ID 0). 주방 16개를 동시에 돌려 셰프 32명이 학습한다.
 목표 달성은 `EndGroupEpisode()`, 45초 타임아웃은 `GroupEpisodeInterrupted()` — 타임아웃을 끝으로 처리하면 가치가 0으로 잘려 "시간이 지나면 가치 0"을 잘못 배운다.
 
-**관측 (103차원)** — 자기 위치만 정규화한 절대좌표이고, 동료·카운터·스테이션 위치는 나를 기준으로 한 상대좌표다. `normalize: true`
+**관측 (145차원, 재료 2종 버전은 103)** — 자기 위치만 정규화한 절대좌표이고, 동료·카운터·스테이션 위치는 나를 기준으로 한 상대좌표다. `normalize: true`
 
-| 묶음 | 차원 |
-|---|---|
-| 자기 위치(정규화 절대좌표) · 바라보는 방향 · 손에 든 것 | 2 + 4 + 9 |
-| 동료 상대좌표 · 동료 손에 든 것 | 2 + 9 |
-| 냄비의 초록/빨강 개수 (조리 완료 여부는 **없음**) | 2 |
-| 카운터 4칸 × (내용물 9 + 상대좌표 2) | 44 |
-| 스테이션 7곳 상대좌표 | 14 |
-| 남은 시간 · 손질 필요 플래그 | 1 + 1 |
-| **주문 슬롯 3 × (요리 3 + 남은 시간 1 + 유효 1)** | **15** |
+| 묶음 | 차원 (재료 3종) | (재료 2종) |
+|---|---|---|
+| 자기 위치(정규화 절대좌표) · 바라보는 방향 · 손에 든 것 | 2 + 4 + 14 | 2 + 4 + 9 |
+| 동료 상대좌표 · 동료 손에 든 것 | 2 + 14 | 2 + 9 |
+| 냄비의 재료별 개수 (조리 완료 여부는 **없음**) | 3 | 2 |
+| 카운터 4칸 × (내용물 + 상대좌표 2) | 4 × 16 | 4 × 11 |
+| 스테이션 상대좌표 (재료함 + 냄비·그릇함·서빙구·손질대 2) | 8 × 2 | 7 × 2 |
+| 남은 시간 · 손질 필요 플래그 | 1 + 1 | 1 + 1 |
+| **주문 슬롯 3 × (요리 one-hot + 남은 시간 1 + 유효 1)** | **3 × 8** | **3 × 5** |
+
+재료가 늘어난 만큼 one-hot 크기만 커졌고 구조는 같다. 그래서 103차원 모델(`models/undercooked.onnx`)은 지금 코드에서 돌지 않는다.
 
 슬롯 인덱스는 섞지 않는다. 같은 주문이 매 스텝 같은 자리에 있어야 "2번 슬롯이 급하다"를 배울 수 있다.
 
@@ -214,7 +226,8 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 | 목표 달성 | 팀 +2.0 | 3접시를 다 채우게 |
 | 재료 투입 | 팀 +0.3 | 아직 대기 주문 하나라도 만들 수 있을 때만. 무산되면 회수 |
 | 손질 | 팀 +0.2 | 무산되면 회수 |
-| 주문 만료 | 팀 −0.5 | 급한 주문부터 |
+| 주문 만료 | 팀 −0.5 | 급한 주문부터. yaml `order_expired_penalty`로 바꿀 수 있다 |
+| 가장 급한 주문을 채운 서빙 | 팀 +보너스 (기본 꺼짐) | yaml `urgent_serve_bonus`. 재료 3종 확장에서 추가 (§9) |
 | 카운터 전달 | 개인 +0.15 (양쪽) | 동료가 **집어간** 순간에만, 물건마다 1회. 서빙으로 안 이어지면 회수 |
 | 주문에 없는 재료 투입 | 개인 −0.3 (final2까지 −0.1) | 냄비가 어떤 대기 주문도 만들 수 없게 되는 순간 |
 | 주문에 없는 요리 서빙 | 개인 −0.5 | "아무거나 만들어 내보기"가 아무것도 안 하기보다 나빠야 한다 |
@@ -239,11 +252,21 @@ POCA는 동료의 개인 보상도 내 리턴에 더한다(`add_groupmate_reward
 
 reward 기준은 하나뿐이다. 여럿이면 서로의 기준선을 움직여 같이 터지거나 같이 멈춘다. `recipe_pool_size`가 **주문을 읽게 만드는** 손잡이다 — 1종이면 읽을 게 없다.
 
+재료 3종 확장에서 쓰는 yaml 파라미터. 모두 없으면 예전과 같게 동작한다.
+
+| 파라미터 | 뜻 | 기본 |
+|---|---|---|
+| `recipe_pool_size` | 주문에 나오는 요리 수. 4 이상이면 파랑이 등장한다 | 6 |
+| `recipe_pool_start` | 주문을 `[start, pool)` 범위에서 뽑는다. 이미 익힌 요리(지름길)를 빼는 데 쓴다 | 0 |
+| `episode_duration` | 라운드 길이(초). 씬 기본값은 45초이고 `StartupValidator`는 그 기본값을 검사한다 | 씬 값 |
+| `order_expired_penalty` | 주문 만료 팀 벌점 | −0.5 |
+| `urgent_serve_bonus` | 서빙한 주문이 주문판에서 가장 급했을 때 팀 보너스 | 0 (꺼짐) |
+
 **하이퍼파라미터** — `poca`, 은닉 256 × 2층, 학습률 3e-4 linear, batch 1024, buffer 20480, β 0.01, ε 0.2, λ 0.95, epoch 3, γ 0.99, `time_horizon` 128.
 
 ---
 
-## 7. 결과
+## 7. 결과 (재료 2종)
 
 | 지표 (최종 난이도) | 학습 (final3, 2.5–3M) | Unity 추론 (478판) | 아무것도 안 할 때 |
 |---|---|---|---|
@@ -278,10 +301,29 @@ mlagents-learn configs/undercooked_final_pen03.yaml  --run-id=undercooked_final3
 mlagents-learn configs/undercooked_stage.yaml --run-id=undercooked_stage_s2 --seed=2 --torch-device cuda
 ```
 
+재료 3종·요리 6종 모델을 만든 순서 (§9). 각 yaml 머리말에 같은 명령과 그 런을 만든 이유가 있다.
+
+```bash
+mlagents-learn configs/undercooked_blue_stage.yaml --run-id=undercooked_blue_s1    --seed=1 --torch-device cuda   # 25M, 무작위 초기화
+mlagents-learn configs/undercooked_blue_final.yaml --run-id=undercooked_blue_final --initialize-from=undercooked_blue_s1    --seed=1 --torch-device cuda
+mlagents-learn configs/undercooked_blue_fix.yaml   --run-id=undercooked_blue_fix   --initialize-from=undercooked_blue_final --seed=1 --torch-device cuda
+mlagents-learn configs/undercooked_blue_fix9.yaml  --run-id=undercooked_blue_fix9  --initialize-from=undercooked_blue_fix   --seed=1 --torch-device cuda   # 92.4%
+mlagents-learn configs/undercooked_blue_red.yaml     --run-id=undercooked_blue_red     --initialize-from=undercooked_blue_fix9 --seed=1 --torch-device cuda
+mlagents-learn configs/undercooked_blue_red_mix.yaml --run-id=undercooked_blue_red_mix --initialize-from=undercooked_blue_red  --seed=1 --torch-device cuda   # 99.4%
+# 90초 / 목표 8 조건으로 RedSoup 보강 (long -> long8 -> long8_g995 -> urgent)
+mlagents-learn configs/undercooked_blue_long.yaml       --run-id=undercooked_blue_long       --initialize-from=undercooked_blue_red_mix    --seed=1 --torch-device cuda
+mlagents-learn configs/undercooked_blue_long8.yaml      --run-id=undercooked_blue_long8      --initialize-from=undercooked_blue_long       --seed=1 --torch-device cuda
+mlagents-learn configs/undercooked_blue_long8_g995.yaml --run-id=undercooked_blue_long8_g995 --initialize-from=undercooked_blue_long8      --seed=1 --torch-device cuda
+mlagents-learn configs/undercooked_blue_urgent.yaml     --run-id=undercooked_blue_urgent     --initialize-from=undercooked_blue_long8_g995 --seed=1 --torch-device cuda   # 99.6%
+```
+
+`long`, `long8`, `long8_g995`는 효과가 없어 중간에 멈춘 런이다(2.3M / 4.8M / 3.0M). 같은 결과를 내려면 같은 지점에서 멈춘다.
+
 씬은 `UnityProject/Assets/Scenes/UnderCooked.unity`. **`mlagents-learn`을 먼저 띄우고 Play한다** — 반대로 하면 사람 플레이로 판정되어 주방 하나로만 학습된다. Play 직후 콘솔에 `학습 모드 (트레이너 연결됨, 주방 16개)`가 찍혀야 한다.
 실행 전 체크리스트(회귀 검사 등)는 [`.claude/docs/TRAINING.md`](.claude/docs/TRAINING.md).
 
-**모델로 보기** — 셰프의 Behavior Parameters > Model에 `models/undercooked.onnx`를 넣고, `KitchenEnv`의 `defaultTargetDishes`를 3, `defaultOrderDuration`을 25로 바꾼 뒤 트레이너 없이 Play. 트레이너가 없으면 yaml 대신 이 기본값(2접시 / 20초)이 쓰인다.
+**모델로 보기** — 셰프의 Behavior Parameters > Model에 6종 모델(`archive/runs/undercooked_blue_urgent/Chef.onnx`)을 넣고, `KitchenEnv`의 `defaultTargetDishes`를 3, `defaultOrderDuration`을 25로 바꾼 뒤 트레이너 없이 Play. 트레이너가 없으면 yaml 대신 이 기본값(2접시 / 20초, 요리 6종)이 쓰인다.
+재료 2종 모델 `models/undercooked.onnx`(관측 103)는 이 코드에서 돌지 않는다. 그 모델은 `main` 브랜치의 재료 2종 버전에서 본다.
 
 **직접 플레이** — Behavior Type을 `Heuristic Only`로 바꾸고 Play. 주방 하나만 남고 주문판, 스테이션 깜빡임(🟩 집기 / 🟦 놓기 / 🟥 버리기), 행동 로그가 켜진다.
 
@@ -294,14 +336,58 @@ mlagents-learn configs/undercooked_stage.yaml --run-id=undercooked_stage_s2 --se
 
 ---
 
-## 9. 현재 상태
+## 9. 확장: 재료 3종 · 요리 6종
 
-- **되는 것** — 최종 난이도 97.8%(추론 97.1%). 처음부터 한 번에 학습하는 단계 커리큘럼으로도 최종 난이도 도달(시드 4개 중 2개, 94.5% / 92.0%).
-- **안 되는 것** — 레시피 선택 정확도. 판의 약 17~22%에서 한 번 이상 주문에 없는 레시피로 냄비를 채우고, 벌점 크기나 틀린 요리 보유 벌점으로는 이 비율이 줄지 않았다.
-- **아직 안 푼 것** — 단계 커리큘럼의 0단계 서빙 발견(시드 의존), 단계표 5단계(슬롯 1 + 레시피 3)가 최종 난이도보다 어려운 문제, Memory 효과 검증(on/off 비교에서 차이가 나오지 않았다).
+재료 2종 모델에 파랑 재료를 넣었다. 요리는 재료 2개 조합 6가지가 되고, 작업량(재료 2개)은 그대로다.
+전체 과정과 수치는 [`reports/2026-10-04-blue-ingredient.md`](reports/2026-10-04-blue-ingredient.md).
+
+| 모델 (평가: 45초 / 목표 3, Unity 추론 600k) | 목표 달성 | 잘못 채움 | RedSoup 선택 |
+|---|---|---|---|
+| `undercooked_blue_fix9` | 92.4% | 9% | 1.5% |
+| `undercooked_blue_red_mix` | 99.4% | 3% | 6.5% |
+| **`undercooked_blue_urgent`** | **99.6%** | 3% | **10.8%** |
+
+"RedSoup 선택"은 냄비에 첫 재료를 넣는 순간 주문판에 RedSoup이 있었던 경우 중 실제로 RedSoup을 만든 비율이다.
+
+**1. 새 재료를 안 배웠다 — 성공률 관문이 지름길에 속았다.**
+- 주문 슬롯이 3개라서 이미 아는 GreenSoup·MixSoup만 만들어도 45~72%가 나왔다. 파랑은 한 번도 안 썼다.
+- 고친 방법: 단계마다 이미 익힌 요리를 주문에서 뺐다(`recipe_pool_start`). 7단계는 BlueSoup만, 8단계는 지름길 2종을 뺀 4종이다.
+- 그 뒤 6종을 섞어 이어 학습하자 26% → 93%가 됐다.
+
+**2. 초록 없는 요리를 버렸다 — 버리는 주문에 대가가 없었다.**
+- 6종을 다 할 줄 알면서도 RedSoup·RedBlueSoup 주문의 절반을 만료시켰다.
+  - 매 판 일부 주문은 버릴 수밖에 없고, 어느 요리든 보상이 같다.
+  - 그래서 정책은 "초록으로 시작하기"(주문판에 초록 요리가 있을 확률 87.5%)를 굳혔다.
+- 효과가 없었던 시도:
+  - RedSoup만 따로 학습시킨 뒤 다시 섞었다 → 다시 잊었다.
+  - 라운드를 90초로 늘렸다.
+  - 만료 벌점을 −3으로 키우고 γ를 0.995로 올렸다.
+
+  만료 벌점은 결정 뒤 10~30초 늦게 와서 거의 지워진다.
+- **서빙 순간에 "가장 급한 주문을 채웠다"를 바로 보상하자(`urgent_serve_bonus`) 처음으로 움직였다** (6.5% → 10.8%).
+
+남은 편향: 초록이 들어간 요리는 주문판에 있을 때 50~95% 고르고, 초록 없는 요리는 10~35%만 고른다.
+지금 요리는 one-hot으로 주어져서 "RedSoup = 빨강 2개"를 정책이 따로 외워야 한다.
+다음 후보는 주문과 냄비를 같은 "재료 구성" 형식으로 주는 관측 변경이다.
+
+---
+
+## 10. 현재 상태
+
+- **되는 것**
+  - 재료 2종: 최종 난이도 97.8%(추론 97.1%). 처음부터 한 번에 학습하는 단계 커리큘럼으로도 최종 난이도에 도달했다(시드 4개 중 2개, 94.5% / 92.0%).
+  - 재료 3종·요리 6종: 추론 99.6%, 잘못 채움 3% (§9).
+- **안 되는 것** — 요리 선택의 편향.
+  - 재료 2종 모델은 판의 약 17~22%에서 한 번 이상 주문에 없는 레시피로 냄비를 채웠다. 벌점 크기나 틀린 요리 보유 벌점으로는 이 비율이 줄지 않았다.
+  - 6종 모델은 잘못 채움은 줄었지만, 초록 없는 요리를 덜 고른다.
+- **아직 안 푼 것**
+  - 단계 커리큘럼의 0단계 서빙 발견(시드 의존)
+  - 6종 모델을 무작위 초기화부터 한 번에 학습하는 재현
+  - Memory 효과 검증(on/off 비교에서 차이가 나오지 않았다)
 
 | 문서 | 내용 |
 |---|---|
+| [`reports/2026-10-04-blue-ingredient.md`](reports/2026-10-04-blue-ingredient.md) | 재료 3종·요리 6종 확장 전체 (지름길, RedSoup 보강, 요리별 진단, 배운 것) |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | 설계 기록 전체 — 고친 19건(§4), 진단 지표 읽는 법(§6), 파일 구조(§7). 코드 주석의 `README §N`은 이 문서의 절이다 |
 | [`reports/2026-09-29-final-report.md`](reports/2026-09-29-final-report.md) | 최종 보고서 |
 | [`reports/2026-09-29-experiment-results.md`](reports/2026-09-29-experiment-results.md) | 보완 실험 (벌점 대조, 처음부터 학습, 실패 분석) |

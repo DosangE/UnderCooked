@@ -75,8 +75,8 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
 
 1. **트레이너 없이 회귀 검사를 먼저 실행한다.**
    Unity에서 Play → 메뉴 `UnderCooked/보상 회귀 검사` (`Ctrl+Shift+T`).
-   [1]~[10], [12], [13]과 [5b], 출력 13개 항목이 전부 OK인지 확인한 뒤 **Play를 종료한다.**
-   ([11]은 memory 비교 실험 브랜치(PR #17)가 쓰는 번호라 비워 두었다.)
+   [1]~[10], [12]~[17]과 [5b], 출력 17개 항목이 전부 OK인지 확인한 뒤 **Play를 종료한다.**
+   ([11]은 memory 비교 실험 브랜치(PR #17)가 쓰는 번호라 비워 두었다. 재료 2종 버전은 [14]까지 14개.)
    검사는 실제 행동·보상·주문·타이머를 변경한다. 본 학습에 연결한 채 실행하면
    인위적인 전이가 학습 데이터와 통계에 섞인다.
 
@@ -96,7 +96,7 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
 
 4. **콘솔 두 줄을 확인한다.**
    ```
-   [StartupValidator] 씬-코드 일치 확인 (32명). 관측 103 / 행동 [5, 2] / 에피소드 45s
+   [StartupValidator] 씬-코드 일치 확인 (32명). 관측 145 / 행동 [5, 2] / 에피소드 45s
    [StartupValidator] 학습 모드 (트레이너 연결됨, 주방 16개)
    ```
    - 첫 줄이 에러로 바뀌면 Play가 자동으로 멈춘다. 그대로 학습하면 안 된다.
@@ -105,6 +105,9 @@ CUDA 확인에 실패하면 `nvidia-smi`로 NVIDIA 드라이버와 GPU 인식을
      - `undercooked_stage.yaml`: `[StageCurriculum] 켜짐. 시작 단계 0 (...)`
      - `undercooked_final_pen01/03.yaml`: `[KitchenEnv] wrong_ingredient_penalty = -0.1` (또는 `-0.3`)
      - `undercooked_final_hold.yaml`: 위 줄에 더해 `[KitchenEnv] wrong_dish_hold_penalty = -0.02/s`
+     - `undercooked_blue_long*.yaml`, `undercooked_blue_urgent*.yaml`: `[KitchenEnv] episode_duration = 90s (yaml 값 사용, 씬 값 45s)`,
+       `[KitchenEnv] order_expired_penalty = ...`, urgent 계열은 `[KitchenEnv] urgent_serve_bonus = ...`까지
+     - 관측이 103이면 재료 2종 버전 코드다. 재료 3종 설정(`undercooked_blue_*`)은 145여야 한다
 
 5. 이어서 학습하려면 `--resume`, 같은 run-id로 처음부터 다시 하려면 `--force`.
    `undercooked_stage.yaml`을 `--resume`할 때는 Unity가 단계 0부터 다시 시작하므로,
@@ -244,8 +247,17 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 | `undercooked_stage_beta03_s1` | 0단계 탐색 안정화 시도 (`configs/undercooked_stage_beta03.yaml`, beta 0.03) |
 | `undercooked_stage_s2_ft`, `undercooked_stage_s2_hold` | s2에서 3M 이어 학습. 기준선 / 틀린 요리 보유 벌점 (`configs/undercooked_final_pen03.yaml` / `undercooked_final_hold.yaml`) |
 | `eval_<모델>` | `--inference`로 성능만 재는 런. 에피소드 기록은 `archive/tools/inference/episode_log.cs` |
+| `undercooked_blue_s1`, `_final`, `_fix`, `_fix9` | 재료 3종·요리 6종. 무작위 초기화 → 지름길 차단 단계표 → 6종 고정. fix9 92.4% |
+| `undercooked_blue_red`, `_red_mix` | RedSoup만 3M → 6종 9M. red_mix 99.4% |
+| `undercooked_blue_long`, `_long8`, `_long8_g995` | 90초 라운드·만료 벌점 실험. 효과 없어 중단 |
+| `undercooked_blue_urgent`, `_urgent3` | 급한 주문 서빙 보너스 1.5 / 3.0. urgent 99.6% (45초 조건 추론) |
+| `eval_undercooked_blue_<런>[_45/_90]` | 6종 진단 추론 600k + 냄비 채움 기록(`archive/tools/inference/pot_fill_log.cs`). 설정 `configs/undercooked_blue_eval45.yaml` / `_eval90.yaml` |
 | `undercooked_<내용>` | ablation / 실험 (`undercooked_nomemory`, `undercooked_noorder` 등) |
 | `smoke` | 배선 확인용 1~2분 런. 확인 후 `results/smoke`를 지운다 |
+
+**추론 런은 스스로 멈추지 않는다.** Play를 끈 뒤 `mlagents-learn.exe`만 죽이면 그 자식 python 워커가 남아
+포트 5004를 계속 잡는다(다음 런이 `Failed to bind to address [::]:5004`로 죽는다). 프로세스 트리째 끈다:
+`taskkill /PID <mlagents-learn PID> /T /F`. 남았으면 `netstat -ano | grep :5004`로 PID를 찾는다.
 
 `results/`는 `.gitignore`에 있다. 학습 결과를 저장소에 커밋하지 않는다.
 최종 모델만 `models/undercooked.onnx`로 옮긴다.
