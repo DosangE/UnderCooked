@@ -21,7 +21,7 @@ Overcooked를 극단적으로 단순화한 2인 협동 요리 환경.
 주문판에 맞는 요리 고르기를 스스로 배웠다. 위쪽 띠는 녹화할 때 기록한 서빙 수와 대기 주문이다.
 
 > 상태: 학습 완료. 최종 난이도에서 3접시 목표 달성률 약 98% (`undercooked_final3`),
-> Unity 추론 97.1% (에피소드 478개). 결과는 §6, 모델은 `archive/runs/undercooked_final3/Chef.onnx`.
+> Unity 추론 97.5% (1100판. 처음 잰 478판은 97.1%). 결과는 §6, 모델은 `archive/runs/undercooked_final3/Chef.onnx`.
 > **재료 3종·요리 6종 확장 후** 최종 모델 `models/undercooked.onnx`는 `undercooked_blue_urgent3`다 (관측 145, Unity 추론 99.5%, 1105판).
 > 확장 경위는 `reports/2026-10-04-blue-ingredient.md`, 시연은 `assets/demo_blue.gif`.
 > 최종 보고서는 `reports/2026-09-29-final-report.md`, 학습 결과 파일은 `archive/`.
