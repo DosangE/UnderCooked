@@ -408,4 +408,5 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 | [`reports/2026-09-29-final-report.md`](reports/2026-09-29-final-report.md) | 최종 보고서 |
 | [`reports/2026-09-29-experiment-results.md`](reports/2026-09-29-experiment-results.md) | 보완 실험 (벌점 대조, 처음부터 학습, 실패 분석) |
 | [`reports/2026-09-30-full-log.md`](reports/2026-09-30-full-log.md) | 재료 2종까지의 전체 과정·시행착오·학습 시간 (런 30개, 약 25시간) |
+| [`posts/2026-10-04-cafe/`](posts/2026-10-04-cafe/) | 카페 게시용 프로젝트 소개 글(docx)과 그림, 생성 스크립트 |
 | [`archive/`](archive/) | 런별 TensorBoard 이벤트, 설정, 모델 |
