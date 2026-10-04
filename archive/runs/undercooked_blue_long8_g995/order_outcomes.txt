@@ -1,0 +1,7 @@
+elapsed 180s kitchens 16 (an order ending at an episode reset is counted as served; small bias)
+G2: ended 351 served 351 expired 0 (0% expired) newlyAppeared 354
+GR: ended 375 served 355 expired 20 (5% expired) newlyAppeared 372
+R2: ended 340 served 174 expired 166 (49% expired) newlyAppeared 342
+B2: ended 353 served 271 expired 82 (23% expired) newlyAppeared 355
+GB: ended 345 served 322 expired 23 (7% expired) newlyAppeared 342
+RB: ended 360 served 175 expired 185 (51% expired) newlyAppeared 359

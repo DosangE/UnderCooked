@@ -43,6 +43,9 @@ public static class KitchenSelfTest
         allOk &= StageCurriculumAdvancesOnSuccess(sb, env, group, agents);
         allOk &= WrongIngredientPenaltyFromYaml(sb, env, agents);
         allOk &= WrongDishHoldPenalty(sb, env, group, agents);
+        allOk &= BlueIngredientWorks(sb, env, agents);
+        allOk &= ShortcutDishesLeaveBlueStages(sb, env, group, agents);
+        allOk &= UrgentServeBonus(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -162,6 +165,138 @@ public static class KitchenSelfTest
         return ok;
     }
 
+    // 15) 파랑 재료와 레시피 표.
+    //     (a) 표: 모든 레시피가 재료 Capacity개, 재료 2개의 모든 조합이 정확히 한 레시피, 요리 <-> 레시피 왕복
+    //     (b) 파랑 재료함 -> (손질) -> 냄비, 초록을 더하면 GreenBlueSoup으로 확정
+    //     (c) 레시피 풀에 파랑 레시피가 없으면(3종 이하) 파랑 재료함은 막힌다
+    static bool BlueIngredientWorks(StringBuilder sb, KitchenEnv env, ChefAgent[] agents)
+    {
+        // (a)
+        bool table = true;
+        var dishes = new System.Collections.Generic.HashSet<ItemType>();
+        for (int r = 0; r < RecipeTypeExtensions.Count; r++)
+        {
+            var recipe = (RecipeType)r;
+            int sum = 0;
+            for (int i = 0; i < IngredientTypeExtensions.Count; i++) sum += recipe.Required((IngredientType)i);
+            table &= sum == RecipeTypeExtensions.Capacity;
+            table &= dishes.Add(recipe.Dish());
+            table &= recipe.Dish().TryGetRecipe(out var back) && back == recipe;
+        }
+        int combos = 0;
+        for (int a = 0; a < IngredientTypeExtensions.Count; a++)
+        {
+            for (int b = a; b < IngredientTypeExtensions.Count; b++)
+            {
+                var counts = new int[IngredientTypeExtensions.Count];
+                counts[a]++;
+                counts[b]++;
+                var recipe = RecipeTypeExtensions.FromCounts(counts);
+                for (int i = 0; i < IngredientTypeExtensions.Count; i++)
+                    table &= recipe.Required((IngredientType)i) == counts[i];
+                combos++;
+            }
+        }
+        table &= combos == RecipeTypeExtensions.Count;
+
+        // (b)
+        Reset(env, agents);
+        env.Orders.Configure(OrderBoard.MaxSlots, RecipeTypeExtensions.Count, 999f);
+        ForceAllOrders(env, RecipeType.GreenBlueSoup);
+        var blueBox = env.GetStation(StationType.BlueBox);
+        var prep = env.GetPrepFor(0);
+        var pot = env.Pot;
+
+        Act(env, agents[0], blueBox);
+        bool pickedBlue = agents[0].HeldItem == ItemType.RawBlue;
+        Act(env, agents[0], prep, keepHeld: true);
+        Act(env, agents[0], pot, keepHeld: true);
+        bool blueInPot = pot.Count(IngredientType.Blue) == 1 && pot.TotalCount == 1;
+        Act(env, agents[0], env.GetStation(StationType.GreenBox));
+        Act(env, agents[0], prep, keepHeld: true);
+        Act(env, agents[0], pot, keepHeld: true);
+        bool cooked = pickedBlue && blueInPot && pot.IsCommitted && pot.CookedRecipe == RecipeType.GreenBlueSoup;
+
+        // (c)
+        Reset(env, agents);
+        env.Orders.Configure(OrderBoard.MaxSlots, 3, 999f);
+        bool blockedAt3 = !env.CanInteractAt(blueBox.Cell, ItemType.None);
+        env.Orders.Configure(OrderBoard.MaxSlots, 4, 999f);
+        bool openAt4 = env.CanInteractAt(blueBox.Cell, ItemType.None);
+        bool gate = blockedAt3 && openAt4;
+
+        bool ok = table && cooked && gate;
+        sb.AppendLine("[15] 파랑 재료   레시피 표 " + Mark(table) + " (조합 " + combos + ")"
+                      + " / 파랑+초록 -> GreenBlueSoup " + Mark(cooked)
+                      + " / 3종이면 파랑 재료함 막힘, 4종이면 열림 " + Mark(gate) + "   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
+    // 16) 파랑 단계에서는 이미 익힌 지름길 요리(GreenSoup/MixSoup)가 주문에 나오면 안 된다.
+    //     나오면 그것만 만들어도 관문을 넘어서 파랑을 안 배운다 (results/diag_blue).
+    //     (a) 7단계 주문은 전부 BlueSoup  (b) 8단계 주문은 2~5번만, 넷 다 나온다
+    //     (c) 8단계에서 초록 재료함은 열려 있다 (GreenBlueSoup에 필요)
+    //     (d) recipe_pool_start가 없는 기존 경로는 0번부터 나온다
+    //     (e) 냄비 확정이 레시피별 통계(Kitchen/Made/*)에 잡힌다
+    static bool ShortcutDishesLeaveBlueStages(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        const int Rolls = 100;
+        bool blueOnly = true, noShortcut = true, greenOpen = false, legacy = false, made = false;
+        var seen = new System.Collections.Generic.HashSet<RecipeType>();
+
+        try
+        {
+            StageCurriculum.EnableForTest(0.8f, 500, 0, 7);
+            for (int i = 0; i < Rolls; i++)
+            {
+                env.ResetEnv();
+                for (int s = 0; s < env.Orders.ActiveSlots; s++)
+                    blueOnly &= env.Orders.GetSlot(s).Recipe == RecipeType.BlueSoup;
+            }
+
+            StageCurriculum.EnableForTest(0.8f, 500, 0, 8);
+            for (int i = 0; i < Rolls; i++)
+            {
+                env.ResetEnv();
+                for (int s = 0; s < env.Orders.ActiveSlots; s++)
+                {
+                    var r = env.Orders.GetSlot(s).Recipe;
+                    noShortcut &= r != RecipeType.GreenSoup && r != RecipeType.MixSoup;
+                    seen.Add(r);
+                }
+            }
+            greenOpen = env.CanInteractAt(env.GetStation(StationType.GreenBox).Cell, ItemType.None);
+        }
+        finally
+        {
+            StageCurriculum.DisableForTest();
+            Reset(env, agents);
+        }
+        noShortcut &= seen.Count == 4;
+        legacy = env.Orders.PoolStart == 0;
+
+        // (e) 초록 두 개로 확정 -> GreenSoup 1회
+        ForceAllOrders(env, RecipeType.GreenSoup);
+        var box = env.GetStation(StationType.GreenBox);
+        var prep = env.GetPrepFor(0);
+        for (int i = 0; i < RecipeTypeExtensions.Capacity; i++)
+        {
+            Act(env, agents[0], box);
+            Act(env, agents[0], prep, keepHeld: true);
+            Act(env, agents[0], env.Pot, keepHeld: true);
+        }
+        made = group.MadeThisEpisode(RecipeType.GreenSoup) == 1 && group.MadeThisEpisode(RecipeType.BlueSoup) == 0;
+
+        bool ok = blueOnly && noShortcut && greenOpen && legacy && made;
+        sb.AppendLine("[16] 파랑 단계의 주문 범위   7단계 BlueSoup만 " + Mark(blueOnly)
+                      + " / 8단계 지름길 없음·4종 " + Mark(noShortcut) + " (" + seen.Count + "종)"
+                      + " / 8단계 초록 재료함 열림 " + Mark(greenOpen) + " / 기본 경로 0번부터 " + Mark(legacy)
+                      + " / 레시피별 확정 통계 " + Mark(made) + "   " + Verdict(ok));
+        Reset(env, agents);
+        return ok;
+    }
+
     // 10) 처음부터 주문에 없는 레시피로 냄비를 채우면 '확정 불일치'로 세야 한다.
     //     [3]은 채운 뒤에 주문이 사라지는 경우다. 둘을 가르는 것이 이 지표의 목적이다.
     static bool WrongRecipeCommitIsCounted(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
@@ -239,12 +374,13 @@ public static class KitchenSelfTest
             ForceTimeout(env, group);
             endPath = stage0 && StageCurriculum.Current == 1 && env.Stage == 1 && env.TargetDishes == 3;
 
-            // (f) 마지막 단계는 기존 최종 난이도(configs/undercooked_final.yaml)와 같아야 한다
+            // (f) 마지막 단계는 최종 난이도(configs/undercooked_final.yaml의 조건에 레시피 전부)와 같아야 한다
             StageCurriculum.EnableForTest(0.8f, 500, 0, last);
             Reset(env, agents);
             table = env.Stage == last && env.TargetDishes == 3 && env.NeedsPrep
                     && Mathf.Approximately(env.CookTime, 5f)
-                    && env.Orders.ActiveSlots == 3 && env.Orders.PoolSize == 3;
+                    && env.Orders.ActiveSlots == 3 && env.Orders.PoolSize == RecipeTypeExtensions.Count
+                    && env.Orders.PoolStart == 0;
 
             // (g) 손질 절반 단계(3)는 에피소드마다 손질이 섞여 나온다
             StageCurriculum.EnableForTest(0.8f, 500, 0, 3);
@@ -288,6 +424,63 @@ public static class KitchenSelfTest
                       + " (" + fallback.ToString("+0.00;-0.00") + " 기대) / yaml " + Override.ToString("+0.00;-0.00")
                       + " -> " + yaml.ToString("+0.00;-0.00") + "   " + Verdict(ok));
         return ok;
+    }
+
+    // 17) urgent_serve_bonus: 주문판 전체에서 가장 급한 주문을 채운 서빙에만 보너스가 붙어야 한다.
+    //     (a) GreenSoup이 가장 급할 때 GreenSoup 서빙 -> 보너스
+    //     (b) RedSoup이 더 급한데 GreenSoup 서빙     -> 보너스 없음 (센 횟수도 0)
+    //     (c) yaml 값이 없으면(기본 0) 급한 주문을 채워도 보상은 그대로, 횟수는 센다
+    static bool UrgentServeBonus(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        const float Bonus = 1.5f;
+        float urgentGain = ServeGain(env, group, agents, Bonus, greenMostUrgent: true, out int urgentCount);
+        float notUrgentGain = ServeGain(env, group, agents, Bonus, greenMostUrgent: false, out int notUrgentCount);
+        float offGain = ServeGain(env, group, agents, 0f, greenMostUrgent: true, out int offCount);
+        Reset(env, agents);
+
+        bool okA = Mathf.Abs(urgentGain - Bonus) < 1e-4f && urgentCount == 1;
+        bool okB = Mathf.Abs(notUrgentGain) < 1e-4f && notUrgentCount == 0;
+        bool okC = Mathf.Abs(offGain) < 1e-4f && offCount == 1;
+        bool ok = okA && okB && okC;
+        sb.AppendLine("[17] 급한 주문 서빙 보너스   가장 급함 " + urgentGain.ToString("+0.00;-0.00;0.00") + " (+" + Bonus.ToString("0.00") + " 기대) " + Mark(okA)
+                      + " / 덜 급함 " + notUrgentGain.ToString("+0.00;-0.00;0.00") + " " + Mark(okB)
+                      + " / yaml 없음 " + offGain.ToString("+0.00;-0.00;0.00") + "·횟수 " + offCount + " " + Mark(okC) + "   " + Verdict(ok));
+        return ok;
+    }
+
+    // GreenSoup 한 접시를 서빙하고, 서빙 보상(+RewardServe)을 뺀 팀 보상 변화와 센 급한 서빙 수를 돌려준다.
+    // 보너스는 실제 경로(KitchenGroup.FixedUpdate)에서 붙는다.
+    static float ServeGain(KitchenEnv env, KitchenGroup group, ChefAgent[] agents, float bonus, bool greenMostUrgent, out int urgentCount)
+    {
+        Reset(env, agents);
+        typeof(KitchenEnv).GetField("m_UrgentServeBonus",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .SetValue(env, bonus);
+
+        var field = typeof(OrderBoard).GetField("m_Slots",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var slots = (OrderBoard.Slot[])field.GetValue(env.Orders);
+        for (int i = 0; i < slots.Length; i++)
+            slots[i] = new OrderBoard.Slot { Active = true, Recipe = RecipeType.BlueSoup, Remaining = 900f };
+        slots[0] = new OrderBoard.Slot { Active = true, Recipe = RecipeType.GreenSoup, Remaining = greenMostUrgent ? 100f : 500f };
+        slots[1] = new OrderBoard.Slot { Active = true, Recipe = RecipeType.RedSoup, Remaining = greenMostUrgent ? 500f : 100f };
+
+        float team0 = group.TotalGroupReward;
+        Act(env, agents[1], env.GetStation(StationType.ServingHatch), ItemType.CookedGreen);
+        bool served = env.DishesServed == 1;
+        urgentCount = env.TakeUrgentServeCount();
+
+        // 센 횟수를 되돌려 놓고 실제 경로로 보너스를 태운다.
+        typeof(KitchenEnv).GetField("m_UrgentServes",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .SetValue(env, urgentCount);
+        bool goal = env.IsGoalReached;
+        typeof(KitchenGroup).GetMethod("FixedUpdate",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .Invoke(group, null);
+
+        float gain = group.TotalGroupReward - team0 - group.RewardServe - (goal ? group.RewardGoalBonus : 0f);
+        return served ? gain : float.NaN;
     }
 
     // 주문은 전부 RedSoup인데 초록을 넣는다. 첫 재료부터 어떤 주문도 만들 수 없게 된다.

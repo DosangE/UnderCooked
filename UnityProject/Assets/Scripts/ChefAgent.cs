@@ -15,16 +15,20 @@ public class ChefAgent : Agent
     // Behavior Parameters의 Vector Observation Space Size와 반드시 같아야 한다.
     //   자기 위치 정규화            2
     //   바라보는 방향 one-hot        4
-    //   손에 든 것 one-hot           9
+    //   손에 든 것 one-hot           14
     //   동료 상대좌표                2
-    //   동료 손 one-hot              9
-    //   냄비 초록/빨강 개수          2   ★ '조리 다 됐는지'는 일부러 안 준다 -> RNN이 기억해야 한다
-    //   카운터 4칸 x (one-hot 9 + 상대좌표 2) = 44
-    //   스테이션 7곳 상대좌표        14  (재료함2, 손질대2, 냄비, 그릇함, 서빙구)
+    //   동료 손 one-hot              14
+    //   냄비 재료별 개수             3   (초록, 빨강, 파랑) ★ '조리 다 됐는지'는 일부러 안 준다 -> RNN이 기억해야 한다
+    //   카운터 4칸 x (one-hot 14 + 상대좌표 2) = 64
+    //   스테이션 8곳 상대좌표        16  (재료함 3, 손질대 2, 냄비, 그릇함, 서빙구)
     //   남은 시간                    1
     //   손질 필요 플래그             1
-    //   주문 슬롯 3 x (요리 one-hot 3 + 남은시간 1 + 유효 1) = 15
-    //                          합계 103
+    //   주문 슬롯 3 x (요리 one-hot 6 + 남은시간 1 + 유효 1) = 24
+    //                          합계 145
+    //   (파랑을 넣기 전에는 103. 그때의 모델 models/undercooked.onnx는 이 코드에서 돌지 않는다)
+    //
+    // 재료/아이템/레시피 종류 수에서 계산한다. 종류를 늘리면 합계가 따라 바뀌고,
+    // StartupValidator가 Behavior Parameters와 어긋난 것을 Play 시작 때 잡는다.
     //
     // ★ 관측에서 뺀 정보가 Action Mask로 새면 아무 의미가 없다.
     //   Station.CanInteract가 그래서 HasCookedDish가 아니라 IsCommitted로 분기한다.
@@ -32,14 +36,25 @@ public class ChefAgent : Agent
     // 주문 슬롯은 반대로 **반드시 관측에 넣어야 한다.** 무엇을 만들지는 기억이 아니라
     // 읽어야 하는 정보다. 이게 없으면 정책은 주문을 추측할 수밖에 없고,
     // 기대값이 가장 높은 요리 하나만 계속 만드는 쪽으로 수렴한다.
-    public const int ObservationSize = 103;
+    public const int ObservationSize =
+        2 + DirectionCount + ItemTypeCount                       // 자기 위치, 방향, 손
+        + 2 + ItemTypeCount                                       // 동료 위치, 동료 손
+        + IngredientCount                                         // 냄비 내용물
+        + CounterObservationSlots * (ItemTypeCount + 2)           // 카운터
+        + (IngredientCount + NonBoxStationCount) * 2              // 스테이션 좌표
+        + 1 + 1                                                   // 남은 시간, 손질 플래그
+        + OrderBoard.ObservationSize;                             // 주문 슬롯
 
     // 관측 크기를 고정하려고 슬롯 수를 상수로 박는다.
     // 실제 카운터가 이보다 적으면 0으로 채우고, 많으면 앞에서부터 잘라 쓴다.
     public const int CounterObservationSlots = 4;
 
     const int ItemTypeCount = ItemTypeExtensions.Count;
+    const int IngredientCount = IngredientTypeExtensions.Count;
     const int DirectionCount = 4;
+
+    // 재료함 말고 좌표를 주는 스테이션: 손질대 2, 냄비, 그릇함, 서빙구.
+    const int NonBoxStationCount = 5;
 
     [SerializeField] int agentIndex = 0;   // 0 = ChefA(북쪽 구역), 1 = ChefB(남쪽 구역)
 
@@ -196,10 +211,10 @@ public class ChefAgent : Agent
         // 2) 바라보는 방향 one-hot (4)
         sensor.AddOneHotObservation(m_Facing, DirectionCount);
 
-        // 3) 손에 든 것 one-hot (9)
+        // 3) 손에 든 것 one-hot (14)
         sensor.AddOneHotObservation((int)m_HeldItem, ItemTypeCount);
 
-        // 4) 동료 상대좌표 (2) + 5) 동료 손 one-hot (9)
+        // 4) 동료 상대좌표 (2) + 5) 동료 손 one-hot (14)
         if (m_Partner != null)
         {
             sensor.AddObservation(RelativeToMe(m_Partner.Cell));
@@ -211,16 +226,16 @@ public class ChefAgent : Agent
             sensor.AddOneHotObservation(0, ItemTypeCount);
         }
 
-        // 6) 냄비의 색깔별 재료 개수 (2). 용량(2)으로 나눠 0~1로 준다.
+        // 6) 냄비의 재료별 개수 (재료 수 = 3). 용량(2)으로 나눠 0~1로 준다. 순서는 IngredientType.
         //    '조리가 끝났는지'는 관측에 넣지 않는다. 재료를 언제 다 넣었는지 기억해서
         //    스스로 추정해야 한다 = Memory(RNN)가 필요한 이유.
         //    조리가 끝나도 이 값은 변하지 않는다(Station.TickCooking 참조) -> 여기로도 안 샌다.
         var pot = m_Env.Pot;
         float capacity = RecipeTypeExtensions.Capacity;
-        sensor.AddObservation(pot != null ? pot.GreenCount / capacity : 0f);
-        sensor.AddObservation(pot != null ? pot.RedCount / capacity : 0f);
+        for (int i = 0; i < IngredientCount; i++)
+            sensor.AddObservation(pot != null ? pot.Count((IngredientType)i) / capacity : 0f);
 
-        // 7) 카운터 슬롯 4칸 x (one-hot 9 + 상대좌표 2) = 44
+        // 7) 카운터 슬롯 4칸 x (one-hot 14 + 상대좌표 2) = 64
         var counters = m_Env.Counters;
         for (int i = 0; i < CounterObservationSlots; i++)
         {
@@ -236,9 +251,9 @@ public class ChefAgent : Agent
             }
         }
 
-        // 8) 스테이션 7곳 상대좌표 (14)
-        AddStationRelative(sensor, StationType.GreenBox);
-        AddStationRelative(sensor, StationType.RedBox);
+        // 8) 스테이션 8곳 상대좌표 (16). 재료함은 IngredientType 순서다.
+        for (int i = 0; i < IngredientCount; i++)
+            AddStationRelative(sensor, ((IngredientType)i).Box());
         AddStationRelative(sensor, StationType.PrepA);
         AddStationRelative(sensor, StationType.PrepB);
         AddStationRelative(sensor, StationType.Pot);
@@ -252,7 +267,7 @@ public class ChefAgent : Agent
         //     커리큘럼으로 바뀌므로 지금 무슨 규칙인지 알려줘야 한 정책이 양쪽을 함께 다룰 수 있다.
         sensor.AddObservation(m_Env.NeedsPrep);
 
-        // 11) 주문 슬롯 (15). 슬롯 인덱스는 고정이고 절대 섞이지 않는다.
+        // 11) 주문 슬롯 (24). 슬롯 인덱스는 고정이고 절대 섞이지 않는다.
         //     비활성 슬롯도 자리를 차지한다 -> 커리큘럼으로 슬롯 수가 1~3으로 바뀌어도
         //     관측 차원은 그대로다.
         var orders = m_Env.Orders;
@@ -497,6 +512,7 @@ public class ChefAgent : Agent
                 if (pot != null && pot.IsCommitted)
                 {
                     m_Group.NoteChainStep(KitchenGroup.ChainStep.PotCommitted);
+                    m_Group.NoteMade(pot.CookedRecipe);
                     // 채운 순간의 판정은 KitchenEnv.TryInteract가 '만들어질 요리를 원하는 대기 주문이
                     // 있는가'로 내린다. 그래서 확정 시점의 Wrong은 곧 주문에 없는 레시피다.
                     if (result == InteractResult.PlacedInPotWrong)

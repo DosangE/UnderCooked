@@ -99,8 +99,9 @@ public class StartupValidator : MonoBehaviour
             if (env.GetComponent<KitchenGroup>() == null)
                 problems.AppendLine($"  {Path(env.transform)} : KitchenGroup이 없다 (팀 보상이 전부 사라진다)");
 
-            if (!Mathf.Approximately(env.EpisodeDuration, documentedEpisodeDuration))
-                problems.AppendLine($"  {Path(env.transform)} : episodeDuration {env.EpisodeDuration}s"
+            // 씬 값을 본다. yaml의 episode_duration으로 일부러 바꾼 실험은 KitchenEnv가 콘솔에 따로 알린다.
+            if (!Mathf.Approximately(env.DefaultEpisodeDuration, documentedEpisodeDuration))
+                problems.AppendLine($"  {Path(env.transform)} : episodeDuration {env.DefaultEpisodeDuration}s"
                                     + $" != 문서 기준 {documentedEpisodeDuration}s"
                                     + " (조용히 다른 조건으로 학습된다)");
         }

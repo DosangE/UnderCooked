@@ -75,18 +75,26 @@ public class PotContentsView : MonoBehaviour
         bool done = m_Pot.HasCookedDish;
         float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * 3f * Mathf.PI);
 
+        // 0번 칸부터 IngredientType 순서(초록, 빨강 ...)로 개수만큼 채운다.
+        int ingredient = 0;
+        int usedOfIngredient = 0;
+
         for (int i = 0; i < m_Slots.Length; i++)
         {
-            // 0번부터 초록, 그 다음 빨강 순으로 채운다.
-            bool filledGreen = i < m_Pot.GreenCount;
-            bool filledRed = !filledGreen && i < m_Pot.TotalCount;
-            bool filled = filledGreen || filledRed;
+            while (ingredient < IngredientTypeExtensions.Count
+                   && usedOfIngredient >= m_Pot.Count((IngredientType)ingredient))
+            {
+                ingredient++;
+                usedOfIngredient = 0;
+            }
 
+            bool filled = ingredient < IngredientTypeExtensions.Count;
             m_Slots[i].enabled = filled;
             if (!filled) continue;
+            usedOfIngredient++;
 
             // 색은 ItemColors 한 곳에서 가져온다. 손에 든 재료와 같은 색으로 보여야 한다.
-            Color color = ItemColors.For(filledGreen ? ItemType.PrepGreen : ItemType.PrepRed);
+            Color color = ItemColors.For(((IngredientType)ingredient).Prepped());
             if (done) color = Color.Lerp(color, ItemColors.Done, pulse);
 
             m_Slots[i].GetPropertyBlock(m_Block);

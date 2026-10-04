@@ -1,0 +1,7 @@
+== archive/runs/eval_undercooked_blue_urgent3_episodes/episodes.txt: episodes 1105  goal 0.995 +-0.004
+   no wrong fill: 984 eps, goal 0.998
+   wrong fill >=1: 0.110 of eps, goal 0.967 +-0.032
+   in those: discards 1.18  correct pots 3.07  wrong-dish sec 6.2
+   wrong fill = 1: 109 eps, goal 0.963
+   wrong fill = 2: 12 eps, goal 1.000
+   success duration median 23.9s

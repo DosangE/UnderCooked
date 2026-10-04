@@ -1,20 +1,27 @@
 import glob, sys
 from PIL import Image, ImageDraw, ImageFont
 src, out, W = sys.argv[1], sys.argv[2], int(sys.argv[3])
+# Optional 4th arg: served count rec.cs reported at the end ("done frames N served S").
+# The goal serve ends the episode, and the timer reset can land between two 0.1 s shots,
+# so the last captured frame may still show target-1. The 2 s hold frame then shows S.
+final_served = int(sys.argv[4]) if len(sys.argv) > 4 else None
 meta = {}
 for ln in open(src + "/meta.txt", encoding="utf-8"):
     p = ln.strip().split("|")
     if len(p) >= 6: meta[int(p[0])] = p
 F = ImageFont.truetype("C:/Windows/Fonts/malgunbd.ttf", 17)
 f = ImageFont.truetype("C:/Windows/Fonts/malgun.ttf", 13)
-GREEN, RED = (60, 200, 90), (225, 65, 60)
-ING = {"GreenSoup": (GREEN, GREEN), "MixSoup": (GREEN, RED), "RedSoup": (RED, RED)}
+GREEN, RED, BLUE = (60, 200, 90), (225, 65, 60), (45, 100, 245)
+ING = {"GreenSoup": (GREEN, GREEN), "MixSoup": (GREEN, RED), "RedSoup": (RED, RED),
+       "BlueSoup": (BLUE, BLUE), "GreenBlueSoup": (GREEN, BLUE), "RedBlueSoup": (RED, BLUE)}
 BAND = 58
 frames = []
 files = sorted(glob.glob(src + "/[0-9]*.png"))
 last_served, flash = 0, 0
-for fp in files:
+for n, fp in enumerate(files):
     i = int(fp[-8:-4]); m = meta.get(i)
+    if m and final_served is not None and n == len(files) - 1:
+        m = m[:1] + [str(max(int(m[1]), final_served)), m[2]] + ["-"] * 3  # episode over: board is reset
     im = Image.open(fp).convert("RGB")
     im = im.resize((W, round(im.height * W / im.width)), Image.LANCZOS)
     c = Image.new("RGB", (W, im.height + BAND), (24, 24, 26)); c.paste(im, (0, BAND))

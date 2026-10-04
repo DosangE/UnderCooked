@@ -24,6 +24,8 @@ public static class StageCurriculum
     public struct Stage
     {
         public int TargetDishes;
+        // 주문은 RecipeType [RecipeStart, RecipePool) 범위에서 나온다. 보통 0.
+        public int RecipeStart;
         public int RecipePool;
         // 에피소드마다 손질을 켤 확률. 0과 1 사이면 손질 있는 판과 없는 판이 섞인다.
         public float PrepChance;
@@ -32,13 +34,30 @@ public static class StageCurriculum
 
         public override string ToString()
         {
-            return $"목표 {TargetDishes} / 레시피 {RecipePool} / 손질 {PrepChance:0.##} / 조리 {CookTime:0.#}s / 슬롯 {OrderSlots}";
+            string recipes = RecipeStart > 0 ? $"{RecipeStart}~{RecipePool - 1}번" : RecipePool.ToString();
+            return $"목표 {TargetDishes} / 레시피 {recipes} / 손질 {PrepChance:0.##} / 조리 {CookTime:0.#}s / 슬롯 {OrderSlots}";
         }
     }
 
     // 순서는 v2의 전환 순서(레시피 2종 -> 손질 -> 레시피 3종 -> 조리 5초 -> 슬롯)를 따른다.
     // 3단계는 v2가 무너진 손질 전환을 둘로 쪼갠 것이다. 손질 없는 판을 섞어 두면
     // 이미 배운 '생재료를 바로 냄비에' 경로가 한순간에 전부 막히지 않는다.
+    //
+    // 파랑을 넣으면서 바꾼 것 (reports/2026-09-29-experiment-results.md 실험 A):
+    //   - 예전 5단계(레시피 3, 슬롯 1)를 뺐다. 성공한 두 런 모두 거기서 강제 승급됐고,
+    //     슬롯 2개가 되자 오히려 좋아졌다. 주문이 하나뿐이면 첫 재료를 틀렸을 때 받아줄
+    //     다른 주문이 없어서, 레시피가 많을수록 최종 난이도보다 어려운 칸이 된다.
+    //     그래서 레시피를 늘리는 단계는 전부 슬롯 2개 이상에서 한다.
+    //   - 파랑은 최종 3종을 익힌 뒤에 들인다.
+    //
+    // 파랑 단계는 처음에 '앞에서부터 4종 -> 6종'이었는데, 정책이 이미 익힌 GreenSoup/MixSoup만
+    // 만들어서 두 단계를 버텼다(72%, 강제 승급). 파랑은 한 번도 쓰지 않았고 RedSoup도 안 만들었다.
+    // 슬롯이 3개면 그 둘만 만들어도 셋 중 하나는 맞기 때문이다 (results/diag_blue).
+    // 그래서 파랑 단계에서는 지름길 요리를 주문에서 뺀다 (RecipeStart):
+    //   7: BlueSoup만        -> 파랑 재료함을 안 쓰면 점수가 0
+    //   8: 2~5번 (RedSoup, BlueSoup, GreenBlueSoup, RedBlueSoup)
+    //                        -> GreenSoup/MixSoup이 안 팔린다. 주문을 읽고 두 번째 재료를 골라야 한다
+    //   9: 6종 전부
     public static readonly Stage[] Stages =
     {
         new Stage { TargetDishes = 1, RecipePool = 1, PrepChance = 0f,   CookTime = 2f, OrderSlots = 1 }, // 0 = 기존 lesson0
@@ -46,9 +65,11 @@ public static class StageCurriculum
         new Stage { TargetDishes = 3, RecipePool = 2, PrepChance = 0f,   CookTime = 2f, OrderSlots = 1 }, // 2 주문 읽기 시작
         new Stage { TargetDishes = 3, RecipePool = 2, PrepChance = 0.5f, CookTime = 2f, OrderSlots = 1 }, // 3 손질 절반
         new Stage { TargetDishes = 3, RecipePool = 2, PrepChance = 1f,   CookTime = 2f, OrderSlots = 1 }, // 4
-        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 1 }, // 5
-        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 2 }, // 6
-        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 3 }, // 7 = 최종 난이도
+        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 2 }, // 5 (예전 6)
+        new Stage { TargetDishes = 3, RecipePool = 3, PrepChance = 1f,   CookTime = 5f, OrderSlots = 3 }, // 6 = 예전 최종 난이도
+        new Stage { TargetDishes = 3, RecipeStart = 3, RecipePool = 4, PrepChance = 1f, CookTime = 5f, OrderSlots = 3 }, // 7 BlueSoup만
+        new Stage { TargetDishes = 3, RecipeStart = 2, RecipePool = 6, PrepChance = 1f, CookTime = 5f, OrderSlots = 3 }, // 8 지름길 요리 없음
+        new Stage { TargetDishes = 3, RecipePool = 6, PrepChance = 1f,   CookTime = 5f, OrderSlots = 3 }, // 9 = 최종 난이도 (6종)
     };
 
     public static int LastStage => Stages.Length - 1;

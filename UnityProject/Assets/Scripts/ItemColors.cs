@@ -15,10 +15,13 @@ public static class ItemColors
 {
     public static readonly Color RawGreen = new Color(0.20f, 0.80f, 0.25f);
     public static readonly Color RawRed = new Color(0.85f, 0.20f, 0.20f);
+    // 파랑은 노랑 계열(MixSoup, 조리 완료 깜빡임)과 겹치지 않게 골랐다.
+    public static readonly Color RawBlue = new Color(0.15f, 0.35f, 0.95f);
 
     // 손질된 재료는 같은 색 계열이되 밝게 해서 생재료와 구분한다.
     public static readonly Color PrepGreen = new Color(0.55f, 1.00f, 0.45f);
     public static readonly Color PrepRed = new Color(1.00f, 0.55f, 0.45f);
+    public static readonly Color PrepBlue = new Color(0.50f, 0.70f, 1.00f);
 
     public static readonly Color EmptyPlate = new Color(0.95f, 0.95f, 0.95f);
 
@@ -26,6 +29,9 @@ public static class ItemColors
     public static readonly Color CookedGreen = new Color(0.60f, 0.95f, 0.30f);
     public static readonly Color CookedMix = new Color(1.00f, 0.78f, 0.05f);
     public static readonly Color CookedRed = new Color(0.95f, 0.35f, 0.20f);
+    public static readonly Color CookedBlue = new Color(0.30f, 0.55f, 1.00f);
+    public static readonly Color CookedGreenBlue = new Color(0.10f, 0.80f, 0.75f);   // 청록
+    public static readonly Color CookedRedBlue = new Color(0.65f, 0.30f, 0.90f);     // 보라
 
     // 조리가 끝났다는 표시. 냄비 슬롯이 이 색으로 깜빡인다.
     public static readonly Color Done = new Color(1.00f, 0.85f, 0.20f);
@@ -42,7 +48,12 @@ public static class ItemColors
             case ItemType.CookedGreen: return CookedGreen;
             case ItemType.CookedMix:   return CookedMix;
             case ItemType.CookedRed:   return CookedRed;
-            default:                   return Color.gray;
+            case ItemType.RawBlue:     return RawBlue;
+            case ItemType.PrepBlue:    return PrepBlue;
+            case ItemType.CookedBlue:  return CookedBlue;
+            case ItemType.CookedGreenBlue: return CookedGreenBlue;
+            case ItemType.CookedRedBlue:   return CookedRedBlue;
+            default:                  return Color.gray;
         }
     }
 }
