@@ -1,0 +1,55 @@
+# UnderCooked - blue ingredient, all 6 dishes again after the RedSoup run.
+#
+# ASCII ONLY (see undercooked.yaml header - load_config() uses the OS codepage).
+#
+# Second half of the RedSoup fix. undercooked_blue_fix9 showed that mixing all
+# 6 dishes after a forced single-dish stage brings the other ingredients back
+# (26% -> 93% in 14M); this run starts from a policy that already knows them.
+#
+# Run:
+#   mlagents-learn configs/undercooked_blue_red_mix.yaml --run-id=undercooked_blue_red_mix --initialize-from=undercooked_blue_red --seed=1 --torch-device cuda
+#
+# Everything under behaviors is identical to undercooked_blue_stage.yaml except max_steps.
+
+behaviors:
+  Chef:
+    trainer_type: poca
+
+    hyperparameters:
+      batch_size: 1024        # multiple of sequence_length (64)
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      beta: 0.01
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: true
+      hidden_units: 256
+      num_layers: 2
+      memory:
+        sequence_length: 64
+        memory_size: 128
+
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+
+    keep_checkpoints: 5
+    checkpoint_interval: 500000
+    max_steps: 9000000
+    time_horizon: 128
+    summary_freq: 20000
+
+environment_parameters:
+  # Final difficulty with all 6 recipes (= last row of the stage table).
+  target_dishes: 3.0
+  recipe_pool_size: 6.0
+  needs_prep: 1.0
+  cook_time: 5.0
+  order_slots: 3.0
+  order_duration: 25.0
+  max_ingredients: 2.0
