@@ -111,9 +111,18 @@ public class OrderBoard
     // 안 그러면 여유 있는 주문을 먼저 지워서 급한 쪽이 괜히 만료된다.
     public bool TryConsume(ItemType dish)
     {
+        return TryConsume(dish, out _);
+    }
+
+    // 소진한 주문이 **주문판 전체에서** 가장 급한 주문이었는지도 알려준다 (urgent_serve_bonus).
+    public bool TryConsume(ItemType dish, out bool wasMostUrgent)
+    {
+        wasMostUrgent = false;
         int best = FindMostUrgentFor(dish);
         if (best < 0) return false;
 
+        int overall = FindMostUrgent((slot) => true);
+        wasMostUrgent = m_Slots[best].Remaining <= m_Slots[overall].Remaining;
         Fill(best);
         return true;
     }

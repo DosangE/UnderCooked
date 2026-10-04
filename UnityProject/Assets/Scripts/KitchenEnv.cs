@@ -137,6 +137,8 @@ public class KitchenEnv : MonoBehaviour
     static bool s_EpisodeDurationLogged;
     float m_OrderExpiredPenaltyOverride = float.NaN;
     static bool s_ExpiredPenaltyLogged;
+    float m_UrgentServeBonus;
+    static bool s_UrgentBonusLogged;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStatics()
@@ -145,9 +147,11 @@ public class KitchenEnv : MonoBehaviour
         s_HoldPenaltyLogged = false;
         s_EpisodeDurationLogged = false;
         s_ExpiredPenaltyLogged = false;
+        s_UrgentBonusLogged = false;
     }
     float m_EpisodeTimer;
     int m_ExpiredOrders;      // KitchenGroup이 가져가서 패널티로 바꾼다
+    int m_UrgentServes;       // 주문판에서 가장 급한 주문을 채운 서빙 수. KitchenGroup이 가져가서 보너스로 바꾼다
     bool m_Initialized;
 
     // ── 사람 플레이 전용 ─────────────────────────────────────
@@ -261,6 +265,16 @@ public class KitchenEnv : MonoBehaviour
         return float.IsNaN(m_OrderExpiredPenaltyOverride) ? fallback : m_OrderExpiredPenaltyOverride;
     }
 
+    // 주문판 전체에서 가장 급한 주문을 채운 서빙에 붙는 팀 보너스. yaml의 urgent_serve_bonus로만
+    // 켜진다(기본 0 = 꺼짐, 기존 학습 조건과 같다).
+    //
+    // 만료 벌점은 무엇을 만들지 고른 뒤 10~30초 늦게 와서 gamma로 거의 지워진다.
+    // 90초/목표 8 조건에서 만료를 판당 약 2.9건(-3.0씩) 받으면서도 RedSoup·RedBlueSoup의
+    // 절반을 계속 버렸다 (long8_g995 관찰: 만료의 91%가 초록 없는 요리).
+    // 서빙 순간에 '가장 오래 기다린 주문을 채웠다'를 바로 보상한다. 남은 시간의 순위만 보므로
+    // 일부러 기다려도 이득이 없다(모든 주문의 시간이 같이 줄어든다).
+    public float UrgentServeBonus => m_UrgentServeBonus;
+
     public bool IsTimeUp => m_EpisodeTimer >= EpisodeDuration;
     public float TimeRemainingNormalized => Mathf.Clamp01(1f - m_EpisodeTimer / EpisodeDuration);
 
@@ -354,6 +368,14 @@ public class KitchenEnv : MonoBehaviour
     {
         int count = m_ExpiredOrders;
         m_ExpiredOrders = 0;
+        return count;
+    }
+
+    // 위와 같은 방식. 가장 급한 주문을 채운 서빙 수.
+    public int TakeUrgentServeCount()
+    {
+        int count = m_UrgentServes;
+        m_UrgentServes = 0;
         return count;
     }
 
@@ -553,6 +575,12 @@ public class KitchenEnv : MonoBehaviour
             s_ExpiredPenaltyLogged = true;
             Debug.Log($"[KitchenEnv] order_expired_penalty = {m_OrderExpiredPenaltyOverride:0.###} (yaml 값 사용)");
         }
+        m_UrgentServeBonus = Mathf.Max(0f, envParams.GetWithDefault("urgent_serve_bonus", 0f));
+        if (m_UrgentServeBonus > 0f && !s_UrgentBonusLogged)
+        {
+            s_UrgentBonusLogged = true;
+            Debug.Log($"[KitchenEnv] urgent_serve_bonus = {m_UrgentServeBonus:0.###} (yaml 값 사용)");
+        }
 
         int orderSlots;
         int recipePool;
@@ -606,6 +634,7 @@ public class KitchenEnv : MonoBehaviour
         DishesServed = 0;
         m_EpisodeTimer = 0f;
         m_ExpiredOrders = 0;
+        m_UrgentServes = 0;
     }
 
     void SetStationVisible(StationType type, bool visible)
@@ -1019,7 +1048,11 @@ public class KitchenEnv : MonoBehaviour
 
             case InteractResult.Served:
                 // 그 요리를 주문한 손님이 있어야 점수다. 없으면 완성품이어도 버린 것이다.
-                if (m_Orders.TryConsume(heldItem)) DishesServed++;
+                if (m_Orders.TryConsume(heldItem, out bool mostUrgent))
+                {
+                    DishesServed++;
+                    if (mostUrgent) m_UrgentServes++;
+                }
                 else outcome.Result = InteractResult.ServedWrongOrder;
                 break;
         }

@@ -45,6 +45,7 @@ public static class KitchenSelfTest
         allOk &= WrongDishHoldPenalty(sb, env, group, agents);
         allOk &= BlueIngredientWorks(sb, env, agents);
         allOk &= ShortcutDishesLeaveBlueStages(sb, env, group, agents);
+        allOk &= UrgentServeBonus(sb, env, group, agents);
         allOk &= ObservationCountIsActuallyMeasured(sb, agents[0]);
 
         sb.AppendLine();
@@ -423,6 +424,63 @@ public static class KitchenSelfTest
                       + " (" + fallback.ToString("+0.00;-0.00") + " 기대) / yaml " + Override.ToString("+0.00;-0.00")
                       + " -> " + yaml.ToString("+0.00;-0.00") + "   " + Verdict(ok));
         return ok;
+    }
+
+    // 17) urgent_serve_bonus: 주문판 전체에서 가장 급한 주문을 채운 서빙에만 보너스가 붙어야 한다.
+    //     (a) GreenSoup이 가장 급할 때 GreenSoup 서빙 -> 보너스
+    //     (b) RedSoup이 더 급한데 GreenSoup 서빙     -> 보너스 없음 (센 횟수도 0)
+    //     (c) yaml 값이 없으면(기본 0) 급한 주문을 채워도 보상은 그대로, 횟수는 센다
+    static bool UrgentServeBonus(StringBuilder sb, KitchenEnv env, KitchenGroup group, ChefAgent[] agents)
+    {
+        const float Bonus = 1.5f;
+        float urgentGain = ServeGain(env, group, agents, Bonus, greenMostUrgent: true, out int urgentCount);
+        float notUrgentGain = ServeGain(env, group, agents, Bonus, greenMostUrgent: false, out int notUrgentCount);
+        float offGain = ServeGain(env, group, agents, 0f, greenMostUrgent: true, out int offCount);
+        Reset(env, agents);
+
+        bool okA = Mathf.Abs(urgentGain - Bonus) < 1e-4f && urgentCount == 1;
+        bool okB = Mathf.Abs(notUrgentGain) < 1e-4f && notUrgentCount == 0;
+        bool okC = Mathf.Abs(offGain) < 1e-4f && offCount == 1;
+        bool ok = okA && okB && okC;
+        sb.AppendLine("[17] 급한 주문 서빙 보너스   가장 급함 " + urgentGain.ToString("+0.00;-0.00;0.00") + " (+" + Bonus.ToString("0.00") + " 기대) " + Mark(okA)
+                      + " / 덜 급함 " + notUrgentGain.ToString("+0.00;-0.00;0.00") + " " + Mark(okB)
+                      + " / yaml 없음 " + offGain.ToString("+0.00;-0.00;0.00") + "·횟수 " + offCount + " " + Mark(okC) + "   " + Verdict(ok));
+        return ok;
+    }
+
+    // GreenSoup 한 접시를 서빙하고, 서빙 보상(+RewardServe)을 뺀 팀 보상 변화와 센 급한 서빙 수를 돌려준다.
+    // 보너스는 실제 경로(KitchenGroup.FixedUpdate)에서 붙는다.
+    static float ServeGain(KitchenEnv env, KitchenGroup group, ChefAgent[] agents, float bonus, bool greenMostUrgent, out int urgentCount)
+    {
+        Reset(env, agents);
+        typeof(KitchenEnv).GetField("m_UrgentServeBonus",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .SetValue(env, bonus);
+
+        var field = typeof(OrderBoard).GetField("m_Slots",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var slots = (OrderBoard.Slot[])field.GetValue(env.Orders);
+        for (int i = 0; i < slots.Length; i++)
+            slots[i] = new OrderBoard.Slot { Active = true, Recipe = RecipeType.BlueSoup, Remaining = 900f };
+        slots[0] = new OrderBoard.Slot { Active = true, Recipe = RecipeType.GreenSoup, Remaining = greenMostUrgent ? 100f : 500f };
+        slots[1] = new OrderBoard.Slot { Active = true, Recipe = RecipeType.RedSoup, Remaining = greenMostUrgent ? 500f : 100f };
+
+        float team0 = group.TotalGroupReward;
+        Act(env, agents[1], env.GetStation(StationType.ServingHatch), ItemType.CookedGreen);
+        bool served = env.DishesServed == 1;
+        urgentCount = env.TakeUrgentServeCount();
+
+        // 센 횟수를 되돌려 놓고 실제 경로로 보너스를 태운다.
+        typeof(KitchenEnv).GetField("m_UrgentServes",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .SetValue(env, urgentCount);
+        bool goal = env.IsGoalReached;
+        typeof(KitchenGroup).GetMethod("FixedUpdate",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            .Invoke(group, null);
+
+        float gain = group.TotalGroupReward - team0 - group.RewardServe - (goal ? group.RewardGoalBonus : 0f);
+        return served ? gain : float.NaN;
     }
 
     // 주문은 전부 RedSoup인데 초록을 넣는다. 첫 재료부터 어떤 주문도 만들 수 없게 된다.

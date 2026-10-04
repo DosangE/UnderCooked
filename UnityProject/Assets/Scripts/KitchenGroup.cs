@@ -35,6 +35,7 @@ public class KitchenGroup : MonoBehaviour
     // 진단용 집계. 에피소드마다 StatsRecorder로 내보내고 0으로 리셋한다.
     int m_Transfers;
     int m_OrdersExpired;
+    int m_UrgentServes;
     // 이번 에피소드에 회수된 진행 보상의 합. 냄비 비우기/잘못된 제출/종료 정산을 전부 더한다.
     // 마지막 종료 정산액만 담으면 '중간에 얼마나 버렸는지'가 통째로 빠진다.
     float m_CreditClawedBack;
@@ -126,6 +127,14 @@ public class KitchenGroup : MonoBehaviour
         {
             AddTeamReward(env.OrderExpiredPenaltyOr(rewardOrderExpired) * expired);
             m_OrdersExpired += expired;
+        }
+
+        // 가장 급한 주문을 채운 서빙 보너스. 보너스가 꺼져 있어도 진단용으로 센다.
+        int urgent = env.TakeUrgentServeCount();
+        if (urgent > 0)
+        {
+            m_UrgentServes += urgent;
+            if (env.UrgentServeBonus > 0f) AddTeamReward(env.UrgentServeBonus * urgent);
         }
 
         // 주문과 맞지 않는 요리가 주방에 있는 시간. 벌점이 꺼져 있어도 진단용으로 센다.
@@ -250,6 +259,7 @@ public class KitchenGroup : MonoBehaviour
         stats.Add("Kitchen/GoalReached", goalReached ? 1f : 0f);
         stats.Add("Kitchen/Transfers", m_Transfers);
         stats.Add("Kitchen/OrdersExpired", m_OrdersExpired);
+        stats.Add("Kitchen/UrgentServes", m_UrgentServes);
         stats.Add("Kitchen/CreditClawedBack", m_CreditClawedBack);
         stats.Add("Kitchen/TransferClawedBack", m_TransferClawedBack);
         stats.Add("Kitchen/WrongDishSeconds", m_WrongDishSeconds);
@@ -294,6 +304,7 @@ public class KitchenGroup : MonoBehaviour
     {
         m_Transfers = 0;
         m_OrdersExpired = 0;
+        m_UrgentServes = 0;
         m_CreditClawedBack = 0f;
         m_TransferClawedBack = 0f;
         m_WrongDishSeconds = 0f;
