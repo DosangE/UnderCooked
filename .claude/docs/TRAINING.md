@@ -250,7 +250,7 @@ progress로 계속 올라간다. 그래서 후반에 **최종 난이도로 45초
 | `undercooked_blue_s1`, `_final`, `_fix`, `_fix9` | 재료 3종·요리 6종. 무작위 초기화 → 지름길 차단 단계표 → 6종 고정. fix9 92.4% |
 | `undercooked_blue_red`, `_red_mix` | RedSoup만 3M → 6종 9M. red_mix 99.4% |
 | `undercooked_blue_long`, `_long8`, `_long8_g995` | 90초 라운드·만료 벌점 실험. 효과 없어 중단 |
-| `undercooked_blue_urgent`, `_urgent3` | 급한 주문 서빙 보너스 1.5 / 3.0. urgent 99.6% (45초 조건 추론) |
+| `undercooked_blue_urgent`, `_urgent3` | 급한 주문 서빙 보너스 1.5 / 3.0. 45초 조건 추론 99.6% / 99.4%, RedSoup 선택 10.8% / 16.6%. **urgent3가 6종 최종 모델** |
 | `eval_undercooked_blue_<런>[_45/_90]` | 6종 진단 추론 600k + 냄비 채움 기록(`archive/tools/inference/pot_fill_log.cs`). 설정 `configs/undercooked_blue_eval45.yaml` / `_eval90.yaml` |
 | `undercooked_<내용>` | ablation / 실험 (`undercooked_nomemory`, `undercooked_noorder` 등) |
 | `smoke` | 배선 확인용 1~2분 런. 확인 후 `results/smoke`를 지운다 |

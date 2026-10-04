@@ -9,7 +9,7 @@
 Overcooked에서 사람이 잘하는 팀은 두 가지를 한다. 주문판을 보고 **무엇을 만들지** 정하고, 동료와 **누가 무엇을 나를지** 나눈다.
 이 저장소는 Overcooked를 극단적으로 단순화한 주방을 만들고, 두 셰프가 이 두 가지를 스스로 배우게 한다.
 재료 2종·요리 3종 최종 모델은 가장 어려운 난이도에서 **3접시 목표 달성률 97.8%**(Unity 추론 97.1%, 478판)다.
-이후 파랑 재료를 넣어 **재료 3종·요리 6종**으로 넓혔고, 같은 난이도에서 **Unity 추론 99.6%**다.
+이후 파랑 재료를 넣어 **재료 3종·요리 6종**으로 넓혔고, 같은 난이도에서 **Unity 추론 99.4%**다.
 다만 초록이 안 들어간 요리를 덜 고르는 편향이 남아 있다 (§9).
 
 ```
@@ -310,11 +310,12 @@ mlagents-learn configs/undercooked_blue_fix.yaml   --run-id=undercooked_blue_fix
 mlagents-learn configs/undercooked_blue_fix9.yaml  --run-id=undercooked_blue_fix9  --initialize-from=undercooked_blue_fix   --seed=1 --torch-device cuda   # 92.4%
 mlagents-learn configs/undercooked_blue_red.yaml     --run-id=undercooked_blue_red     --initialize-from=undercooked_blue_fix9 --seed=1 --torch-device cuda
 mlagents-learn configs/undercooked_blue_red_mix.yaml --run-id=undercooked_blue_red_mix --initialize-from=undercooked_blue_red  --seed=1 --torch-device cuda   # 99.4%
-# 90초 / 목표 8 조건으로 RedSoup 보강 (long -> long8 -> long8_g995 -> urgent)
+# 90초 / 목표 8 조건으로 RedSoup 보강 (long -> long8 -> long8_g995 -> urgent -> urgent3)
 mlagents-learn configs/undercooked_blue_long.yaml       --run-id=undercooked_blue_long       --initialize-from=undercooked_blue_red_mix    --seed=1 --torch-device cuda
 mlagents-learn configs/undercooked_blue_long8.yaml      --run-id=undercooked_blue_long8      --initialize-from=undercooked_blue_long       --seed=1 --torch-device cuda
 mlagents-learn configs/undercooked_blue_long8_g995.yaml --run-id=undercooked_blue_long8_g995 --initialize-from=undercooked_blue_long8      --seed=1 --torch-device cuda
 mlagents-learn configs/undercooked_blue_urgent.yaml     --run-id=undercooked_blue_urgent     --initialize-from=undercooked_blue_long8_g995 --seed=1 --torch-device cuda   # 99.6%
+mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blue_urgent3    --initialize-from=undercooked_blue_urgent     --seed=1 --torch-device cuda   # 99.4%, 최종
 ```
 
 `long`, `long8`, `long8_g995`는 효과가 없어 중간에 멈춘 런이다(2.3M / 4.8M / 3.0M). 같은 결과를 내려면 같은 지점에서 멈춘다.
@@ -322,7 +323,7 @@ mlagents-learn configs/undercooked_blue_urgent.yaml     --run-id=undercooked_blu
 씬은 `UnityProject/Assets/Scenes/UnderCooked.unity`. **`mlagents-learn`을 먼저 띄우고 Play한다** — 반대로 하면 사람 플레이로 판정되어 주방 하나로만 학습된다. Play 직후 콘솔에 `학습 모드 (트레이너 연결됨, 주방 16개)`가 찍혀야 한다.
 실행 전 체크리스트(회귀 검사 등)는 [`.claude/docs/TRAINING.md`](.claude/docs/TRAINING.md).
 
-**모델로 보기** — 셰프의 Behavior Parameters > Model에 6종 모델(`archive/runs/undercooked_blue_urgent/Chef.onnx`)을 넣고, `KitchenEnv`의 `defaultTargetDishes`를 3, `defaultOrderDuration`을 25로 바꾼 뒤 트레이너 없이 Play. 트레이너가 없으면 yaml 대신 이 기본값(2접시 / 20초, 요리 6종)이 쓰인다.
+**모델로 보기** — 셰프의 Behavior Parameters > Model에 6종 최종 모델(`archive/runs/undercooked_blue_urgent3/Chef.onnx`)을 넣고, `KitchenEnv`의 `defaultTargetDishes`를 3, `defaultOrderDuration`을 25로 바꾼 뒤 트레이너 없이 Play. 트레이너가 없으면 yaml 대신 이 기본값(2접시 / 20초, 요리 6종)이 쓰인다.
 재료 2종 모델 `models/undercooked.onnx`(관측 103)는 이 코드에서 돌지 않는다. 그 모델은 `main` 브랜치의 재료 2종 버전에서 본다.
 
 **직접 플레이** — Behavior Type을 `Heuristic Only`로 바꾸고 Play. 주방 하나만 남고 주문판, 스테이션 깜빡임(🟩 집기 / 🟦 놓기 / 🟥 버리기), 행동 로그가 켜진다.
@@ -345,7 +346,8 @@ mlagents-learn configs/undercooked_blue_urgent.yaml     --run-id=undercooked_blu
 |---|---|---|---|
 | `undercooked_blue_fix9` | 92.4% | 9% | 1.5% |
 | `undercooked_blue_red_mix` | 99.4% | 3% | 6.5% |
-| **`undercooked_blue_urgent`** | **99.6%** | 3% | **10.8%** |
+| `undercooked_blue_urgent` (보너스 1.5) | 99.6% | 3% | 10.8% |
+| **`undercooked_blue_urgent3`** (보너스 3.0, 최종) | **99.4%** | 4% | **16.6%** |
 
 "RedSoup 선택"은 냄비에 첫 재료를 넣는 순간 주문판에 RedSoup이 있었던 경우 중 실제로 RedSoup을 만든 비율이다.
 
@@ -365,8 +367,9 @@ mlagents-learn configs/undercooked_blue_urgent.yaml     --run-id=undercooked_blu
 
   만료 벌점은 결정 뒤 10~30초 늦게 와서 거의 지워진다.
 - **서빙 순간에 "가장 급한 주문을 채웠다"를 바로 보상하자(`urgent_serve_bonus`) 처음으로 움직였다** (6.5% → 10.8%).
+  보너스를 1.5 → 3.0으로 키우고 학습률을 다시 시작하자 16.6%가 됐다. 학습 조건(90초 / 목표 8)으로 재면 21.1%다.
 
-남은 편향: 초록이 들어간 요리는 주문판에 있을 때 50~95% 고르고, 초록 없는 요리는 10~35%만 고른다.
+남은 편향: 최종 모델은 초록이 들어간 요리를 주문판에 있을 때 47~90% 고르고, 초록 없는 요리는 13~36%만 고른다.
 지금 요리는 one-hot으로 주어져서 "RedSoup = 빨강 2개"를 정책이 따로 외워야 한다.
 다음 후보는 주문과 냄비를 같은 "재료 구성" 형식으로 주는 관측 변경이다.
 
@@ -376,7 +379,7 @@ mlagents-learn configs/undercooked_blue_urgent.yaml     --run-id=undercooked_blu
 
 - **되는 것**
   - 재료 2종: 최종 난이도 97.8%(추론 97.1%). 처음부터 한 번에 학습하는 단계 커리큘럼으로도 최종 난이도에 도달했다(시드 4개 중 2개, 94.5% / 92.0%).
-  - 재료 3종·요리 6종: 추론 99.6%, 잘못 채움 3% (§9).
+  - 재료 3종·요리 6종: 추론 99.4%, 잘못 채움 4% (§9). 최종 모델은 `archive/runs/undercooked_blue_urgent3/Chef.onnx`.
 - **안 되는 것** — 요리 선택의 편향.
   - 재료 2종 모델은 판의 약 17~22%에서 한 번 이상 주문에 없는 레시피로 냄비를 채웠다. 벌점 크기나 틀린 요리 보유 벌점으로는 이 비율이 줄지 않았다.
   - 6종 모델은 잘못 채움은 줄었지만, 초록 없는 요리를 덜 고른다.
