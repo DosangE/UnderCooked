@@ -124,7 +124,7 @@ public class KitchenGroup : MonoBehaviour
         int expired = env.TakeExpiredOrderCount();
         if (expired > 0)
         {
-            AddTeamReward(rewardOrderExpired * expired);
+            AddTeamReward(env.OrderExpiredPenaltyOr(rewardOrderExpired) * expired);
             m_OrdersExpired += expired;
         }
 
