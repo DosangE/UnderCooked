@@ -8,8 +8,8 @@
 
 Overcooked를 잘하는 팀은 두 가지를 해낸다. 주문판을 보고 **무엇을 만들지** 정하고, 동료와 **운반 역할**을 나눈다.
 이 프로젝트에서는 Overcooked를 극단적으로 단순화한 주방을 만들어, 두 셰프가 이 두 가지를 스스로 배우게 했다.
-처음 만든 재료 2종·요리 3종 버전은 최종 난이도에서 **3접시 목표 달성률 97.5%**(Unity 추론 1100판, 학습 중 측정값 97.8%)를 냈다.
-이후 파랑 재료를 넣어 **재료 3종·요리 6종**으로 넓혔다. 이 최종 모델(`models/undercooked.onnx`)은 같은 조건(45초 · 3접시 · 주문 25초)에서 **Unity 추론 99.5%(1105판)**를 달성했다.
+처음 만든 재료 2종·요리 3종 버전은 최종 난이도에서 **3접시 목표 달성률 97.5%**(학습 없이 추론 평가 1100판, 학습 중 측정값 97.8%)를 냈다.
+이후 파랑 재료를 넣어 **재료 3종·요리 6종**으로 넓혔다. 이 최종 모델(`models/undercooked.onnx`)은 같은 조건(45초 · 3접시 · 주문 25초)의 추론 평가에서 **99.5%(1105판)**를 달성했다 (평가 방식은 §9).
 다만 초록이 안 들어간 요리를 덜 고르는 편향이 남아 있다 (§9). 위 GIF는 6종 모델의 한 판(23.4초, 3접시)이다.
 
 ```
@@ -103,8 +103,9 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 
 ### 2-2. 주문은 보여주고, 조리 완료는 숨긴다
 
-- **주문판은 관측에 넣는다.** 무엇을 만들지는 기억이 아니라 *읽어야 하는* 정보다. 주문판을 관측에서 빼면 정책은 기댓값이 가장 높은 요리 하나만 만든다.
-- **조리 완료 여부는 관측에서 뺐다.** Action Mask로도 새지 않게 막았다(뜨기 마스크가 완료 순간에 열리면 그게 곧 관측이다). 재료를 언제 다 넣었는지 기억해야 낭비 없이 요리를 뜰 수 있다 — Memory(LSTM)를 쓰는 근거다.
+- **주문판은 관측에 넣는다.** 무엇을 만들지는 기억이 아니라 *읽어야 하는* 정보다. 주문판을 관측에서 빼면 정책은 기댓값이 가장 높은 요리 하나만 만들 것으로 예상했다(주문판을 뺀 비교 실험은 하지 않았다).
+- **조리 완료 여부는 관측에서 뺐다.** Action Mask로도 새지 않게 막았다(뜨기 마스크가 완료 순간에 열리면 그게 곧 관측이다). 재료를 언제 다 넣었는지 기억해야 낭비 없이 요리를 뜰 수 있게 하려고 Memory(LSTM)를 켰다.
+  다만 이것만으로 기억이 강제되지는 않았다. 쉬운 조건(목표 1접시, 조리 5초, 시드 1개)에서 memory를 켠 런과 끈 런을 비교하자 끈 쪽이 첫 서빙에 더 빨리 도달했고(1.2M vs 1.8M), 켠 정책도 조리 완료를 기억하는 대신 냄비를 반복해서 떠보는 방식으로 풀었다(PR #17, 병합 안 함). 6종 조건에서 LSTM의 효과는 검증하지 않았다.
 
 ### 2-3. 중간 보상은 즉시 주고, 무산되면 회수한다
 
@@ -129,7 +130,7 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 재료 2종 최종 모델을 만드는 데 v1을 빼고 누적 **20M 스텝, 약 4시간 16분**이 걸렸다. 실패한 v1까지 넣으면 21.44M 스텝, 약 4시간 35분. 스텝은 에이전트 32명 합계이고, RTX 2080 SUPER에서 1M 스텝당 약 13분이다.
 
 - **v1은 커리큘럼이 첫 서빙보다 빨랐다.** 첫 서빙에 약 2M 스텝이 걸리는데, progress 기준 커리큘럼은 1.2M에 레시피 2종, 1.6M에 손질을 켰다. 서빙 보상 +3을 한 번도 못 본 채 난이도만 올라갔다. 그래서 **lesson0을 먼저 고정 학습 → 커리큘럼 → 최종 난이도 고정**으로 바꿨다.
-- **v2는 손질 전환에서 무너졌다.** 손질이 켜지자 생재료를 냄비에 넣던 정책이 냄비를 한 번도 못 채우고 서빙 0이 됐다. 약 1.5M 스텝 뒤 스스로 손질 경로를 찾아 회복했다. progress 기준의 단계 전환 조건은 이전 단계를 풀었는지 보지 않는다.
+- **v2는 손질 전환에서 무너졌다.** 손질이 켜지자(1.6M) 생재료를 냄비에 넣던 정책이 냄비를 한 번도 못 채우고 서빙 0이 됐다. 스스로 손질 경로를 찾아 냄비 채우기는 약 1M 스텝 뒤(2.6M), 서빙은 약 2M 스텝 뒤(3.6M)부터 다시 늘었다. progress 기준의 단계 전환 조건은 이전 단계를 풀었는지 보지 않는다.
 - **final 이후는 최종 난이도에서 3M씩 추가 학습했다.** final3에서는 재료 투입 벌점도 바꿨다(효과는 §5-1에서 확인되지 않음). 매 런 학습률이 3e-4에서 다시 시작하고, 74% → 90.5% → 97.8%로 끝까지 올랐다.
 
 ---
@@ -178,7 +179,7 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 | s1, s3 | 0단계(가장 쉬운 단계)에서 서빙을 못 찾고 4.5M에 중단 |
 
 무작위 초기화부터 한 런으로 최종 난이도까지 가는 커리큘럼이 **가능하다는 것을 확인했다.** 손질이 필요한 판의 비율을 50%에서 100%로 두 단계에 나눠 늘린 것이 v2의 손질 전환 붕괴를 막았다.
-하지만 4번 중 2번은 첫 서빙을 못 찾았다. 같은 0단계 조건의 `undercooked_lesson0`을 포함해도, 총 5개 런 중 3개만 서빙에 성공했다. 이번 실험에서는 시드에 따라 첫 서빙을 찾는지가 갈렸다 (같은 시드면 학습이 비트 단위로 재현된다).
+하지만 4번 중 2번은 첫 서빙을 못 찾았다. 같은 0단계 조건의 `undercooked_lesson0`을 포함해도, 총 5개 런 중 3개만 서빙에 성공했다. 이번 실험에서는 시드에 따라 첫 서빙을 찾는지가 갈렸다 (같은 시드에 0단계에서는 영향이 없는 벌점 값만 바꿔 다시 돌린 두 쌍은 기록된 지표가 모든 지점에서 같았다. 같은 PC·같은 설정 범위의 관찰이다).
 
 ### 5-3. 남은 실패는 거의 전부 "주문에 없는 레시피로 채운 판"이다
 
@@ -200,6 +201,16 @@ RedSoup에서 A가 하는 일은 "냄비 앞에 서서 받아 넣기"뿐이었�
 
 > 이 절의 보상·커리큘럼·하이퍼파라미터는 기본값(재료 2종 학습 기준)이다. 6종 최종 모델의 마지막 두 런(`undercooked_blue_urgent`, `_urgent3`)은
 > 90초 · 목표 8 · 주문 30초 · 만료 −3.0 · γ 0.995 · 급한 주문 보너스 1.5 / 3.0(두 런 각각) 설정을 썼다 (§8, §9).
+> 45초 평가는 기본값(만료 −0.5, 보너스 0)으로 돌렸다.
+
+**사용한 필수 개념** — 자세한 이유는 [`docs/DESIGN.md`](docs/DESIGN.md) §3, 회고는 §9.
+
+| 개념 | 어디에 | 확인된 것 |
+|---|---|---|
+| MA-POCA (협동 멀티 에이전트) | `trainer_type: poca`, `KitchenGroup`(`SimpleMultiAgentGroup`, 팀 보상) | 맵 구조상 두 셰프가 모두 움직여야 서빙된다. 최종 99.5% |
+| Curriculum | `configs/undercooked.yaml` `environment_parameters`, 성공률 단계 커리큘럼 `StageCurriculum.cs` | 둘 다 최종 난이도까지 도달 (§3, §5-2, §9) |
+| Action Masking | `ChefAgent.WriteDiscreteActionMask` | 무의미한 이동·상호작용을 막는다. 마스킹 유무 비교는 하지 않았다 |
+| Memory (LSTM) | `network_settings.memory` (sequence 64, memory 128) | 쉬운 조건 비교에서는 효과가 없었다 (§2-2). 6종에서는 미검증 |
 
 **에이전트** — 셰프 2명 1팀(`SimpleMultiAgentGroup`, Behavior Name `Chef`, Team ID 0). 주방 16개를 동시에 돌려 셰프 32명이 학습한다.
 목표 달성은 `EndGroupEpisode()`, 45초 타임아웃은 `GroupEpisodeInterrupted()` — 타임아웃을 종료로 처리하면 가치가 0으로 잘려 "시간이 지나면 가치 0"을 잘못 배운다.
@@ -273,7 +284,7 @@ POCA는 동료의 개인 보상도 내 리턴에 더한다(`add_groupmate_reward
 
 ## 7. 결과 (재료 2종)
 
-| 지표 (최종 난이도) | 학습 (final3, 2.5–3M) | Unity 추론 (478판) | 아무것도 안 할 때 |
+| 지표 (최종 난이도) | 학습 (final3, 2.5–3M) | Unity `.onnx` 추론 (478판) | 아무것도 안 할 때 |
 |---|---|---|---|
 | 목표 달성 | **97.8%** | **97.1%** | 0% |
 | 서빙 / 에피소드 | 2.97 | 2.96 | 0 |
@@ -281,13 +292,13 @@ POCA는 동료의 개인 보상도 내 리턴에 더한다(`add_groupmate_reward
 | 팀 보상 | +13.29 | – | −1.5 |
 
 최종 난이도: 손질 켜짐, 레시피 3종, 조리 5초, 주문 슬롯 3, 주문 25초, 목표 3접시. 성공한 판은 평균 27.7초에 끝나고, 0접시로 끝난 판은 없었다(1접시 3 / 2접시 11 / 3접시 464).
-같은 모델을 600k 스텝(1100판)으로 다시 재면 97.5%다 (§9).
+478판은 `.onnx`를 Behavior Parameters에 넣고 트레이너 없이 잰 값이다. 같은 모델을 추론 모드(`--inference`) 600k 스텝(1100판)으로 다시 재면 97.5%다 (§9).
 
 | 개인 보상 | 팀 보상 | 잘못 채움 (판당 횟수) |
 |:--:|:--:|:--:|
 | ![](assets/tb_cumulative_reward.png) | ![](assets/tb_group_reward.png) | ![](assets/tb_pot_committed_wrong.png) |
 
-`Environment/Cumulative Reward`는 **개인 보상만** 담아서 최대 약 +0.46이다. 성과는 팀 보상과 목표 달성률로 읽는다.
+`Environment/Cumulative Reward`는 **개인 보상만** 담아서 final3 마지막 0.5M 평균이 +0.46이다(요약 한 번 단위로는 최대 +0.59). 성과는 팀 보상과 목표 달성률로 읽는다.
 
 ---
 
@@ -320,8 +331,8 @@ mlagents-learn configs/undercooked_blue_red_mix.yaml --run-id=undercooked_blue_r
 mlagents-learn configs/undercooked_blue_long.yaml       --run-id=undercooked_blue_long       --initialize-from=undercooked_blue_red_mix    --seed=1 --torch-device cuda
 mlagents-learn configs/undercooked_blue_long8.yaml      --run-id=undercooked_blue_long8      --initialize-from=undercooked_blue_long       --seed=1 --torch-device cuda
 mlagents-learn configs/undercooked_blue_long8_g995.yaml --run-id=undercooked_blue_long8_g995 --initialize-from=undercooked_blue_long8      --seed=1 --torch-device cuda
-mlagents-learn configs/undercooked_blue_urgent.yaml     --run-id=undercooked_blue_urgent     --initialize-from=undercooked_blue_long8_g995 --seed=1 --torch-device cuda   # 99.6%
-mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blue_urgent3    --initialize-from=undercooked_blue_urgent     --seed=1 --torch-device cuda   # 99.4%, 최종
+mlagents-learn configs/undercooked_blue_urgent.yaml     --run-id=undercooked_blue_urgent     --initialize-from=undercooked_blue_long8_g995 --seed=1 --torch-device cuda   # 99.7%
+mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blue_urgent3    --initialize-from=undercooked_blue_urgent     --seed=1 --torch-device cuda   # 99.5%, 최종
 ```
 
 `long`, `long8`, `long8_g995`는 효과가 없어 중간에 멈춘 런이다(2.3M / 4.8M / 3.0M). 재현하려면 같은 스텝에서 멈춘다.
@@ -330,6 +341,7 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 실행 전 체크리스트(회귀 검사 등)는 [`.claude/docs/TRAINING.md`](.claude/docs/TRAINING.md).
 
 **모델로 보기** — 셰프의 Behavior Parameters > Model에 최종 모델 `models/undercooked.onnx`(6종, `undercooked_blue_urgent3`)를 넣고, `KitchenEnv`의 `defaultTargetDishes`를 3, `defaultOrderDuration`을 25로 바꾼 뒤 트레이너 없이 Play. 트레이너가 없으면 yaml 대신 `KitchenEnv`에 설정한 값이 쓰인다. 씬에 저장된 값은 목표 2접시 · 주문 20초(요리 6종)라서, 바꾸지 않으면 평가 조건(3접시 · 25초)과 다르다.
+§9의 99.5%는 이 방식이 아니라 트레이너의 추론 모드로 잰 값이다. 6종 `.onnx`를 이렇게 넣고 판 수를 센 기록은 아직 없다.
 재료 2종 모델(관측 103, `archive/runs/undercooked_final3/Chef.onnx`)은 이 코드에서 돌지 않는다. 그 모델은 재료 2종 버전 코드(`main`의 `90b2dcb`)에서 본다.
 
 **직접 플레이** — Behavior Type을 `Heuristic Only`로 바꾸고 Play. 주방 하나만 남고 주문판, 스테이션 깜빡임(🟩 집기 / 🟦 놓기 / 🟥 버리기), 행동 로그가 켜진다.
@@ -339,7 +351,7 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 | A (북쪽) | `WASD` | `LeftShift` |
 | B (남쪽) | 방향키 | `RightShift` / `Enter` |
 
-환경: Unity 6000.3.18f1, `com.unity.ml-agents` 4.0.3, Python 3.10.12, `mlagents` 1.2.0.dev0(소스 설치), torch 2.2.2+cu121.
+환경: Unity 6000.3.18f1(재료 2종 본 학습. 09-29 보완 실험은 6000.3.25f1, 저장소의 `ProjectVersion.txt`는 노트북의 6000.3.19f1), `com.unity.ml-agents` 4.0.3, Python 3.10.12, `mlagents` 1.2.0.dev0(소스 설치), torch 2.2.2+cu121.
 
 ---
 
@@ -349,17 +361,19 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 관측이 103 → 145차원으로 바뀌어 재료 2종 모델을 불러올 수 없으므로, 6종 모델은 무작위 초기화(`undercooked_blue_s1`)부터 새로 학습했다.
 전체 과정과 수치는 [`reports/2026-10-04-blue-ingredient.md`](reports/2026-10-04-blue-ingredient.md).
 
-| 모델 (평가: 45초 / 목표 3, Unity 추론 600k 스텝) | 목표 달성 | 잘못 채움 (냄비 채움 중 비율) | RedSoup 선택 |
+| 모델 (평가: 45초 / 목표 3, 추론 모드 600k 스텝) | 목표 달성 | 잘못 채움 (냄비 채움 중 비율) | RedSoup 선택 |
 |---|---|---|---|
 | `undercooked_blue_fix9` | 92.4% | 9% | 1.5% |
 | `undercooked_blue_red_mix` | 99.4% | 3% | 6.5% |
-| `undercooked_blue_urgent` (보너스 1.5) | 99.6% | 3% | 10.8% |
-| **`undercooked_blue_urgent3`** (보너스 3.0, 최종) | **99.4%** | 4% | **16.6%** |
+| `undercooked_blue_urgent` (보너스 1.5) | 99.7% | 3% | 10.8% |
+| **`undercooked_blue_urgent3`** (보너스 3.0, 최종) | **99.5%** | 4% | **16.6%** |
 
-이 표의 "잘못 채움"은 판당 횟수가 아니라, 냄비를 채운 횟수 중 주문에 없는 요리가 된 비율이다. "RedSoup 선택"은 냄비에 첫 재료를 넣는 순간 주문판에 RedSoup이 있었던 경우 중 실제로 RedSoup을 만든 비율이다.
+이 표의 "잘못 채움"은 판당 횟수가 아니라, 냄비를 채운 횟수 중 주문에 없는 요리가 된 비율이다. "RedSoup 선택"은 냄비에 첫 재료를 넣는 순간 주문판에 RedSoup이 있었던 경우 중 실제로 RedSoup을 만든 비율이다. "목표 달성"은 600k 스텝까지의 `Kitchen/GoalReached` 요약 평균이다.
+평가는 모두 `mlagents-learn --inference --initialize-from=<런>`으로 했다. 학습 없이 Python 쪽 정책(체크포인트)이 Unity 환경을 움직이는 방식이고, 내보낸 `.onnx`를 Behavior Parameters에 넣어 Unity 안에서 돌린 것은 아니다. 가중치는 같다.
 
 최종 모델을 판 단위로 다시 세면 **1105판 중 99.5%**다(3접시 1099 / 2접시 5 / 0접시 1, 성공한 판 평균 25.4초).
 재료 2종 모델을 같은 방식(600k 스텝)으로 센 값은 1100판 97.5%다. 기록은 `archive/runs/eval_undercooked_blue_urgent3_episodes/`.
+6종 모델은 2종 모델보다 학습량이 훨씬 많고(약 100M 대 20M 스텝) 보상 설정도 달라서, 이 차이를 요리 수의 효과로 읽으면 안 된다.
 
 | 학습 곡선 — 목표 달성률 (런 11개 이어 붙임) | 요리별 선택 비율 |
 |:--:|:--:|
@@ -368,21 +382,21 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 곡선은 구간마다 난이도·판 길이·목표가 달라서 같은 구간 안에서만 비교한다.
 
 **1. 새 재료를 안 배웠다 — 아는 요리만 만들어도 성공률이 72%까지 나왔다.**
-- 주문 슬롯이 3개라서 이미 아는 GreenSoup·MixSoup만 만들어도 45\~72%가 나왔다. 파랑은 한 번도 안 썼다.
+- 주문 슬롯이 3개라서 이미 아는 GreenSoup·MixSoup만 만들어도 45\~72%가 나왔다. 파랑을 첫 재료로 쓴 적이 없었다(blue_final 진단 600k 동안 파랑이 들어간 냄비 1개).
 - 고친 방법: 단계마다 이미 익힌 요리를 주문에서 뺐다(`recipe_pool_start`). 7단계는 BlueSoup만, 8단계는 지름길 2종을 뺀 4종이다.
 - 그 뒤 6종을 섞어 이어 학습하자 26% → 93%가 됐다.
 
 **2. 초록 없는 요리의 주문을 방치했다 — 어느 주문을 포기하든 대가가 같았다.**
-- 6종을 다 할 줄 알면서도 RedSoup·RedBlueSoup 주문의 절반을 만료시켰다.
-  - 매 판 일부 주문은 버릴 수밖에 없고, 어느 요리든 보상이 같다.
-  - 그래서 정책은 "초록으로 시작하기"(주문판에 초록 요리가 있을 확률 87.5%)를 굳혔다.
+- 6종을 다 할 줄 알면서도 RedSoup·RedBlueSoup 주문을 피했다. 90초 학습 조건에서 관찰한 만료 비율은 두 요리가 약 50%, 초록 요리는 0\~7%였다.
+  - 목표 접시를 채우면 판이 바로 끝나므로 모든 주문을 처리할 필요가 없고, 서빙 보상은 어느 요리든 같다. 45초 평가에서는 1105판 중 775판이 만료 0건으로 끝났다. 피한 주문은 만료되기 전에 판이 끝나는 경우가 많다.
+  - 그래서 정책은 "초록으로 시작하기"를 굳혔다. 주문 3칸이 독립·균등하게 뽑힌다고 하면 초록 요리가 하나라도 있을 확률은 87.5%다(실제 첫 재료 투입 순간 기록에서는 82%).
 - 효과가 없었던 시도:
   - RedSoup만 따로 학습시킨 뒤 다시 섞었다 → 다시 잊었다.
   - 판 길이를 90초로 늘렸다.
   - 만료 벌점을 −3으로 키우고 γ를 0.995로 올렸다.
 
-  만료 벌점은 요리를 선택한 뒤 10\~30초 후에 발생하므로, γ 0.99에서는 현재 선택에 반영되는 벌점의 크기가 원래의 5\~37%로 줄어든다.
-- **서빙 순간에 "가장 급한 주문을 채웠다"를 바로 보상하자(`urgent_serve_bonus`) RedSoup 선택 비율이 처음으로 올랐다** (6.5% → 10.8%).
+  만료 벌점은 요리를 선택한 뒤 10\~30초(100\~300 결정) 후에 발생하므로, 현재 선택에 반영되는 크기는 γ 0.99에서 원래의 5\~37%, γ 0.995에서도 22\~61%로 줄어든다. 늦게 오는 벌점이 원인이라는 것은 해석이고, 따로 검증하지는 않았다.
+- **서빙 순간에 "가장 급한 주문을 채웠다"를 바로 보상한(`urgent_serve_bonus`) 뒤에 RedSoup 선택 비율이 처음 올랐다** (6.5% → 10.8%). 런 하나씩이고, 보너스와 추가 학습의 효과를 나눈 대조는 없다.
   보너스를 1.5에서 3.0으로 늘리고, 학습률을 초기값으로 되돌려 이어 학습하자 16.6%가 됐다. 학습 조건(90초 / 목표 8)으로 재면 21.1%다.
 
 남은 편향: 최종 모델에서 초록 재료가 포함된 요리가 주문판에 있을 때, 해당 요리를 선택하는 비율은 47\~90%다. 초록 없는 요리는 13\~36%에 그친다.
@@ -394,22 +408,23 @@ mlagents-learn configs/undercooked_blue_urgent3.yaml    --run-id=undercooked_blu
 ## 10. 현재 상태
 
 - **되는 것**
-  - 재료 2종: 최종 난이도 97.8%(학습 중), Unity 추론 97.5%(1100판). 처음부터 한 번에 학습하는 단계 커리큘럼으로도 최종 난이도에 도달했다(시드 4개 중 2개, 94.5% / 92.0%).
-  - 재료 3종·요리 6종: Unity 추론 99.5%(1105판), 잘못 채운 판(한 번 이상) 11.0% (§9). 최종 모델 `models/undercooked.onnx`(`undercooked_blue_urgent3`).
+  - 재료 2종: 최종 난이도 97.8%(학습 중), 추론 평가 97.5%(1100판), `.onnx` Unity 추론 97.1%(478판). 처음부터 한 번에 학습하는 단계 커리큘럼으로도 최종 난이도에 도달했다(시드 4개 중 2개, 94.5% / 92.0%).
+  - 재료 3종·요리 6종: 추론 평가 99.5%(1105판), 잘못 채운 판(한 번 이상) 11.0% (§9). 최종 모델 `models/undercooked.onnx`(`undercooked_blue_urgent3`). 이 `.onnx`를 Unity 안에서 직접 돌린 판 수 평가는 아직 없다.
 - **남은 한계** — 요리 선택의 편향.
   - 재료 2종 모델은 판의 약 17\~22%에서 한 번 이상 주문에 없는 레시피로 냄비를 채웠다. 벌점 크기나 틀린 요리 보유 벌점으로는 이 비율이 줄지 않았다.
   - 6종 모델은 잘못 채운 판이 11.0%로 줄었지만, 초록 없는 요리를 덜 고른다.
 - **아직 안 푼 것**
   - 단계 커리큘럼의 0단계 서빙 발견(시드 의존)
   - 무작위 초기화부터 하나의 학습 런으로 6종 모델을 완성할 수 있는지 검증
-  - Memory 효과 검증(on/off 비교에서 차이가 나오지 않았다)
+  - Memory 효과 검증(쉬운 조건 on/off 비교에서는 끈 쪽이 더 빨리 배웠다. 6종 조건은 미검증)
 
 | 문서 | 내용 |
 |---|---|
 | [`reports/2026-10-04-blue-ingredient.md`](reports/2026-10-04-blue-ingredient.md) | 재료 3종·요리 6종 확장 전체 (지름길, RedSoup 보강, 요리별 진단, 배운 것) |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | 설계 기록 전체 — 고친 19건(§4), 진단 지표 읽는 법(§6), 파일 구조(§7). 코드 주석의 `README §N`은 이 문서의 절이다 |
-| [`reports/2026-09-29-final-report.md`](reports/2026-09-29-final-report.md) | 최종 보고서 |
+| [`reports/2026-09-29-final-report.md`](reports/2026-09-29-final-report.md) | 재료 2종 시점의 최종 보고서 (그때의 제출 모델은 final3) |
 | [`reports/2026-09-29-experiment-results.md`](reports/2026-09-29-experiment-results.md) | 보완 실험 (벌점 대조, 처음부터 학습, 실패 분석) |
 | [`reports/2026-09-30-full-log.md`](reports/2026-09-30-full-log.md) | 재료 2종까지의 전체 과정·시행착오·학습 시간 (런 30개, 약 25시간) |
 | [`posts/2026-10-04-cafe/`](posts/2026-10-04-cafe/) | 카페 게시용 프로젝트 소개 글(docx)과 그림, 생성 스크립트 |
+| [`reports/2026-10-07-final-audit.md`](reports/2026-10-07-final-audit.md) | 최종 산출물 검증 (원자료 재집계, `tools/verify_results.py`). 지적 사항은 이 저장소에 반영했다 |
 | [`archive/`](archive/) | 런별 TensorBoard 이벤트, 설정, 모델 |

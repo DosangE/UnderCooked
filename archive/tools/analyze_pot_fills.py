@@ -47,11 +47,19 @@ print('\n[3] source of 2nd ingredient  wrong:', dict(C.Counter(r['secondSrc'] fo
 print('    source of 1st ingredient  all:', dict(C.Counter(r['firstSrc'] for r in com)))
 
 # 4) per recipe: how often ordered vs made correctly
-ordered = C.Counter(); made = C.Counter()
+# made-right counts only pots whose dish was already on the board at the FIRST ingredient, so it
+# is a subset of 'ordered' (pick rate = made-right / ordered). Pots that matched only an order
+# that appeared between the two ingredients are counted separately as 'later'.
+# (Before 2026-10-08 made-right also counted those, which put eval_blue_final's G2 at 108%.)
+ordered = C.Counter(); made = C.Counter(); later = C.Counter()
 for r in com:
-    for o in set(orders(r['ordersAtFirst'])): ordered[o] += 1
-    if r['wrong']=='0': made[int(r['cooked'])] += 1
-print('\n[4] recipe: present in orders at first-fill / made correctly / wrong-made')
+    o1 = set(orders(r['ordersAtFirst']))
+    for o in o1: ordered[o] += 1
+    if r['wrong']=='0':
+        c = int(r['cooked'])
+        if c in o1: made[c] += 1
+        else: later[c] += 1
+print('\n[4] recipe: present in orders at first-fill / made correctly (on that board) / matched a later order / wrong-made')
 wm = C.Counter(int(r['cooked']) for r in wrong)
-for k in range(6): print(f'    {NAME[k]}: ordered {ordered[k]:4d}  made-right {made[k]:4d}  made-wrong {wm[k]:4d}')
+for k in range(6): print(f'    {NAME[k]}: ordered {ordered[k]:4d}  made-right {made[k]:4d}  later {later[k]:3d}  made-wrong {wm[k]:4d}')
 print('\n[5] dumps first ingredient:', dict(C.Counter(ING[int(r['first'])] for r in dumps if r['first'] not in ('','?','-'))))
