@@ -21,12 +21,12 @@ wrong commits 89 (3%)
 [3] source of 2nd ingredient  wrong: {'B': 65, 'A': 24}  right: {'B': 2643, 'A': 730}
     source of 1st ingredient  all: {'?': 3, 'A': 666, 'B': 2793}
 
-[4] recipe: present in orders at first-fill / made correctly / wrong-made
-    G2: ordered  981  made-right  951  made-wrong    5
-    GR: ordered 1366  made-right  810  made-wrong    9
-    R2: ordered 1774  made-right  116  made-wrong    2
-    B2: ordered 1504  made-right  529  made-wrong   12
-    GB: ordered 1397  made-right  782  made-wrong   41
-    RB: ordered 1645  made-right  185  made-wrong   20
+[4] recipe: present in orders at first-fill / made correctly (on that board) / matched a later order / wrong-made
+    G2: ordered  981  made-right  951  later   0  made-wrong    5
+    GR: ordered 1366  made-right  810  later   0  made-wrong    9
+    R2: ordered 1774  made-right  116  later   0  made-wrong    2
+    B2: ordered 1504  made-right  529  later   0  made-wrong   12
+    GB: ordered 1397  made-right  782  later   0  made-wrong   41
+    RB: ordered 1645  made-right  185  later   0  made-wrong   20
 
 [5] dumps first ingredient: {}
