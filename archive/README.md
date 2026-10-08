@@ -51,12 +51,14 @@
 | `undercooked_blue_long8` | `configs/undercooked_blue_long8.yaml` (90초 / 주문 30초 / 목표 8), `--initialize-from=undercooked_blue_long --seed=1` | 4.8M (중단) | 97.4% |
 | `undercooked_blue_long8_g995` | `configs/undercooked_blue_long8_g995.yaml` (만료 −3, γ 0.995), `--initialize-from=undercooked_blue_long8 --seed=1` | 3.0M (중단) | 95.5% |
 | `undercooked_blue_urgent` | `configs/undercooked_blue_urgent.yaml` (급한 주문 보너스 1.5), `--initialize-from=undercooked_blue_long8_g995 --seed=1` | 9M | 98.9% (90초 / 목표 8) |
-| `eval_undercooked_blue_urgent_45`, `_90` | `eval_config.yaml` (폴더 안), `--inference` | 600k | 45초: 99.6%, RedSoup 10.8% / 90초: 99.2%, 13.8% |
+| `eval_undercooked_blue_urgent_45`, `_90` | `eval_config.yaml` (폴더 안), `--inference` | 600k | 45초: 99.7%, RedSoup 10.8% / 90초: 99.1%, 13.8% |
 | `undercooked_blue_urgent3` | `configs/undercooked_blue_urgent3.yaml` (보너스 3.0), `--initialize-from=undercooked_blue_urgent --seed=1` | 9M | **최종 모델** (= `models/undercooked.onnx`) |
-| `eval_undercooked_blue_urgent3_45`, `_90` | `eval_config.yaml` (폴더 안), `--inference` | 600k | 45초: **99.4%, RedSoup 16.6%** / 90초: 98.9%, 21.1% |
+| `eval_undercooked_blue_urgent3_45`, `_90` | `eval_config.yaml` (폴더 안), `--inference` | 600k | 45초: **99.5%, RedSoup 16.6%** / 90초: 99.1%, 21.1% |
 | `eval_undercooked_blue_urgent3_episodes` | `eval_config.yaml` (폴더 안, 45초 / 목표 3), `--inference --seed=1` | 600k | 판 단위 기록 `episodes.txt` (`episode_log_public.cs`). **1105판 99.5%** |
 
 냄비 채움 기록 도구: `tools/inference/pot_fill_log.cs` (Play 중 실행), 요약 `tools/analyze_pot_fills.py`.
+추론 런의 목표 달성은 600k 스텝까지의 `Kitchen/GoalReached` 요약 평균이다. `eval_*`은 모두 `mlagents-learn --inference`(Python 정책)로 잰 것이고, `.onnx`를 Unity 안에서 돌린 평가가 아니다.
+`summary.txt`(냄비 채움 요약)는 2026-10-08에 고친 `analyze_pot_fills.py`로 다시 만들었다. [4]의 made-right가 첫 재료 순간 주문판에 있던 요리만 센다(전에는 나중 주문과 맞은 냄비도 셌다).
 
 런 폴더마다 들어 있는 것:
 

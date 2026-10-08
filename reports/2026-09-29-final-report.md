@@ -1,5 +1,10 @@
 # UnderCooked 최종 보고서 (2026-09-29, 09-30 보완 실험 반영)
 
+> **재료 2종·요리 3종 시점의 보고서다 (2026-10-08 주석).** 그 뒤 재료 3종·요리 6종으로 확장하면서 `models/undercooked.onnx`는
+> `undercooked_blue_urgent3`(관측 145)로 바뀌었다. 이 문서의 "최종 모델"은 지금 `archive/runs/undercooked_final3/Chef.onnx`(관측 103)이고,
+> 지금 코드에서는 돌지 않는다(재료 2종 코드는 `main`의 `90b2dcb`). 현재 최종 결과는 `reports/2026-10-04-blue-ingredient.md`와 `README.md`를 본다.
+> 아래 재현 명령도 그 시점 코드 기준이다. 지금의 `StageCurriculum` 단계표는 6종까지 이어지도록 바뀌었다.
+
 MA-POCA로 2인 협동 요리 정책을 학습한 프로젝트의 최종 정리.
 환경 설계의 세부 내용은 `docs/DESIGN.md`(요약은 `README.md`), 날짜별 분석은 아래 보고서에 있다. 이 문서는 그 결과를 한곳에 모으고
 보관한 산출물의 위치를 적는다.
@@ -23,8 +28,8 @@ MA-POCA로 2인 협동 요리 정책을 학습한 프로젝트의 최종 정리.
 
 ## 1. 결과 요약
 
-- **최종 모델 `models/undercooked.onnx` (`undercooked_final3`)는 최종 난이도에서 3접시 목표 달성률 97.8%다.**
-  학습 없이 Unity에서 추론만 돌려도 97.1%(에피소드 478개)가 나와 학습 지표와 일치한다.
+- **재료 2종 최종 모델 `undercooked_final3`(당시 `models/undercooked.onnx`, 지금 `archive/runs/undercooked_final3/Chef.onnx`)는 최종 난이도에서 3접시 목표 달성률 97.8%다.**
+  학습 없이 `.onnx`를 Behavior Parameters에 넣고 Unity에서 추론만 돌려도 97.1%(에피소드 478개)가 나와 학습 지표와 일치한다.
 - 최종 난이도: 손질 켜짐, 레시피 3종, 조리 5초, 주문 슬롯 3, 주문 제한 25초, 목표 3접시, 에피소드 45초.
 - 아무것도 하지 않는 정책은 목표 달성 0%, 팀 보상 −1.5다.
 - 무작위 초기화부터 기본 커리큘럼 한 번으로는 학습되지 않았다(v1). **lesson0 고정 → 커리큘럼 → 최종 난이도
@@ -33,7 +38,7 @@ MA-POCA로 2인 협동 요리 정책을 학습한 프로젝트의 최종 정리.
   (90% → 98%)은 벌점 −0.1 조건에서도 같은 만큼 나왔다. 벌점 증가의 개선 효과는 확인되지 않았고, 향상은 대부분
   **3M 추가 학습**으로 설명된다 (§4-4 정정).
 - 97.8%는 한 번 수행한 학습 체인의 값이다(체인의 런은 모두 `seed: -1`, 매 런 무작위 시드). final2에서 같은 3M을 시드만 바꿔 이어 학습하면 94.7\~97.3%(벌점 −0.3, 3시드)였고,
-  97.8%는 그 범위의 위쪽 끝이다. 모델 자체의 성능은 같은 모델을 600k 스텝(1100판) 다시 쟀을 때도 97.5%로 확인했다
+  97.8%는 그 범위의 위쪽 끝이다. 모델 자체의 성능은 같은 모델을 추론 모드(`mlagents-learn --inference`)로 600k 스텝(1100판) 다시 쟀을 때도 97.5%로 확인했다
   (`archive/runs/eval_final3`).
 
 | 지표 (최종 난이도) | 학습 (final3 2.5–3M) | Unity 추론 (478 에피소드) |
@@ -89,10 +94,10 @@ Unity 추론 서빙 분포는 1접시 3 / 2접시 11 / 3접시 464로, 0접시 �
 
 ![Environment/Group Cumulative Reward](../assets/tb_group_reward.png)
 
-- `Environment/Cumulative Reward`는 **개인 보상만** 담는다. 스텝 비용이 깔려 있어 최대 약 +0.46이다.
+- `Environment/Cumulative Reward`는 **개인 보상만** 담는다. 스텝 비용이 깔려 있어 final3 마지막 0.5M 평균이 +0.46이다(요약 한 번 단위 최대 +0.59).
   성과는 팀 보상과 `GoalReached`로 읽는다 (`docs/DESIGN.md` §4-16).
 - v2의 누적 4.2M\~4.6M(v2 기준 1.2M\~1.6M) 급락은 레시피 2종, 손질 전환이 이어진 구간이다. 손질이 켜지자
-  냄비를 한 번도 채우지 못했다(`Kitchen/PotCommitted` 0). 약 1.5M 스텝 뒤 스스로 손질 경로를 찾아 회복했다.
+  냄비를 한 번도 채우지 못했다(`Kitchen/PotCommitted` 0). 스스로 손질 경로를 찾아 냄비 채우기는 약 1M 스텝 뒤, 서빙은 약 2M 스텝 뒤부터 다시 늘었다.
 - final 이후 곡선은 최종 난이도 고정이라 서로 직접 비교할 수 있다.
 
 ---
@@ -218,7 +223,7 @@ mlagents-learn configs/undercooked_stage.yaml --run-id=undercooked_stage_s2 --se
 
 ### 추론 확인
 
-1. 셰프 32명의 Behavior Parameters > Model에 `models/undercooked.onnx`를 넣는다 (Behavior Type `Default`).
+1. 셰프 32명의 Behavior Parameters > Model에 그 시점의 `models/undercooked.onnx`(지금은 `archive/runs/undercooked_final3/Chef.onnx`, 재료 2종 코드에서)를 넣는다 (Behavior Type `Default`).
 2. `KitchenEnv`의 `defaultTargetDishes`를 3, `defaultOrderDuration`을 25로 바꾼다.
    **트레이너 없는 Play의 기본값(2 / 20초)은 최종 난이도가 아니다.**
 3. 트레이너 없이 Play. 주방 16개가 모두 모델로 움직인다.
@@ -243,7 +248,7 @@ GIF는 Play 중 `figures/cam.cs` → `rec.cs`로 프레임을 녹화하고 `gif2
 
 | 경로 | 내용 |
 |---|---|
-| `models/undercooked.onnx` | 최종 모델 (`undercooked_final3`) |
+| `models/undercooked.onnx` | 이 보고서 시점의 최종 모델 (`undercooked_final3`). 2026-10-04에 6종 모델 `undercooked_blue_urgent3`로 교체됐다 |
 | `archive/runs/<run-id>/` | 런 26개(최종 체인 6개 + 보완 실험·추론 평가 20개)의 TensorBoard 이벤트, 설정, 런 종료 모델, 실행 기록. 트레이너 콘솔 로그는 `.gitignore`의 `*.log` 때문에 저장소에 없다 (단계 승급 기록은 `stage_log.txt`) |
 | `archive/tools/` | 지표 요약, 에피소드 분석, Unity 추론 확인, 그래프·GIF 생성 스크립트 |
 | `assets/tb_*.png` | 학습 곡선 4장 |

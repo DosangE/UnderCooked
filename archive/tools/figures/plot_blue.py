@@ -94,8 +94,8 @@ def goal_reached():
     fig.savefig("assets/tb_blue_goal_reached.png", facecolor=SURF); plt.close(fig)
 
 
-# Pick rate = dishes made correctly / commits at which that recipe was on the board
-# (same as analyze_pot_fills.py [4]). All four are 45 s / goal 3 inference runs.
+# Pick rate = pots that became that recipe while it was on the board at the first ingredient
+# / commits at which that recipe was on the board (same as analyze_pot_fills.py [4]). All four are 45 s / goal 3 inference runs.
 PICK = [("eval_undercooked_blue_fix9", "fix9", "#86b6ef"),
         ("eval_undercooked_blue_red_mix", "red_mix", "#5598e7"),
         ("eval_undercooked_blue_urgent_45", "urgent (보너스 1.5)", "#256abf"),
@@ -107,8 +107,9 @@ def pick_rates(path):
     ordered, made = collections.Counter(), collections.Counter()
     for r in csv.DictReader(open(path)):
         if r["event"] != "commit" or r["first"] in ("?", "") or r["second"] in ("?", ""): continue
-        for o in {int(x.split(":")[0]) for x in r["ordersAtFirst"].split("|") if x}: ordered[o] += 1
-        if r["wrong"] == "0": made[int(r["cooked"])] += 1
+        first = {int(x.split(":")[0]) for x in r["ordersAtFirst"].split("|") if x}
+        for o in first: ordered[o] += 1
+        if r["wrong"] == "0" and int(r["cooked"]) in first: made[int(r["cooked"])] += 1
     return [made[i] / ordered[i] if ordered[i] else 0 for i in range(len(RECIPES))]
 
 
