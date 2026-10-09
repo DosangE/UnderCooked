@@ -96,10 +96,10 @@ def goal_reached():
 
 # Pick rate = pots that became that recipe while it was on the board at the first ingredient
 # / commits at which that recipe was on the board (same as analyze_pot_fills.py [4]). All four are 45 s / goal 3 inference runs.
-PICK = [("eval_undercooked_blue_fix9", "fix9", "#86b6ef"),
-        ("eval_undercooked_blue_red_mix", "red_mix", "#5598e7"),
-        ("eval_undercooked_blue_urgent_45", "urgent (보너스 1.5)", "#256abf"),
-        ("eval_undercooked_blue_urgent3_45", "urgent3 (보너스 3.0, 최종)", "#104281")]
+PICK = [("eval_undercooked_blue_fix9", "6종 학습 직후 (fix9)", "#86b6ef"),
+        ("eval_undercooked_blue_red_mix", "RedSoup 보강 후 (red_mix)", "#5598e7"),
+        ("eval_undercooked_blue_urgent_45", "급한 주문 보너스 1.5 (urgent)", "#256abf"),
+        ("eval_undercooked_blue_urgent3_45", "보너스 3.0, 최종 (urgent3)", "#104281")]
 RECIPES = ["GreenSoup", "MixSoup", "RedSoup", "BlueSoup", "GreenBlueSoup", "RedBlueSoup"]
 
 
